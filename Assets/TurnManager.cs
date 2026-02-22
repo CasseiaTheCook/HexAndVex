@@ -8,17 +8,14 @@ public class TurnManager : MonoBehaviour
 {
     public static TurnManager instance;
 
-    // Inspector'dan atama gerektirecek Player referansı
     public HexMovement player;
-    public Tilemap groundMap; // Geri tepme için tile kontrolü
+    public Tilemap groundMap;
 
-    // Zar Metinleri (Inspector'dan atanmalı)
     public TMP_Text dietext1;
     public TMP_Text dietext2;
 
     private List<EnemyAI> enemies = new List<EnemyAI>();
     public bool isPlayerTurn = true;
-    private int enemiesFinishedMove = 0;
 
     // --- HEX OFFSETLERİ ---
     private static readonly Vector3Int[] oddOffsets =
@@ -33,19 +30,34 @@ public class TurnManager : MonoBehaviour
         new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0)
     };
 
-    private const float KNOCKBACK_DELAY = 0.4f;
     private const float COMBAT_START_DELAY = 0.5f;
     private const float DICE_VISUAL_DELAY = 0.5f;
 
-    void Awake()
+void Awake()
     {
-        if (instance == null)
+        if (instance == null) instance = this;
+        else Destroy(gameObject);
+
+        // OTOMATİK ATAMA (Güvenlik Ağı)
+        if (player == null) player = FindFirstObjectByType<HexMovement>(); // Sahnede HexMovement scripti olan objeyi bulur
+        
+        if (groundMap == null) 
         {
-            instance = this;
+            GameObject mapObj = GameObject.Find("GroundMap");
+            if (mapObj != null) groundMap = mapObj.GetComponent<Tilemap>();
         }
-        else
+
+        // UI Text'leri isminden bulma (Eğer hiyerarşideki adları farklıysa buraları değiştir)
+        if (dietext1 == null) 
         {
-            Destroy(gameObject);
+            GameObject dt1 = GameObject.Find("DieText1"); // Hiyerarşideki adının tam olarak bu olması lazım
+            if (dt1 != null) dietext1 = dt1.GetComponent<TMP_Text>();
+        }
+        
+        if (dietext2 == null) 
+        {
+            GameObject dt2 = GameObject.Find("DieText2");
+            if (dt2 != null) dietext2 = dt2.GetComponent<TMP_Text>();
         }
     }
 
@@ -56,76 +68,64 @@ public class TurnManager : MonoBehaviour
 
     public void RegisterEnemy(EnemyAI enemy)
     {
-        enemies.Add(enemy);
+        if (!enemies.Contains(enemy)) enemies.Add(enemy);
     }
 
-    public List<EnemyAI> GetEnemies()
-    {
-        return enemies;
-    }
-
+    // Oyuncu hareketini bitirdiğinde HexMovement tarafından çağrılır
     public void PlayerFinishedMove(Vector3Int playerCell)
     {
         if (!isPlayerTurn) return;
-
         isPlayerTurn = false;
 
-        // Temas varsa Attack Coroutine'i başlayıp turu kendi yönetecek.
-        // Temas yoksa, EnemyTurn Coroutine'i başlatılmalıdır.
-        if (CheckForEnemyContact(playerCell, player)) return;
+        // Oyuncu bir düşmanın dibine girdiyse savaşı başlat
+        if (CheckForEnemyContact(playerCell, true)) return;
 
-        // Temas yoksa normal düşman sırasını başlat
+        // Temas yoksa düşmanların turu başlar
         StartCoroutine(EnemyTurn(playerCell));
-    }
-
-    public void EnemyFinishedMove(EnemyAI enemy)
-    {
-        enemiesFinishedMove++;
-
-        // Düşman hareketini bitirdiğinde oyuncuyla temas kontrolü.
-        // Temas varsa Attack Coroutine'i başlayıp turu kendi yönetecek.
-        if (CheckForPlayerContact(enemy.GetCurrentCellPosition(), enemy))
-        {
-            return;
-        }
-
-        // Temas yoksa veya muharebe bittiğinde (Attack metodunun sonundan çağrıldığında)
-        if (enemiesFinishedMove >= enemies.Count)
-        {
-            Debug.Log("🔄 Tur Sona Erdi. Yeni Tur Başlıyor (Oyuncu Sırası)");
-            enemiesFinishedMove = 0;
-            isPlayerTurn = true;
-        }
     }
 
     private IEnumerator EnemyTurn(Vector3Int playerCell)
     {
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSeconds(0.2f); // Tur geçişi için ufak bir es
 
-        // Ölmüş düşmanları kontrol et ve listeden temizle
+        // Ölmüş düşmanları listeden temizle
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
-        // Her düşman hareket etmeye başlar
         foreach (var e in enemies)
         {
-            if (e != null)
+            if (e == null) continue;
+
+            // Zaten oyuncunun yanındaysa, hiç hareket etmeden direkt saldır!
+            if (IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
             {
-                e.MoveTowardsPlayer(playerCell);
+                StartCoroutine(Attack(player, e, player.GetCurrentCellPosition(), e.GetCurrentCellPosition(), false));
+                yield break; // Savaş başladı, diğer düşmanların turu İPTAL (Tur oyuncuya dönecek)
             }
+
+            // Düşmanı hareket ettir
+            e.MoveTowardsPlayer(playerCell);
+            
+            // Düşmanın hareketi bitene kadar bekle (Race condition'ı engeller)
+            yield return new WaitUntil(() => !e.IsMoving());
+
+            // Hareket ettikten sonra oyuncunun dibine girdiyse saldır!
+            if (IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
+            {
+                StartCoroutine(Attack(player, e, player.GetCurrentCellPosition(), e.GetCurrentCellPosition(), false));
+                yield break; // Savaş başladı, tur iptal!
+            }
+
+            yield return new WaitForSeconds(0.1f); // Düşmanlar arası akıcı görünüm için hafif bekleme
         }
 
-        // Eğer hiç düşman kalmadıysa, tur döngüsünü bozmamak için direkt oyuncu turunu başlat
-        if (enemies.Count == 0)
-        {
-            Debug.Log("✅ Tüm düşmanlar temizlendi. Yeni Tur Başlıyor (Oyuncu Sırası)");
-            enemiesFinishedMove = 0;
-            isPlayerTurn = true;
-        }
+        // Eğer hiç savaş yaşanmadıysa standart olarak turu oyuncuya ver
+        Debug.Log("🔄 Düşman turu bitti. Sıra oyuncuda.");
+        isPlayerTurn = true;
     }
 
     // --- SAVAŞ MEKANİKLERİ ---
 
-    private bool CheckForEnemyContact(Vector3Int playerCell, HexMovement targetPlayer)
+    private bool CheckForEnemyContact(Vector3Int playerCell, bool isPlayerAttacking)
     {
         foreach (var enemy in enemies)
         {
@@ -135,163 +135,119 @@ public class TurnManager : MonoBehaviour
 
             if (IsNeighbor(playerCell, enemyCell))
             {
-                Debug.Log($"⚔️ **SAVAŞ BAŞLADI!** Karakter Düşman ile temas etti.");
-                // Oyuncu saldırdığı için: isPlayerAttacking = true
-                StartCoroutine(Attack(targetPlayer, enemy, playerCell, enemyCell, true));
+                Debug.Log($"⚔️ **SAVAŞ BAŞLADI!**");
+                StartCoroutine(Attack(player, enemy, playerCell, enemyCell, isPlayerAttacking));
                 return true;
             }
         }
         return false;
     }
 
-    private bool CheckForPlayerContact(Vector3Int enemyCell, EnemyAI enemy)
-    {
-        if (player == null)
-        {
-            Debug.LogError("TurnManager: Player (HexMovement) referansı atanmamış!");
-            return false;
-        }
-
-        Vector3Int playerCell = player.GetCurrentCellPosition();
-
-        if (IsNeighbor(enemyCell, playerCell))
-        {
-            Debug.Log($"⚠️ **SAVAŞ BAŞLADI! (Düşman Saldırısı)** Düşman pozisyonunda durdu ve saldırdı.");
-            // Düşman saldırdığı için: isPlayerAttacking = false
-            StartCoroutine(Attack(player, enemy, playerCell, enemyCell, false));
-            return true;
-        }
-        return false;
-    }
-
-    // Merkezi Saldırı Metodu
     private IEnumerator Attack(HexMovement targetPlayer, EnemyAI enemy, Vector3Int playerCell, Vector3Int enemyCell, bool isPlayerAttacking)
     {
-        // 1. ADIM: Temas Sonrası Bekle (0.5 saniye)
         yield return new WaitForSeconds(COMBAT_START_DELAY);
 
-        // 2. ADIM: ZAR ATMA (2d6)
+        // ZAR ATMA (2d6)
         int die1 = Random.Range(1, 7);
         int die2 = Random.Range(1, 7);
         int totalDamage = die1 + die2;
 
-        Debug.Log($"    Saldıran ({(isPlayerAttacking ? "Karakter" : "Düşman")}) Zar Sonuçları: Zar 1={die1}, Zar 2={die2}. Toplam Hasar: {totalDamage}");
-
         ShowDiceResults(die1, die2);
-
-        // 3. ADIM: Zar Sonucunu Göstermek İçin Bekle (0.5 saniye)
         yield return new WaitForSeconds(DICE_VISUAL_DELAY);
-
-        // 4. ADIM: HASAR UYGULAMA & GERİ TEPME BAŞLATMA
 
         HealthScript targetHealth = isPlayerAttacking ? enemy.health : targetPlayer.health;
         HealthScript attackerHealth = isPlayerAttacking ? targetPlayer.health : enemy.health;
-        string targetName = isPlayerAttacking ? "Düşman" : "Karakter";
-        string attackerName = isPlayerAttacking ? "Karakter" : "Düşman";
 
         bool willDie = targetHealth.currentHP <= totalDamage;
         targetHealth.TakeDamage(totalDamage);
 
         if (willDie)
         {
-            Debug.Log($"💀 {targetName} Öldü! {attackerName} kazandı.");
-
-            // Eğer düşman öldüyse, listeden çıkar
-            if (isPlayerAttacking)
-            {
-                enemies.Remove(enemy);
-            }
+            Debug.Log("💀 Hedef öldü!");
+            if (isPlayerAttacking) enemies.Remove(enemy);
         }
         else
         {
-            Debug.Log($"💥 {targetName} hayatta kaldı. Geri tepme (Knockback) uygulanıyor ve {attackerName} 1 hasar alıyor.");
-
+            Debug.Log("💥 Hedef hayatta kaldı! İki taraf da geri sekiyor ve saldıran 1 hasar alıyor.");
             attackerHealth.TakeDamage(1);
 
-            // Geri Tepme (Knockback) hareketini başlat ve bitmesini bekle
-            yield return StartCoroutine(ExecuteKnockback(targetPlayer, enemy, playerCell, enemyCell, isPlayerAttacking));
+            // İKİSİNİ DE GERİ TEP
+            yield return StartCoroutine(ExecuteKnockback(targetPlayer, enemy, playerCell, enemyCell));
         }
 
-        // 5. ADIM: Zar Görselini Gizle
         HideDiceResults();
 
-        // 6. ADIM: Turu İlerlet
-        // Oyuncu saldırdıysa, oyuncu turu bitti (isPlayerTurn = false) ve düşman sırasına geçilmelidir.
-        if (isPlayerAttacking)
-        {
-            StartCoroutine(EnemyTurn(targetPlayer.GetCurrentCellPosition()));
-        }
-        else // Düşman saldırdıysa, bu sadece bir düşmanın hareketini ve saldırısını bitirdiği anlamına gelir.
-        {
-            EnemyFinishedMove(enemy);
-        }
+        // KURAL: Savaş bittiğinde tur HER ZAMAN oyuncuya geçer!
+        Debug.Log("🔄 Savaş bitti. Sıra oyuncuda.");
+        isPlayerTurn = true;
     }
 
-
-    // Zar Metinlerini Gösterme Metodu
-    public void ShowDiceResults(int die1, int die2)
+    private IEnumerator ExecuteKnockback(HexMovement playerObj, EnemyAI enemyObj, Vector3Int pCell, Vector3Int eCell)
     {
-        if (dietext1 != null && dietext2 != null)
-        {
-            dietext1.gameObject.SetActive(true);
-            dietext2.gameObject.SetActive(true);
-            dietext1.text = die1.ToString();
-            dietext2.text = die2.ToString();
-        }
+        // En güvenli yöntem: Zıt yönü dünya pozisyonu (uzaklık) ile bulmak
+        Vector3Int playerKnockbackCell = GetOppositeCell(pCell, eCell);
+        Vector3Int enemyKnockbackCell = GetOppositeCell(eCell, pCell);
+
+        playerObj.StartKnockbackMovement(playerKnockbackCell);
+        enemyObj.StartKnockbackMovement(enemyKnockbackCell);
+
+        // İkisinin de hareketinin bitmesini bekle
+        yield return new WaitUntil(() => 
+            (playerObj == null || !playerObj.IsMoving()) && 
+            (enemyObj == null || !enemyObj.IsMoving())
+        );
     }
 
-    // Zar Metinlerini Gizleme Metodu
-    public void HideDiceResults()
+    // Hedef hücreden "en uzak" komşuyu (tam zıt yönü) bulur
+    private Vector3Int GetOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
     {
-        if (dietext1 != null && dietext2 != null)
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        Vector3Int bestCell = centerCell;
+        float maxDist = -1f;
+
+        Vector3 awayWorldPos = groundMap.GetCellCenterWorld(awayFromCell);
+
+        foreach (var off in offsets)
         {
-            dietext1.gameObject.SetActive(false);
-            dietext2.gameObject.SetActive(false);
+            Vector3Int neighbor = centerCell + off;
+            if (!groundMap.HasTile(neighbor)) continue; // Harita dışına itme
+
+            Vector3 neighborWorldPos = groundMap.GetCellCenterWorld(neighbor);
+            float dist = Vector3.Distance(neighborWorldPos, awayWorldPos);
+
+            if (dist > maxDist)
+            {
+                maxDist = dist;
+                bestCell = neighbor;
+            }
         }
+        return bestCell;
     }
-
-    // Geri Tepme Coroutine'i
-    private IEnumerator ExecuteKnockback(HexMovement targetPlayer, EnemyAI enemy, Vector3Int playerCell, Vector3Int enemyCell, bool isPlayerAttacking)
-    {
-        // Geri tepme yönünü belirle
-        Vector3Int kbDirection = isPlayerAttacking ? enemyCell - playerCell : playerCell - enemyCell;
-
-        // Geri tepme, saldırılan karakteri saldırgan karakterden uzaklaştırır.
-        Vector3Int targetKnockbackCell;
-        Vector3Int attackerKnockbackCell;
-
-        if (isPlayerAttacking) // Oyuncu Saldırdı -> Düşman geri tepsin
-        {
-            targetKnockbackCell = enemyCell + kbDirection;
-            attackerKnockbackCell = playerCell; // Oyuncu yerinde kalır
-
-            enemy.StartKnockbackMovement(targetKnockbackCell);
-        }
-        else // Düşman Saldırdı -> Oyuncu geri tepsin
-        {
-            targetKnockbackCell = playerCell + kbDirection;
-            attackerKnockbackCell = enemyCell; // Düşman yerinde kalır
-
-            targetPlayer.StartKnockbackMovement(targetKnockbackCell);
-        }
-
-        // Geri tepme hareketlerinin bitmesini bekle
-        yield return new WaitUntil(() => targetPlayer != null && !targetPlayer.IsMoving() && enemy != null && !enemy.IsMoving());
-
-        Debug.Log("💥 Geri tepme hareketleri bitti.");
-    }
-
-    // --- YARDIMCI METOTLAR ---
 
     private bool IsNeighbor(Vector3Int cell1, Vector3Int cell2)
     {
         Vector3Int[] offsets = (cell1.y % 2 != 0) ? evenOffsets : oddOffsets;
-
         foreach (var off in offsets)
         {
-            if (cell1 + off == cell2)
-                return true;
+            if (cell1 + off == cell2) return true;
         }
         return false;
+    }
+
+    public void ShowDiceResults(int die1, int die2)
+    {
+        if (dietext1 != null && dietext2 != null)
+        {
+            dietext1.gameObject.SetActive(true); dietext2.gameObject.SetActive(true);
+            dietext1.text = die1.ToString(); dietext2.text = die2.ToString();
+        }
+    }
+
+    public void HideDiceResults()
+    {
+        if (dietext1 != null && dietext2 != null)
+        {
+            dietext1.gameObject.SetActive(false); dietext2.gameObject.SetActive(false);
+        }
     }
 }

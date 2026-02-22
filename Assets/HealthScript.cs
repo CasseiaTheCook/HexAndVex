@@ -2,8 +2,8 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Oyuncu ve düþman için ortak saðlýk sistemi.
-/// Hasar, iyileþtirme ve ölüm olaylarýný yönetir.
+/// Oyuncu ve dï¿½ï¿½man iï¿½in ortak saï¿½lï¿½k sistemi.
+/// Hasar, iyileï¿½tirme ve ï¿½lï¿½m olaylarï¿½nï¿½ yï¿½netir.
 /// </summary>
 public class HealthScript : MonoBehaviour
 {
@@ -12,13 +12,14 @@ public class HealthScript : MonoBehaviour
     public int currentHP;
 
     public System.Action OnDeath;
-    public System.Action<int> OnDamaged; // güncel HP
+    public System.Action<int> OnDamaged; // gï¿½ncel HP
 
     public TMP_Text hptext;
 
     void Start()
     {
         currentHP = maxHP;
+        updateHealth();
     }
 
     public void TakeDamage(int dmg)
@@ -39,7 +40,7 @@ public class HealthScript : MonoBehaviour
 
     private void Die()
     {
-        Debug.Log($"{gameObject.name} öldü!");
+        Debug.Log($"{gameObject.name} ï¿½ldï¿½!");
         OnDeath?.Invoke();
         Destroy(gameObject);
     }
