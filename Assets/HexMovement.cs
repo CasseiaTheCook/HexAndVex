@@ -15,14 +15,13 @@ public class HexMovement : MonoBehaviour
     private Vector3Int currentCellPosition;
     private Vector3 targetWorldPosition;
     private bool isMoving = false;
-    private bool isKnockbackMove = false; // Geri tepme mi, kendi hareketi mi ayırmak için
+    private bool isKnockbackMove = false;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
     void Start()
     {
-        // OTOMATİK ATAMA (Güvenlik Ağı)
         if (groundMap == null) groundMap = GameObject.Find("GroundMap").GetComponent<Tilemap>();
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
@@ -53,7 +52,12 @@ public class HexMovement : MonoBehaviour
 
             if (IsNeighbor(currentCellPosition, clickedCell) && groundMap.HasTile(clickedCell))
             {
-                isKnockbackMove = false; // Kullanıcının isteyerek yaptığı bir hareket
+                isKnockbackMove = false; 
+                
+                // YENİ: Oyuncu bir hamle seçtiği an turu kilitlenir ve sarı kareler silinir!
+                TurnManager.instance.isPlayerTurn = false;
+                ClearHighlights();
+                
                 MoveCharacter(clickedCell);
             }
         }
@@ -74,18 +78,18 @@ public class HexMovement : MonoBehaviour
                 transform.position = targetWorldPosition;
                 isMoving = false;
 
-                // Hangi hareket olursa olsun (normal veya knockback), durduğumuzda pozisyonu eşitle ve sarı kareleri çiz
-                currentCellPosition = groundMap.WorldToCell(transform.position);
-                UpdateHighlights();
+                Vector3Int newCell = groundMap.WorldToCell(transform.position);
+                if (newCell != currentCellPosition)
+                {
+                    currentCellPosition = newCell;
+                }
 
-                // Eğer normal hareketse (geri tepme değilse) turu bitir
                 if (!isKnockbackMove)
                 {
                     TurnManager.instance.PlayerFinishedMove(currentCellPosition);
                 }
-
-                // Geri tepme bittiyse bayrağı sıfırla
-                isKnockbackMove = false;
+                
+                isKnockbackMove = false; 
             }
         }
     }
@@ -101,7 +105,7 @@ public class HexMovement : MonoBehaviour
     {
         if (groundMap.HasTile(targetCell))
         {
-            isKnockbackMove = true;
+            isKnockbackMove = true; 
             currentCellPosition = targetCell;
             MoveCharacter(targetCell);
         }
@@ -116,7 +120,7 @@ public class HexMovement : MonoBehaviour
         return false;
     }
 
-    private void UpdateHighlights()
+    public void UpdateHighlights()
     {
         highlightMap.ClearAllTiles();
         HighlightCell(currentCellPosition, CURRENT_POS_COLOR);
@@ -127,6 +131,11 @@ public class HexMovement : MonoBehaviour
             Vector3Int neighbor = currentCellPosition + off;
             if (groundMap.HasTile(neighbor)) HighlightCell(neighbor, MOVEABLE_COLOR);
         }
+    }
+
+    public void ClearHighlights()
+    {
+        highlightMap.ClearAllTiles();
     }
 
     private void HighlightCell(Vector3Int cell, Color color)

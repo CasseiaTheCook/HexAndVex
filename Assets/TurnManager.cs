@@ -17,6 +17,9 @@ public class TurnManager : MonoBehaviour
     private List<EnemyAI> enemies = new List<EnemyAI>();
     public bool isPlayerTurn = true;
 
+    // Bu tur sersemlemiş (Stun yemiş) düşmanları tuttuğumuz liste
+    private List<EnemyAI> stunnedEnemiesThisTurn = new List<EnemyAI>();
+
     // --- HEX OFFSETLERİ ---
     private static readonly Vector3Int[] oddOffsets =
     {
@@ -31,30 +34,29 @@ public class TurnManager : MonoBehaviour
     };
 
     private const float COMBAT_START_DELAY = 0.5f;
-    private const float DICE_VISUAL_DELAY = 0.5f;
+    private const float DICE_VISUAL_DELAY = 1.0f;
 
-void Awake()
+    void Awake()
     {
         if (instance == null) instance = this;
         else Destroy(gameObject);
 
-        // OTOMATİK ATAMA (Güvenlik Ağı)
-        if (player == null) player = FindFirstObjectByType<HexMovement>(); // Sahnede HexMovement scripti olan objeyi bulur
-        
-        if (groundMap == null) 
+        // OTOMATİK ATAMALAR (Güvenlik)
+        if (player == null) player = FindFirstObjectByType<HexMovement>();
+
+        if (groundMap == null)
         {
             GameObject mapObj = GameObject.Find("GroundMap");
             if (mapObj != null) groundMap = mapObj.GetComponent<Tilemap>();
         }
 
-        // UI Text'leri isminden bulma (Eğer hiyerarşideki adları farklıysa buraları değiştir)
-        if (dietext1 == null) 
+        if (dietext1 == null)
         {
-            GameObject dt1 = GameObject.Find("DieText1"); // Hiyerarşideki adının tam olarak bu olması lazım
+            GameObject dt1 = GameObject.Find("DieText1");
             if (dt1 != null) dietext1 = dt1.GetComponent<TMP_Text>();
         }
-        
-        if (dietext2 == null) 
+
+        if (dietext2 == null)
         {
             GameObject dt2 = GameObject.Find("DieText2");
             if (dt2 != null) dietext2 = dt2.GetComponent<TMP_Text>();
@@ -64,6 +66,8 @@ void Awake()
     void Start()
     {
         HideDiceResults();
+        // Oyun başlar başlamaz düşmanlara hedeflerini kilitlet
+        Invoke("LockAllEnemyIntents", 0.5f);
     }
 
     public void RegisterEnemy(EnemyAI enemy)
@@ -71,134 +75,251 @@ void Awake()
         if (!enemies.Contains(enemy)) enemies.Add(enemy);
     }
 
-    // Oyuncu hareketini bitirdiğinde HexMovement tarafından çağrılır
-    public void PlayerFinishedMove(Vector3Int playerCell)
+    // --- HEDEFLERİ KİLİTLEME METODU (OKLAR İÇİN) ---
+    public void LockAllEnemyIntents()
     {
-        if (!isPlayerTurn) return;
-        isPlayerTurn = false;
+        if (player == null || player.health.currentHP <= 0) return;
 
-        // Oyuncu bir düşmanın dibine girdiyse savaşı başlat
-        if (CheckForEnemyContact(playerCell, true)) return;
-
-        // Temas yoksa düşmanların turu başlar
-        StartCoroutine(EnemyTurn(playerCell));
-    }
-
-    private IEnumerator EnemyTurn(Vector3Int playerCell)
-    {
-        yield return new WaitForSeconds(0.2f); // Tur geçişi için ufak bir es
-
-        // Ölmüş düşmanları listeden temizle
-        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        Vector3Int pCell = player.GetCurrentCellPosition();
 
         foreach (var e in enemies)
         {
-            if (e == null) continue;
-
-            // Zaten oyuncunun yanındaysa, hiç hareket etmeden direkt saldır!
-            if (IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
+            if (e != null)
             {
-                StartCoroutine(Attack(player, e, player.GetCurrentCellPosition(), e.GetCurrentCellPosition(), false));
-                yield break; // Savaş başladı, diğer düşmanların turu İPTAL (Tur oyuncuya dönecek)
+                bool isStunned = stunnedEnemiesThisTurn.Contains(e);
+                e.LockNextMove(pCell, isStunned);
             }
-
-            // Düşmanı hareket ettir
-            e.MoveTowardsPlayer(playerCell);
-            
-            // Düşmanın hareketi bitene kadar bekle (Race condition'ı engeller)
-            yield return new WaitUntil(() => !e.IsMoving());
-
-            // Hareket ettikten sonra oyuncunun dibine girdiyse saldır!
-            if (IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
-            {
-                StartCoroutine(Attack(player, e, player.GetCurrentCellPosition(), e.GetCurrentCellPosition(), false));
-                yield break; // Savaş başladı, tur iptal!
-            }
-
-            yield return new WaitForSeconds(0.1f); // Düşmanlar arası akıcı görünüm için hafif bekleme
         }
-
-        // Eğer hiç savaş yaşanmadıysa standart olarak turu oyuncuya ver
-        Debug.Log("🔄 Düşman turu bitti. Sıra oyuncuda.");
-        isPlayerTurn = true;
     }
 
-    // --- SAVAŞ MEKANİKLERİ ---
-
-    private bool CheckForEnemyContact(Vector3Int playerCell, bool isPlayerAttacking)
+    // --- 1. OYUNCUNUN HAMLESİ ---
+    // --- 1. OYUNCUNUN HAMLESİ ---
+    public void PlayerFinishedMove(Vector3Int playerCell)
     {
-        foreach (var enemy in enemies)
-        {
-            if (enemy == null || enemy.health.currentHP <= 0) continue;
+        // YENİ: Eskiden burada "if (!isPlayerTurn) return;" yazıyordu. Bunu sildik!
+        // Çünkü oyuncu tıkladığı an HexMovement içinde bu değeri bilerek false yaptık.
 
-            Vector3Int enemyCell = enemy.GetCurrentCellPosition();
-
-            if (IsNeighbor(playerCell, enemyCell))
-            {
-                Debug.Log($"⚔️ **SAVAŞ BAŞLADI!**");
-                StartCoroutine(Attack(player, enemy, playerCell, enemyCell, isPlayerAttacking));
-                return true;
-            }
-        }
-        return false;
+        StartCoroutine(HandlePlayerPhase(playerCell));
     }
 
-    private IEnumerator Attack(HexMovement targetPlayer, EnemyAI enemy, Vector3Int playerCell, Vector3Int enemyCell, bool isPlayerAttacking)
+    // --- 2. OYUNCU FAZI (Yürüyüş sonrası anında saldırı) ---
+    private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
+    {
+        List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
+
+        if (adjacentEnemies.Count > 0)
+        {
+            Debug.Log("🗡️ İLK SALDIRI (FIRST STRIKE)! Oyuncu hamlesini yapıp düşmana vurdu.");
+            yield return StartCoroutine(MultiAttack(adjacentEnemies, true));
+        }
+
+        // Oyuncu hayattaysa Düşman Fazına geç
+        if (player != null && player.health.currentHP > 0)
+        {
+            StartCoroutine(EnemyPhase());
+        }
+    }
+
+    // --- 3. DÜŞMAN FAZI ---
+    private IEnumerator EnemyPhase()
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        // Ölmüş düşmanları listeden temizle (Null kontrolü)
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        // 1. AŞAMA: Tüm düşmanlara KİLİTLENDİKLERİ YERE gitme emrini ver!
+        foreach (var e in enemies)
+        {
+            // Eğer sersemlemediyse (stun yemediyse) kilitli hedefine gider
+            if (e != null && !stunnedEnemiesThisTurn.Contains(e))
+            {
+                e.ExecuteLockedMove();
+            }
+        }
+
+        // 2. AŞAMA: TÜM düşmanların hareketinin bitmesini bekle
+        // Bu sayede spam tıklama yapılsa bile oyunun mantığı bozulmaz
+        yield return new WaitUntil(() =>
+        {
+            foreach (var e in enemies)
+            {
+                if (e != null && e.IsMoving()) return false;
+            }
+            return true;
+        });
+
+        yield return new WaitForSeconds(0.2f);
+
+        // 3. AŞAMA: Düşmanlar yürüdü ve durdu. PUSU SAVAŞI KONTROLÜ
+        List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
+
+        // Sersemlemiş (Stunned) düşmanlar o tur sana vuramaz, listeden çıkarıyoruz
+        adjacentEnemies.RemoveAll(e => stunnedEnemiesThisTurn.Contains(e));
+
+        if (adjacentEnemies.Count > 0)
+        {
+            Debug.Log("🛡️ DÜŞMAN SALDIRISI! Düşmanlar oyuncuya saldırdı.");
+            // Düşmanlar başlattığı için playerInitiated = false (Oyuncu hasar alabilir)
+            yield return StartCoroutine(MultiAttack(adjacentEnemies, false));
+        }
+
+        // 4. AŞAMA: TURU OYUNCUYA DEVRETME
+        if (player != null && player.health.currentHP > 0)
+        {
+            Debug.Log("🔄 Tur bitti. Sıra oyuncuda. Düşmanlar BİR SONRAKİ HAMLELERİNİ planlıyor...");
+
+            // Yeni tura hazırlık: Sersemletmeleri temizle
+            stunnedEnemiesThisTurn.Clear();
+
+            // Sırayı oyuncuya ver (Bu sayede HexMovement input almaya başlar)
+            isPlayerTurn = true;
+
+            // GÖRSEL GÜNCELLEME: Oyuncunun hareket edeceği kareleri (highlight) tekrar çiz
+            player.UpdateHighlights();
+
+            // STRATEJİK GÜNCELLEME: Düşmanlar bir sonraki hamlelerini hesaplayıp okları kilitler
+            LockAllEnemyIntents();
+        }
+    }
+
+    // --- 4. ÇOKLU SAVAŞ & KNOCKBACK (Ortak Metot) ---
+    private IEnumerator MultiAttack(List<EnemyAI> targets, bool playerInitiated)
     {
         yield return new WaitForSeconds(COMBAT_START_DELAY);
 
-        // ZAR ATMA (2d6)
         int die1 = Random.Range(1, 7);
         int die2 = Random.Range(1, 7);
         int totalDamage = die1 + die2;
 
+        int targetCount = targets.Count;
+        int damagePerEnemy = totalDamage / targetCount;
+
+        Debug.Log($"⚔️ SAVAŞ! {targetCount} düşmana karşı toplam {totalDamage} hasar! Düşman başı {damagePerEnemy} hasar.");
+
         ShowDiceResults(die1, die2);
         yield return new WaitForSeconds(DICE_VISUAL_DELAY);
 
-        HealthScript targetHealth = isPlayerAttacking ? enemy.health : targetPlayer.health;
-        HealthScript attackerHealth = isPlayerAttacking ? targetPlayer.health : enemy.health;
+        // Düşman ölürse objesi silineceği için merkez noktayı önceden kaydediyoruz.
+        Vector3Int referenceEnemyPos = targets[0].GetCurrentCellPosition();
 
-        bool willDie = targetHealth.currentHP <= totalDamage;
-        targetHealth.TakeDamage(totalDamage);
+        bool anyEnemySurvived = false;
+        List<EnemyAI> survivors = new List<EnemyAI>();
 
-        if (willDie)
+        foreach (var enemy in targets)
         {
-            Debug.Log("💀 Hedef öldü!");
-            if (isPlayerAttacking) enemies.Remove(enemy);
+            if (enemy == null) continue;
+
+            bool enemyWillDie = enemy.health.currentHP <= damagePerEnemy;
+            enemy.health.TakeDamage(damagePerEnemy);
+
+            if (enemyWillDie)
+            {
+                Debug.Log($"💀 Düşman öldü!");
+                enemies.Remove(enemy);
+            }
+            else
+            {
+                anyEnemySurvived = true;
+                survivors.Add(enemy);
+            }
+        }
+
+        // --- FIRST STRIKE VE HASAR MANTIĞI ---
+        if (playerInitiated)
+        {
+            Debug.Log($"💥 FIRST STRIKE AVANTAJI! Karakterimiz hasar almıyor.");
+
+            // First Strike yiyen ve hayatta kalan tüm düşmanları Sersemlet (Stun)
+            foreach (var surv in survivors)
+            {
+                if (!stunnedEnemiesThisTurn.Contains(surv))
+                {
+                    stunnedEnemiesThisTurn.Add(surv);
+                    Debug.Log($"💫 {surv.gameObject.name} Sersemledi! Bu tur ne yürüyebilecek ne de vurabilecek.");
+                }
+            }
         }
         else
         {
-            Debug.Log("💥 Hedef hayatta kaldı! İki taraf da geri sekiyor ve saldıran 1 hasar alıyor.");
-            attackerHealth.TakeDamage(1);
-
-            // İKİSİNİ DE GERİ TEP
-            yield return StartCoroutine(ExecuteKnockback(targetPlayer, enemy, playerCell, enemyCell));
+            // Eğer savaşı düşman başlattıysa ve hayatta kalan varsa karakter hasar alır
+            if (anyEnemySurvived)
+            {
+                Debug.Log($"💥 Düşmanlar saldırdığı için karakterimiz 1 hasar alıyor!");
+                player.health.TakeDamage(1);
+            }
         }
+
+        if (player == null || player.health.currentHP <= 0)
+        {
+            HideDiceResults();
+            Debug.Log("💀 Oyuncu öldü. Oyun Bitti!");
+            yield break;
+        }
+
+        // --- HER DURUMDA GERİ TEPME (KNOCKBACK) ---
+        Debug.Log("💥 Çarpışma şiddetiyle herkes geri savruluyor!");
+
+        // Hayatta kalan düşmanlar seker
+        foreach (var surv in survivors)
+        {
+            Vector3Int eKb = GetOppositeCell(surv.GetCurrentCellPosition(), player.GetCurrentCellPosition());
+            surv.StartKnockbackMovement(eKb);
+        }
+
+        // Oyuncu HER HALÜKARDA (düşman ölse bile) ilk hedefin olduğu konumdan zıt yöne seker
+        Vector3Int pKb = GetOppositeCell(player.GetCurrentCellPosition(), referenceEnemyPos);
+        player.StartKnockbackMovement(pKb);
+
+        // Herkesin sekme hareketinin bitmesini bekle
+        yield return new WaitUntil(() =>
+        {
+            if (player != null && player.IsMoving()) return false;
+            foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
+            return true;
+        });
 
         HideDiceResults();
 
-        // KURAL: Savaş bittiğinde tur HER ZAMAN oyuncuya geçer!
-        Debug.Log("🔄 Savaş bitti. Sıra oyuncuda.");
-        isPlayerTurn = true;
+        // ZİNCİRLEME REAKSİYON (PINBALL ETKİSİ)
+        if (player != null && player.health.currentHP > 0)
+        {
+            List<EnemyAI> newAdjacents = GetAdjacentEnemies(player.GetCurrentCellPosition());
+            if (newAdjacents.Count > 0)
+            {
+                Debug.Log("⛓️ ZİNCİRLEME REAKSİYON! Karakter çarptığı yeni gruba karşı savaşa giriyor!");
+                yield return StartCoroutine(MultiAttack(newAdjacents, playerInitiated));
+            }
+        }
     }
 
-    private IEnumerator ExecuteKnockback(HexMovement playerObj, EnemyAI enemyObj, Vector3Int pCell, Vector3Int eCell)
+    // --- YARDIMCI METOTLAR ---
+
+    public bool IsEnemyAtCell(Vector3Int cell)
     {
-        // En güvenli yöntem: Zıt yönü dünya pozisyonu (uzaklık) ile bulmak
-        Vector3Int playerKnockbackCell = GetOppositeCell(pCell, eCell);
-        Vector3Int enemyKnockbackCell = GetOppositeCell(eCell, pCell);
-
-        playerObj.StartKnockbackMovement(playerKnockbackCell);
-        enemyObj.StartKnockbackMovement(enemyKnockbackCell);
-
-        // İkisinin de hareketinin bitmesini bekle
-        yield return new WaitUntil(() => 
-            (playerObj == null || !playerObj.IsMoving()) && 
-            (enemyObj == null || !enemyObj.IsMoving())
-        );
+        foreach (var e in enemies)
+        {
+            if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == cell) return true;
+        }
+        return false;
     }
 
-    // Hedef hücreden "en uzak" komşuyu (tam zıt yönü) bulur
+    private List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
+    {
+        List<EnemyAI> adjacentList = new List<EnemyAI>();
+        foreach (var enemy in enemies)
+        {
+            if (enemy != null && enemy.health.currentHP > 0)
+            {
+                if (IsNeighbor(playerCell, enemy.GetCurrentCellPosition()))
+                {
+                    adjacentList.Add(enemy);
+                }
+            }
+        }
+        return adjacentList;
+    }
+
     private Vector3Int GetOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
     {
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
@@ -210,7 +331,10 @@ void Awake()
         foreach (var off in offsets)
         {
             Vector3Int neighbor = centerCell + off;
-            if (!groundMap.HasTile(neighbor)) continue; // Harita dışına itme
+
+            // Harita dışına, oyuncunun veya diğer düşmanların üstüne sekme!
+            if (!groundMap.HasTile(neighbor)) continue;
+            if (neighbor == player.GetCurrentCellPosition() || IsEnemyAtCell(neighbor)) continue;
 
             Vector3 neighborWorldPos = groundMap.GetCellCenterWorld(neighbor);
             float dist = Vector3.Distance(neighborWorldPos, awayWorldPos);
