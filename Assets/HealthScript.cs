@@ -18,7 +18,20 @@ public class HealthScript : MonoBehaviour
 
     void Start()
     {
-        currentHP = maxHP;
+        if (gameObject.CompareTag("Player"))
+        {
+            // RunManager'daki kalıcı can verilerini çek
+            if (RunManager.instance != null)
+            {
+                maxHP = RunManager.instance.playerMaxHealth;
+                currentHP = RunManager.instance.playerCurrentHealth;
+            }
+        }
+        else
+        {
+            // Düşmanlar için normal Inspector değeri geçerli olsun
+            currentHP = maxHP;
+        }
         updateHealth();
     }
 

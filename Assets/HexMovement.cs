@@ -36,6 +36,7 @@ public class HexMovement : MonoBehaviour
     void Update()
     {
         HandleMovement();
+        // HexMovement.cs Update içinde:
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
         {
             HandleMovementInput();
@@ -52,12 +53,12 @@ public class HexMovement : MonoBehaviour
 
             if (IsNeighbor(currentCellPosition, clickedCell) && groundMap.HasTile(clickedCell))
             {
-                isKnockbackMove = false; 
-                
+                isKnockbackMove = false;
+
                 // YENİ: Oyuncu bir hamle seçtiği an turu kilitlenir ve sarı kareler silinir!
                 TurnManager.instance.isPlayerTurn = false;
                 ClearHighlights();
-                
+
                 MoveCharacter(clickedCell);
             }
         }
@@ -88,8 +89,8 @@ public class HexMovement : MonoBehaviour
                 {
                     TurnManager.instance.PlayerFinishedMove(currentCellPosition);
                 }
-                
-                isKnockbackMove = false; 
+
+                isKnockbackMove = false;
             }
         }
     }
@@ -105,7 +106,7 @@ public class HexMovement : MonoBehaviour
     {
         if (groundMap.HasTile(targetCell))
         {
-            isKnockbackMove = true; 
+            isKnockbackMove = true;
             currentCellPosition = targetCell;
             MoveCharacter(targetCell);
         }
