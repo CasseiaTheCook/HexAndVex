@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SharpenedBladesPerk
   perkName: Sharpened Blades
   description: +2 to all dices.
+  priority: 1

@@ -163,61 +163,101 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator MultiAttack(List<EnemyAI> targets, bool playerInitiated)
     {
-        yield return new WaitForSeconds(COMBAT_START_DELAY);
+        yield return new WaitForSeconds(0.3f);
 
+        // --- ADIM 1: ZARLARI AT VE GÖSTER ---
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
+        for (int i = 0; i < diceCount; i++) currentRolls.Add(Random.Range(1, 7));
 
-        for (int i = 0; i < diceCount; i++)
-        {
-            currentRolls.Add(Random.Range(1, 7));
-        }
+        CombatPayload payload = new CombatPayload(currentRolls);
 
-        CombatPayload finalCombatData = new CombatPayload(currentRolls);
+        // Zarları ekrana bas ve Master's Focus reroll işlemlerini bitirene kadar bekle
+        yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
-        if (RunManager.instance != null && Random.value < RunManager.instance.criticalChance)
-        {
-            finalCombatData.isCriticalHit = true;
-        }
-
+        // --- ADIM 2: ÖNCELİKLİ PERKLER (SWORD DANCE VB.) ---
+        // Bazı perkler oyunun temel kuralını (Toplama yerine Çarpma gibi) en başta değiştirmeli
         if (RunManager.instance != null)
         {
-            foreach (BasePerk perk in RunManager.instance.activePerks) perk.ModifyCombat(finalCombatData);
+            foreach (BasePerk perk in RunManager.instance.activePerks)
+            {
+                if (perk.GetType().Name == "SwordDancePerk") perk.ModifyCombat(payload);
+            }
         }
 
-        int totalDamage = finalCombatData.GetFinalDamage();
-        int targetCount = targets.Count;
-        int damagePerEnemy = totalDamage / targetCount;
+        // Başlangıç hasarını ekrana "BAM" diye vur
+        UpdateTotalDamageDisplay(payload.GetFinalDamage());
+        yield return new WaitForSeconds(0.7f);
 
-        // --- YENİ ZAR ÇAĞRISI (Tüm listeyi yolluyoruz) ---
-        yield return StartCoroutine(ShowDiceSequence(currentRolls, totalDamage));
+        // --- ADIM 3: JOKER/PERK SIRALAMASI VE ZAR DEDEKTİFİ (PRIORITY SİSTEMİ) ---
+        if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
+        {
+            // İsim arama saçmalığı bitti! Sadece priority numarasına göre küçükten büyüğe diziyoruz.
+            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            perksToProcess.Sort((a, b) => a.priority.CompareTo(b.priority));
 
-        Vector3Int referenceEnemyPos = targets[0].GetCurrentCellPosition();
+            foreach (BasePerk perk in perksToProcess)
+            {
+                int beforeTotal = payload.GetFinalDamage();
+                perk.ModifyCombat(payload);
+
+                // ZAR DEDEKTİFİ: Vanguard veya Rearguard zarın kendisini mi değiştirdi?
+                bool anyDieChanged = false;
+                for (int i = 0; i < currentRolls.Count; i++)
+                {
+                    if (currentRolls[i] != payload.diceRolls[i])
+                    {
+                        currentRolls[i] = payload.diceRolls[i];
+                        AnimateSpecificDie(i, currentRolls[i]); // Zarı BUM yap ve sayısını değiştir
+                        anyDieChanged = true;
+                        yield return new WaitForSeconds(0.3f);
+                    }
+                }
+
+                int afterTotal = payload.GetFinalDamage();
+
+                // Eğer hasar arttıysa veya zar değiştiyse Joker kartını parlat ve toplamı güncelle
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    perk.TriggerVisualPop();
+                    UpdateTotalDamageDisplay(afterTotal);
+                    yield return new WaitForSeconds(0.6f);
+                }
+            }
+        }
+
+        // --- ADIM 4: KRİTİK VURUŞ ---
+        if (Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true;
+            UpdateTotalDamageDisplay(payload.GetFinalDamage());
+            Debug.Log("🎯 KRİTİK!");
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        // --- ADIM 5: HASAR UYGULAMA VE ÖLÜM ---
+        int finalDamage = payload.GetFinalDamage();
+        int damagePerEnemy = finalDamage / targets.Count;
         List<EnemyAI> survivors = new List<EnemyAI>();
 
         foreach (var enemy in targets)
         {
             if (enemy == null) continue;
-
-            bool enemyWillDie = enemy.health.currentHP <= damagePerEnemy;
+            bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
 
-            if (finalCombatData.triggerExplosion) TriggerExplosion(enemy.GetCurrentCellPosition());
+            if (payload.triggerExplosion) TriggerExplosion(enemy.GetCurrentCellPosition());
 
-            if (enemyWillDie)
+            if (dies)
             {
-                int gainedGold = Random.Range(5, 11) + RunManager.instance.bonusGold;
-                RunManager.instance.currentGold += gainedGold;
-                foreach (var perk in RunManager.instance.activePerks) perk.OnEnemyKilled(enemy);
+                RunManager.instance.currentGold += Random.Range(5, 11) + RunManager.instance.bonusGold;
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
                 enemies.Remove(enemy);
             }
-            else
-            {
-                survivors.Add(enemy);
-            }
+            else survivors.Add(enemy);
         }
 
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
         if (enemies.Count <= 0)
@@ -227,62 +267,41 @@ public class TurnManager : MonoBehaviour
             yield break;
         }
 
+        // --- ADIM 6: KNOCKBACK ---
+        if (survivors.Count > 0)
+        {
+            foreach (var s in survivors)
+            {
+                Vector3Int targetCell = GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition());
+                s.StartKnockbackMovement(targetCell);
+            }
+            Vector3Int playerTarget = GetOppositeCell(player.GetCurrentCellPosition(), targets[0].GetCurrentCellPosition());
+            player.StartKnockbackMovement(playerTarget);
+
+            yield return new WaitUntil(() => {
+                if (player != null && player.IsMoving()) return false;
+                foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
+                return true;
+            });
+        }
+
+        // --- ADIM 7: SIRA KONTROLÜ VE ZİNCİRLEME ---
         if (playerInitiated)
         {
-            foreach (var surv in survivors)
-            {
-                if (!stunnedEnemiesThisTurn.Contains(surv)) stunnedEnemiesThisTurn.Add(surv);
-            }
+            foreach (var s in survivors) if (!stunnedEnemiesThisTurn.Contains(s)) stunnedEnemiesThisTurn.Add(s);
         }
-        else
+        else if (survivors.Count > 0)
         {
-            if (survivors.Count > 0)
-            {
-                bool avoidedDamage = false;
-
-                if (RunManager.instance.hasHolyAegis)
-                {
-                    RunManager.instance.hasHolyAegis = false;
-                    avoidedDamage = true;
-                }
-                else if (Random.value < RunManager.instance.dodgeChance)
-                {
-                    avoidedDamage = true;
-                }
-
-                if (!avoidedDamage) player.health.TakeDamage(1);
-            }
+            bool dodged = RunManager.instance.hasHolyAegis || Random.value < RunManager.instance.dodgeChance;
+            if (RunManager.instance.hasHolyAegis) RunManager.instance.hasHolyAegis = false;
+            if (!dodged) player.health.TakeDamage(1);
         }
 
-        if (player == null || player.health.currentHP <= 0)
-        {
-            HideDiceResults();
-            yield break;
-        }
-
-        foreach (var surv in survivors)
-        {
-            Vector3Int eKb = GetOppositeCell(surv.GetCurrentCellPosition(), player.GetCurrentCellPosition());
-            surv.StartKnockbackMovement(eKb);
-        }
-
-        Vector3Int pKb = GetOppositeCell(player.GetCurrentCellPosition(), referenceEnemyPos);
-        player.StartKnockbackMovement(pKb);
-
-        yield return new WaitUntil(() =>
-        {
-            if (player != null && player.IsMoving()) return false;
-            foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
-            return true;
-        });
-
+        yield return new WaitForSeconds(0.3f);
         HideDiceResults();
 
-        List<EnemyAI> newAdjacents = GetAdjacentEnemies(player.GetCurrentCellPosition());
-        if (newAdjacents.Count > 0)
-        {
-            yield return StartCoroutine(MultiAttack(newAdjacents, playerInitiated));
-        }
+        List<EnemyAI> nextTargets = GetAdjacentEnemies(player.GetCurrentCellPosition());
+        if (nextTargets.Count > 0) yield return StartCoroutine(MultiAttack(nextTargets, playerInitiated));
         else
         {
             isPlayerTurn = true;
@@ -295,25 +314,22 @@ public class TurnManager : MonoBehaviour
     // ==========================================
     // --- GÖRSEL ZAR SİSTEMİ (SONSUZ ZAR DESTEĞİ) ---
     // ==========================================
-    private IEnumerator ShowDiceSequence(List<int> rolls, int total)
+    private IEnumerator ShowDiceSequence(List<int> rolls)
     {
-        // 1. Temizlik
+        // 1. Temizlik ve Hazırlık
         foreach (var die in spawnedDiceUI) Destroy(die);
         spawnedDiceUI.Clear();
 
-        // --- KRİTİK DÜZELTME: Obje gizliyse açıyoruz ---
         if (totalDamageText != null)
         {
-            totalDamageText.gameObject.SetActive(true); // Gizliyse görünür yap
-            totalDamageText.text = "";
-            totalDamageText.transform.localScale = Vector3.one;
+            totalDamageText.gameObject.SetActive(true);
+            totalDamageText.text = "0";
         }
 
         List<Image> dieImages = new List<Image>();
         List<Animator> dieAnimators = new List<Animator>();
         List<TMP_Text> dieTexts = new List<TMP_Text>();
 
-        // Zarları oluştur (Layout Group sayesinde yan yana dizilecekler)
         for (int i = 0; i < rolls.Count; i++)
         {
             GameObject newDie = Instantiate(dieUIPrefab, diceUIContainer);
@@ -323,8 +339,48 @@ public class TurnManager : MonoBehaviour
             dieTexts.Add(newDie.GetComponentInChildren<TMP_Text>());
         }
 
-        // --- İLK ATIM ---
+        // İlk fırlatma animasyonu
         yield return new WaitForSeconds(0.4f);
+
+        // --- MASTER'S FOCUS: REROLL DÖNGÜSÜ ---
+        bool hasFocus = RunManager.instance.activePerks.Exists(p => p is MastersFocusPerk);
+        if (hasFocus)
+        {
+            bool stillLow = true;
+            int safety = 0;
+            while (stillLow && safety < 10)
+            {
+                stillLow = false;
+                List<int> toReroll = new List<int>();
+                for (int i = 0; i < rolls.Count; i++)
+                {
+                    if (rolls[i] < 3) { stillLow = true; toReroll.Add(i); }
+                }
+
+                if (stillLow)
+                {
+                    foreach (int idx in toReroll)
+                    {
+                        if (dieAnimators[idx] != null) dieAnimators[idx].enabled = true;
+                        dieTexts[idx].text = "!";
+                    }
+                    yield return new WaitForSeconds(0.6f);
+                    foreach (int idx in toReroll)
+                    {
+                        rolls[idx] = Random.Range(1, 7);
+                        if (dieAnimators[idx] != null) dieAnimators[idx].enabled = false;
+                        dieImages[idx].sprite = diceSprites[rolls[idx] - 1];
+                        dieTexts[idx].text = rolls[idx].ToString();
+                        StartCoroutine(TextPopAnimation(dieTexts[idx]));
+                    }
+                    yield return new WaitForSeconds(0.4f);
+                }
+                safety++;
+            }
+        }
+
+
+        // --- SON GÖSTERİM: TÜM ZARLARI SABİTLE ---
         for (int i = 0; i < rolls.Count; i++)
         {
             if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
@@ -333,63 +389,7 @@ public class TurnManager : MonoBehaviour
             StartCoroutine(TextPopAnimation(dieTexts[i]));
         }
 
-        // --- MASTER'S FOCUS REROLL DÖNGÜSÜ ---
-        bool hasMastersFocus = RunManager.instance.activePerks.Exists(p => p is MastersFocusPerk);
-        if (hasMastersFocus)
-        {
-            bool stillHaveLowDice = true;
-            int safetyCounter = 0;
-            while (stillHaveLowDice && safetyCounter < 10)
-            {
-                stillHaveLowDice = false;
-                List<int> diceToReroll = new List<int>();
-                for (int i = 0; i < rolls.Count; i++)
-                {
-                    if (rolls[i] < 3)
-                    {
-                        stillHaveLowDice = true;
-                        diceToReroll.Add(i);
-                        if (dieAnimators[i] != null) dieAnimators[i].enabled = true;
-                        dieTexts[i].text = "!";
-                    }
-                }
-
-                if (stillHaveLowDice)
-                {
-                    yield return new WaitForSeconds(0.6f);
-                    foreach (int index in diceToReroll)
-                    {
-                        int newRoll = Random.Range(1, 7);
-                        rolls[index] = newRoll;
-                        if (dieAnimators[index] != null) dieAnimators[index].enabled = false;
-                        dieImages[index].sprite = diceSprites[newRoll - 1];
-                        dieTexts[index].text = newRoll.ToString();
-                        StartCoroutine(TextPopAnimation(dieTexts[index]));
-                    }
-                    var perk = RunManager.instance.activePerks.Find(p => p is MastersFocusPerk);
-                    if (perk != null) perk.TriggerVisualPop();
-                    yield return new WaitForSeconds(0.4f);
-                }
-                safetyCounter++;
-            }
-        }
-
-        // --- 2. KRİTİK DÜZELTME: REROLL SONRASI TOPLAMI GÜNCELLE ---
-        int finalTotal = 0;
-        foreach (int r in rolls) finalTotal += r;
-
-        // Eğer RunManager'da damage çarpanı falan varsa (Sword Dance vb.) 
-        // total değerini ona göre burada son kez manipüle edebilirsin.
-        // Şimdilik MultiAttack'tan gelen total'i kullanıyoruz ama reroll olduysa finalTotal yazalım.
-
-        yield return new WaitForSeconds(0.3f);
-        if (totalDamageText != null)
-        {
-            totalDamageText.text = finalTotal.ToString(); // Reroll yapılmış güncel toplam
-            StartCoroutine(TextPopAnimation(totalDamageText));
-        }
-
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(0.2f);
     }
 
     private IEnumerator TextPopAnimation(TMP_Text textElement)
@@ -410,6 +410,21 @@ public class TurnManager : MonoBehaviour
             yield return null;
         }
         t.localScale = endScale;
+    }
+    // Bu fonksiyon sayı her değiştiğinde (perk tetiklendiğinde) çağrılır
+    public void UpdateTotalDamageDisplay(int val)
+    {
+        if (totalDamageText == null) return;
+
+        // Obje kapalıysa açıyoruz
+        totalDamageText.gameObject.SetActive(true);
+
+        // Sayıyı güncelliyoruz
+        totalDamageText.text = val.ToString();
+
+        // HAŞİN EFECT: Önceki animasyonu durdurup yenisini başlatıyoruz (BAM etkisi)
+        StopCoroutine("TextPopAnimation");
+        StartCoroutine(TextPopAnimation(totalDamageText));
     }
 
     public void HideDiceResults()
@@ -474,5 +489,43 @@ public class TurnManager : MonoBehaviour
         Vector3Int[] offsets = (cell1.y % 2 != 0) ? evenOffsets : oddOffsets;
         foreach (var off in offsets) if (cell1 + off == cell2) return true;
         return false;
+    }
+    // İstenilen sıradaki zarı "BUM" diye sarsan fonksiyon
+    // İstenilen sıradaki zarı BUM yapıp yeni değerini ekrana basar
+    public void AnimateSpecificDie(int index, int newValue)
+    {
+        if (index >= 0 && index < spawnedDiceUI.Count)
+        {
+            Transform dieTransform = spawnedDiceUI[index].transform;
+            TMP_Text dieText = spawnedDiceUI[index].GetComponentInChildren<TMP_Text>();
+            Image dieImage = spawnedDiceUI[index].GetComponent<Image>();
+
+            // Sayıyı ve Görseli Güncelle
+            if (dieText != null) dieText.text = newValue.ToString();
+
+            // Zar 6'dan büyükse max sprite'ı göster (hata vermesin diye Clamp yapıyoruz)
+            if (dieImage != null && diceSprites != null)
+            {
+                int spriteIndex = Mathf.Clamp(newValue - 1, 0, diceSprites.Length - 1);
+                dieImage.sprite = diceSprites[spriteIndex];
+            }
+
+            StartCoroutine(DiePopAnimation(dieTransform));
+        }
+    }
+
+    private IEnumerator DiePopAnimation(Transform t)
+    {
+        Vector3 startScale = Vector3.one * 1.6f; // Zar 1.6 kat büyüyüp ekrana vurur
+        float dur = 0.2f;
+        float elapsed = 0f;
+
+        while (elapsed < dur)
+        {
+            t.localScale = Vector3.Lerp(startScale, Vector3.one, elapsed / dur);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        t.localScale = Vector3.one;
     }
 }

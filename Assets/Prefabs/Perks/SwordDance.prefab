@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SwordDancePerk
   perkName: Sword Dance
   description: Multiply the dices next to each other instead of addition.
+  priority: 2

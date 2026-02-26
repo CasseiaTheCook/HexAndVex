@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UnstoppableForcePerk
   perkName: Unstoppable Force
   description: Gain extra multiplier based on your total dice count.
+  priority: 2

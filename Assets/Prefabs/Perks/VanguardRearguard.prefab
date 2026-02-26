@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VanguardRearguardPerk
   perkName: Vanguard & Rearguard
   description: +4 to the first and last dice.
+  priority: 1

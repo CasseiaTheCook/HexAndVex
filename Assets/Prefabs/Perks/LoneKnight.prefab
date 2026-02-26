@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LoneKnightPerk
   perkName: Lone Knight
   description: 6x total dice multiplier, but -1x for each dice you can roll.
+  priority: 2

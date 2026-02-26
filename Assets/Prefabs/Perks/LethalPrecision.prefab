@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LethalPrecisionPerk
   perkName: Lethal Precision
   description: +25% Critical chance.
+  priority: 0

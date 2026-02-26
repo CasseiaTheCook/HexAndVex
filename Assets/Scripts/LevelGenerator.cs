@@ -73,44 +73,85 @@ public class LevelGenerator : MonoBehaviour
         validCells.Remove(playerStartCell);
 
         // 4. DÜŞMANLARI SPAWN ET VE GÜÇLENDİR (SCALING)
-        // 4. DÜŞMANLARI SPAWN ET VE GÜÇLENDİR (SCALING)
         int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
         enemyHealth *= 1.1f;
 
         // --- GÜVENLİ BÖLGE AYARI ---
-        // Oyuncunun etrafındaki kaç birimlik alan boş kalsın? (Örn: 2 birim)
         int safeDistance = 2;
+
+        // Düşmanların birbirinin dibinde doğmaması için konumlarını tutacağımız liste
+        List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
 
         for (int i = 0; i < enemyCountToSpawn; i++)
         {
             if (validCells.Count == 0) break;
 
-            // Filtrelenmiş liste: Oyuncuya safeDistance'dan uzak olan hücreler
+            // Oyuncudan uzak olan güvenli hücreleri bul
             List<Vector3Int> safeSpawnCells = validCells.FindAll(cell =>
                 Vector3Int.Distance(cell, playerStartCell) > safeDistance
             );
 
-            // Eğer harita çok küçükse ve güvenli yer kalmadıysa, mecbur normal listeden seç
-            Vector3Int spawnCell;
+            Vector3Int bestSpawnCell = validCells[0]; // Güvenlik amaçlı varsayılan
+
             if (safeSpawnCells.Count > 0)
             {
-                spawnCell = safeSpawnCells[Random.Range(0, safeSpawnCells.Count)];
+                if (spawnedEnemyCells.Count == 0)
+                {
+                    // İLK DÜŞMAN: Güvenli alandan tamamen rastgele bir yer seç
+                    bestSpawnCell = safeSpawnCells[Random.Range(0, safeSpawnCells.Count)];
+                }
+                else
+                {
+                    // DİĞER DÜŞMANLAR: Diğer düşmanlara en uzak olan noktayı bul
+                    float maxDistToAnyEnemy = -1f;
+
+                    foreach (var candidateCell in safeSpawnCells)
+                    {
+                        // Bu adayın, haritadaki en yakın düşmana olan uzaklığını bul
+                        float minDistToClosestEnemy = float.MaxValue;
+
+                        foreach (var spawnedCell in spawnedEnemyCells)
+                        {
+                            // Dünya pozisyonu (World Position) üzerinden gerçek mesafeyi ölçüyoruz (Hex için en sağlıklısı)
+                            float dist = Vector3.Distance(
+                                groundMap.GetCellCenterWorld(candidateCell),
+                                groundMap.GetCellCenterWorld(spawnedCell)
+                            );
+
+                            if (dist < minDistToClosestEnemy)
+                            {
+                                minDistToClosestEnemy = dist;
+                            }
+                        }
+
+                        // Amacımız düşmanlar arası minimum mesafeyi "maksimize" etmek (En uzağa kaçmak)
+                        if (minDistToClosestEnemy > maxDistToAnyEnemy)
+                        {
+                            maxDistToAnyEnemy = minDistToClosestEnemy;
+                            bestSpawnCell = candidateCell;
+                        }
+                    }
+                }
             }
             else
             {
-                spawnCell = validCells[Random.Range(0, validCells.Count)];
+                // Eğer haritada güvenli yer kalmadıysa rastgele koy
+                bestSpawnCell = validCells[Random.Range(0, validCells.Count)];
                 Debug.LogWarning("⚠️ Güvenli alan kalmadığı için yakın spawn yapıldı.");
             }
 
-            validCells.Remove(spawnCell);
+            // Seçilen hücreyi listelerden çıkar ve düşman listesine ekle
+            validCells.Remove(bestSpawnCell);
+            spawnedEnemyCells.Add(bestSpawnCell);
 
-            // ... (Geri kalan Instantiate ve Scaling kodların aynı kalıyor) ...
-            Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell);
+            // --- INSTANTIATE (DÜŞMANI OLUŞTURMA) ---
+            Vector3 spawnPos = groundMap.GetCellCenterWorld(bestSpawnCell);
             GameObject newEnemyObj = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
 
             EnemyAI enemyAI = newEnemyObj.GetComponent<EnemyAI>();
             enemyAI.groundMap = this.groundMap;
 
+            // Scaling Mantığı
             float randomMultiplier = Random.Range(0.8f, 1.25f);
             if (Random.value < 0.10f)
             {

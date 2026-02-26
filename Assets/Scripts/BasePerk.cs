@@ -5,6 +5,7 @@ public abstract class BasePerk : MonoBehaviour
 {
     public string perkName;
     [TextArea] public string description;
+    public int priority = 0;
 
     // 1. Perk satın alındığında / seçildiğinde 1 kez çalışır
     public virtual void OnAcquire() { }

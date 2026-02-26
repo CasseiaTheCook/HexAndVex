@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DoubleStrikePerk
   perkName: Double Strike
   description: 2x total dice multiplier.
+  priority: 2
