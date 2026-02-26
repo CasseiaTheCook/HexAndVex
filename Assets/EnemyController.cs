@@ -21,14 +21,34 @@ public class EnemyAI : MonoBehaviour
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
+    void Awake()
+    {
+        // Eğer Inspector'dan atanmadıysa otomatik bul
+        if (groundMap == null)
+        {
+            GameObject mapObj = GameObject.Find("GroundMap");
+            if (mapObj != null)
+            {
+                groundMap = mapObj.GetComponent<Tilemap>();
+            }
+            else
+            {
+                Debug.LogError("HATA: Sahnede 'GroundMap' isminde bir obje bulunamadı!");
+            }
+        }
+    }
     void Start()
     {
         cell = groundMap.WorldToCell(transform.position);
-        TurnManager.instance.RegisterEnemy(this);
+
+        // TurnManager'a beni kaydet!
+        if (TurnManager.instance != null)
+        {
+            TurnManager.instance.RegisterEnemy(this);
+        }
+
         targetWorldPos = groundMap.GetCellCenterWorld(cell);
-        targetWorldPos.z = 0;
-        transform.position = targetWorldPos;
-        if (health == null) health = GetComponent<HealthScript>();
+        // ... diğer kodlar
     }
 
     void Update()

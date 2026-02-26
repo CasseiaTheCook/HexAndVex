@@ -5,6 +5,9 @@ public class RunManager : MonoBehaviour
 {
     public static RunManager instance;
 
+    [Header("Run Progression")]
+    public int currentLevel = 1; // Kaçıncı odadayız?
+
     [Header("Run Stats")]
 
     public int currentGold = 0;

@@ -35,16 +35,30 @@ public class LevelUpManager : MonoBehaviour
 
         for (int i = 0; i < 3; i++)
         {
-            GameObject randomPerk = GetRandomPerkByRarity();
+            GameObject randomPerk = null;
+
+            // --- BENZERSİZ SEÇİM DÖNGÜSÜ ---
+            // Seçilen perk zaten listede varsa, farklı bir tane bulana kadar tekrar dene
+            int safetyBreak = 0; // Sonsuz döngüye girmemesi için güvenlik kilidi
+            while (randomPerk == null || currentChoices.Contains(randomPerk))
+            {
+                randomPerk = GetRandomPerkByRarity();
+
+                safetyBreak++;
+                if (safetyBreak > 100) break;
+            }
+
             currentChoices.Add(randomPerk);
 
             // Butonun üzerindeki yazıyı ve görseli güncelle
             BasePerk perkScript = randomPerk.GetComponent<BasePerk>();
             choiceTexts[i].text = perkScript.perkName + "\n" + perkScript.description;
-            // choiceIcons[i].sprite = perkScript.perkIcon; // Eğer ikonu eklediysen açarsın
-            
-            // Butona tıklama olayını temizle ve yenisini ata
-            int index = i; 
+
+            // İkonu eklediysen burayı aktif edebilirsin
+            //if (choiceIcons[i] != null && perkScript.perkIcon != null)
+                //ChoiceIcons[i].sprite = perkScript.perkIcon;
+
+            int index = i;
             choiceButtons[i].onClick.RemoveAllListeners();
             choiceButtons[i].onClick.AddListener(() => SelectPerk(index));
         }
@@ -64,13 +78,11 @@ public class LevelUpManager : MonoBehaviour
 
     public void SelectPerk(int index)
     {
-        // Seçilen perki RunManager'a ekle
         RunManager.instance.AddPerk(currentChoices[index]);
-        
         levelUpPanel.SetActive(false);
-        
-        // Şimdilik tak diye diğer sahneye geçiyoruz (Fade yok)
-        int nextScene = SceneManager.GetActiveScene().buildIndex;
-        SceneManager.LoadScene(nextScene);
+
+        // --- YENİ SİSTEM: Sahne yükleme, sadece haritayı sıfırla ---
+        RunManager.instance.currentLevel++; // Odayı 1 artır
+        LevelGenerator.instance.GenerateNextLevel(); // Yeni haritayı ve düşmanları çiz!
     }
 }

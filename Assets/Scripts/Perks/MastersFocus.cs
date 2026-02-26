@@ -2,17 +2,12 @@ using UnityEngine;
 
 public class MastersFocusPerk : BasePerk
 {
-    public override void ModifyCombat(CombatPayload payload)
+    // ModifyCombat yerine direkt RunManager üzerinden bir kontrol saðlayacaðýz
+    // Ama sistemi bozmamak için burayý boþ býrakabiliriz veya bir log ekleyebiliriz.
+    public override void OnAcquire()
     {
-        bool triggered = false;
-        for (int i = 0; i < payload.diceRolls.Count; i++)
-        {
-            if (payload.diceRolls[i] < 3)
-            {
-                payload.diceRolls[i] = Random.Range(1, 7); // Yeniden at!
-                triggered = true;
-            }
-        }
-        if (triggered) TriggerVisualPop();
+        base.OnAcquire();
+        // Bu perk alýndýðýnda RunManager'da bir bool'u aktif edebiliriz 
+        // veya TurnManager direkt activePerks listesinde bu scripti arayabilir.
     }
 }
