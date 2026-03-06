@@ -105,6 +105,34 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
     {
+        // --- YENİ: TUZAK KONTROLÜ ---
+        if (LevelGenerator.instance.hazardCells.Contains(playerCell))
+        {
+            Debug.Log("🔥 Tuzağa bastın!");
+            player.health.TakeDamage(1); // 1 Hasar yer
+
+            // Etrafındaki güvenli (tuzaksız ve düşmansız) bir komşuya seker
+            Vector3Int bounceCell = GetSafeNeighbor(playerCell);
+            player.StartKnockbackMovement(bounceCell);
+
+            // Geri sekme animasyonunun bitmesini bekle
+            yield return new WaitUntil(() => !player.IsMoving());
+
+            // Tuzağa bastığı için saldırı yapamaz, sıra direkt düşmana veya diğer hamleye geçer
+            if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0)
+            {
+                RunManager.instance.remainingMoves--;
+                isPlayerTurn = true;
+                player.UpdateHighlights();
+            }
+            else if (player != null && player.health.currentHP > 0)
+            {
+                StartCoroutine(EnemyPhase());
+            }
+            yield break; // Alt satırlardaki MultiAttack kısmına inmesini engeller
+        }
+
+        // --- ESKİ NORMAL SALDIRI KISMI ---
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0)
         {
@@ -122,6 +150,23 @@ public class TurnManager : MonoBehaviour
         {
             if (player != null && player.health.currentHP > 0) StartCoroutine(EnemyPhase());
         }
+    }
+
+    // --- YARDIMCI METOT: TUZAKTAN SEKECEK GÜVENLİ YER BULMA ---
+    // Bunu TurnManager.cs'in en alt kısımlarına (diğer yardımcı metodların yanına) ekle
+    private Vector3Int GetSafeNeighbor(Vector3Int centerCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        foreach (var off in offsets)
+        {
+            Vector3Int neighbor = centerCell + off;
+            // Zemin var mı? Düşman yok mu? Tuzak değil mi?
+            if (groundMap.HasTile(neighbor) && !IsEnemyAtCell(neighbor) && !LevelGenerator.instance.hazardCells.Contains(neighbor))
+            {
+                return neighbor;
+            }
+        }
+        return centerCell; // Eğer etrafı tamamen sarılıysa olduğu yerde kalır mecbur
     }
 
     private IEnumerator EnemyPhase()
@@ -171,12 +216,9 @@ public class TurnManager : MonoBehaviour
         for (int i = 0; i < diceCount; i++) currentRolls.Add(Random.Range(1, 7));
 
         CombatPayload payload = new CombatPayload(currentRolls);
-
-        // Zarları ekrana bas ve Master's Focus reroll işlemlerini bitirene kadar bekle
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
         // --- ADIM 2: ÖNCELİKLİ PERKLER (SWORD DANCE VB.) ---
-        // Bazı perkler oyunun temel kuralını (Toplama yerine Çarpma gibi) en başta değiştirmeli
         if (RunManager.instance != null)
         {
             foreach (BasePerk perk in RunManager.instance.activePerks)
@@ -185,14 +227,12 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // Başlangıç hasarını ekrana "BAM" diye vur
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.7f);
 
-        // --- ADIM 3: JOKER/PERK SIRALAMASI VE ZAR DEDEKTİFİ (PRIORITY SİSTEMİ) ---
+        // --- ADIM 3: JOKER/PERK SIRALAMASI VE ZAR DEDEKTİFİ ---
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            // İsim arama saçmalığı bitti! Sadece priority numarasına göre küçükten büyüğe diziyoruz.
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
             perksToProcess.Sort((a, b) => a.priority.CompareTo(b.priority));
 
@@ -201,22 +241,19 @@ public class TurnManager : MonoBehaviour
                 int beforeTotal = payload.GetFinalDamage();
                 perk.ModifyCombat(payload);
 
-                // ZAR DEDEKTİFİ: Vanguard veya Rearguard zarın kendisini mi değiştirdi?
                 bool anyDieChanged = false;
                 for (int i = 0; i < currentRolls.Count; i++)
                 {
                     if (currentRolls[i] != payload.diceRolls[i])
                     {
                         currentRolls[i] = payload.diceRolls[i];
-                        AnimateSpecificDie(i, currentRolls[i]); // Zarı BUM yap ve sayısını değiştir
+                        AnimateSpecificDie(i, currentRolls[i]); 
                         anyDieChanged = true;
                         yield return new WaitForSeconds(0.3f);
                     }
                 }
 
                 int afterTotal = payload.GetFinalDamage();
-
-                // Eğer hasar arttıysa veya zar değiştiyse Joker kartını parlat ve toplamı güncelle
                 if (beforeTotal != afterTotal || anyDieChanged)
                 {
                     perk.TriggerVisualPop();
@@ -240,6 +277,9 @@ public class TurnManager : MonoBehaviour
         int damagePerEnemy = finalDamage / targets.Count;
         List<EnemyAI> survivors = new List<EnemyAI>();
 
+        // Düşman ölse bile nereden sekeceğimizi bilmek için pozisyonunu kaydediyoruz
+        Vector3Int referenceEnemyPos = targets[0].GetCurrentCellPosition();
+
         foreach (var enemy in targets)
         {
             if (enemy == null) continue;
@@ -260,29 +300,31 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
+        // --- ADIM 6: KNOCKBACK (ARTIK HER ZAMAN ÇALIŞIR) ---
+        // Kalan düşmanları it
+        foreach (var s in survivors)
+        {
+            Vector3Int targetCell = GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition());
+            s.StartKnockbackMovement(targetCell);
+        }
+
+        // Oyuncuyu HER ZAMAN it (Hedef ölmüş olsa bile vurduğu yönden seker)
+        Vector3Int playerTarget = GetOppositeCell(player.GetCurrentCellPosition(), referenceEnemyPos);
+        player.StartKnockbackMovement(playerTarget);
+
+        // Sekmelerin bitmesini bekle
+        yield return new WaitUntil(() => {
+            if (player != null && player.IsMoving()) return false;
+            foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
+            return true;
+        });
+
+        // ODA TEMİZLENDİYSE SEKMELER BİTTİKTEN SONRA EKRANI AÇ
         if (enemies.Count <= 0)
         {
             HideDiceResults();
             if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
-        }
-
-        // --- ADIM 6: KNOCKBACK ---
-        if (survivors.Count > 0)
-        {
-            foreach (var s in survivors)
-            {
-                Vector3Int targetCell = GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition());
-                s.StartKnockbackMovement(targetCell);
-            }
-            Vector3Int playerTarget = GetOppositeCell(player.GetCurrentCellPosition(), targets[0].GetCurrentCellPosition());
-            player.StartKnockbackMovement(playerTarget);
-
-            yield return new WaitUntil(() => {
-                if (player != null && player.IsMoving()) return false;
-                foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
-                return true;
-            });
         }
 
         // --- ADIM 7: SIRA KONTROLÜ VE ZİNCİRLEME ---

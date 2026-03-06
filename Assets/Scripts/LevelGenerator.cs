@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Tilemaps;
 using System.Collections.Generic;
-using System.Linq; // HashSet ve List işlemleri için gerekli
+using System.Linq;
 
 public class LevelGenerator : MonoBehaviour
 {
@@ -9,6 +9,7 @@ public class LevelGenerator : MonoBehaviour
 
     public Tilemap groundMap;
     public TileBase groundTile;
+    public TileBase hazardTile; // Tuzak görseli
     public GameObject playerPrefab;
     public GameObject enemyPrefab;
 
@@ -16,6 +17,7 @@ public class LevelGenerator : MonoBehaviour
     public int baseMapRadius = 3;
 
     private List<Vector3Int> validCells = new List<Vector3Int>();
+    public HashSet<Vector3Int> hazardCells = new HashSet<Vector3Int>(); // Tuzakların listesi
 
     // --- HEX OFFSETLERİ (Bağlantıları kontrol etmek için) ---
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
@@ -36,6 +38,7 @@ public class LevelGenerator : MonoBehaviour
         // 1. ESKİ HARİTAYI VE DÜŞMANLARI TEMİZLE
         groundMap.ClearAllTiles();
         validCells.Clear();
+        hazardCells.Clear();
 
         foreach (var enemy in TurnManager.instance.enemies)
         {
@@ -56,91 +59,113 @@ public class LevelGenerator : MonoBehaviour
 
                     if (Random.value > 0.15f)
                     {
-                        groundMap.SetTile(cell, groundTile);
+                        // %10 İhtimalle tuzak, %90 normal zemin
+                        if (Random.value < 0.10f)
+                        {
+                            groundMap.SetTile(cell, hazardTile);
+                            hazardCells.Add(cell);
+                        }
+                        else
+                        {
+                            groundMap.SetTile(cell, groundTile);
+                        }
                         validCells.Add(cell);
                     }
                 }
             }
         }
 
-        // --- YENİ EKLENEN KISIM: KOPUK ADALARI TEMİZLE ---
+        // Kopuk adaları temizle
         CleanUpDisconnectedIslands();
 
-        // 3. OYUNCUYU YERLEŞTİR
-        Vector3Int playerStartCell = validCells[Random.Range(0, validCells.Count)];
+        // --- 3. OYUNCUYU MERKEZE YERLEŞTİR ---
+        Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
+        List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        
+        Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
+        
         TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        // 4. DÜŞMANLARI SPAWN ET VE GÜÇLENDİR (SCALING)
-        int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
+        // --- 4. DÜŞMANLARI STRATEJİK (ÇEVRELEYEREK) SPAWN ET ---
+        int enemyCountToSpawn = 3 + (RunManager.instance.currentLevel / 3);
         enemyHealth *= 1.1f;
-
-        // --- GÜVENLİ BÖLGE AYARI ---
-        int safeDistance = 2;
-
-        // Düşmanların birbirinin dibinde doğmaması için konumlarını tutacağımız liste
+        
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
+        Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerStartCell);
 
         for (int i = 0; i < enemyCountToSpawn; i++)
         {
             if (validCells.Count == 0) break;
 
-            // Oyuncudan uzak olan güvenli hücreleri bul
-            List<Vector3Int> safeSpawnCells = validCells.FindAll(cell =>
-                Vector3Int.Distance(cell, playerStartCell) > safeDistance
-            );
+            List<Vector3Int> candidates = new List<Vector3Int>();
+            
+            // Başlangıç beklentimiz (Esnek Arama)
+            float currentSafeDist = 2.5f; 
+            float currentEnemyDist = 2.5f;
 
-            Vector3Int bestSpawnCell = validCells[0]; // Güvenlik amaçlı varsayılan
-
-            if (safeSpawnCells.Count > 0)
+            while (candidates.Count == 0 && currentSafeDist >= 0f)
             {
-                if (spawnedEnemyCells.Count == 0)
+                // Kural 1: Oyuncudan belli bir mesafe uzak ve tuzak olmayan hücreler
+                candidates = validCells.FindAll(cell => 
+                    !hazardCells.Contains(cell) &&
+                    Vector3.Distance(groundMap.GetCellCenterWorld(cell), playerWorldPos) >= currentSafeDist
+                );
+
+                // Kural 2: Diğer düşmanlara çok yakın olmasın
+                candidates.RemoveAll(cell => 
+                    spawnedEnemyCells.Any(spawned => Vector3.Distance(groundMap.GetCellCenterWorld(cell), groundMap.GetCellCenterWorld(spawned)) < currentEnemyDist)
+                );
+
+                if (candidates.Count == 0)
                 {
-                    // İLK DÜŞMAN: Güvenli alandan tamamen rastgele bir yer seç
-                    bestSpawnCell = safeSpawnCells[Random.Range(0, safeSpawnCells.Count)];
+                    currentSafeDist -= 0.5f; 
+                    currentEnemyDist -= 0.5f;
                 }
-                else
-                {
-                    // DİĞER DÜŞMANLAR: Diğer düşmanlara en uzak olan noktayı bul
-                    float maxDistToAnyEnemy = -1f;
+            }
 
-                    foreach (var candidateCell in safeSpawnCells)
-                    {
-                        // Bu adayın, haritadaki en yakın düşmana olan uzaklığını bul
-                        float minDistToClosestEnemy = float.MaxValue;
+            Vector3Int bestSpawnCell;
 
-                        foreach (var spawnedCell in spawnedEnemyCells)
-                        {
-                            // Dünya pozisyonu (World Position) üzerinden gerçek mesafeyi ölçüyoruz (Hex için en sağlıklısı)
-                            float dist = Vector3.Distance(
-                                groundMap.GetCellCenterWorld(candidateCell),
-                                groundMap.GetCellCenterWorld(spawnedCell)
-                            );
-
-                            if (dist < minDistToClosestEnemy)
-                            {
-                                minDistToClosestEnemy = dist;
-                            }
-                        }
-
-                        // Amacımız düşmanlar arası minimum mesafeyi "maksimize" etmek (En uzağa kaçmak)
-                        if (minDistToClosestEnemy > maxDistToAnyEnemy)
-                        {
-                            maxDistToAnyEnemy = minDistToClosestEnemy;
-                            bestSpawnCell = candidateCell;
-                        }
-                    }
-                }
+            if (candidates.Count == 0)
+            {
+                // Güvenlik sübabı (Yer kalmadıysa)
+                var safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+                bestSpawnCell = safeCells.Count > 0 ? safeCells[Random.Range(0, safeCells.Count)] : validCells[0];
+            }
+            else if (spawnedEnemyCells.Count == 0)
+            {
+                // İlk düşman oyuncuya en uzak yere
+                bestSpawnCell = candidates.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), playerWorldPos)).First();
             }
             else
             {
-                // Eğer haritada güvenli yer kalmadıysa rastgele koy
-                bestSpawnCell = validCells[Random.Range(0, validCells.Count)];
-                Debug.LogWarning("⚠️ Güvenli alan kalmadığı için yakın spawn yapıldı.");
+                // Diğer düşmanlar çember oluşturacak şekilde (Dot Product) zıt yönlere
+                float bestScore = -float.MaxValue;
+                bestSpawnCell = candidates[0];
+
+                foreach (var candidate in candidates)
+                {
+                    Vector3 candidateDir = (groundMap.GetCellCenterWorld(candidate) - playerWorldPos).normalized;
+                    float maxDotProduct = -1f; 
+
+                    foreach (var spawned in spawnedEnemyCells)
+                    {
+                        Vector3 spawnedDir = (groundMap.GetCellCenterWorld(spawned) - playerWorldPos).normalized;
+                        float dot = Vector3.Dot(candidateDir, spawnedDir); 
+                        if (dot > maxDotProduct) maxDotProduct = dot;
+                    }
+
+                    float score = (-maxDotProduct * 10f) + Vector3.Distance(groundMap.GetCellCenterWorld(candidate), playerWorldPos);
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestSpawnCell = candidate;
+                    }
+                }
             }
 
-            // Seçilen hücreyi listelerden çıkar ve düşman listesine ekle
             validCells.Remove(bestSpawnCell);
             spawnedEnemyCells.Add(bestSpawnCell);
 
@@ -151,7 +176,6 @@ public class LevelGenerator : MonoBehaviour
             EnemyAI enemyAI = newEnemyObj.GetComponent<EnemyAI>();
             enemyAI.groundMap = this.groundMap;
 
-            // Scaling Mantığı
             float randomMultiplier = Random.Range(0.8f, 1.25f);
             if (Random.value < 0.10f)
             {
@@ -163,18 +187,23 @@ public class LevelGenerator : MonoBehaviour
             int finalHP = Mathf.RoundToInt(enemyHealth * randomMultiplier);
             enemyAI.health.maxHP = Mathf.Max(1, finalHP);
             enemyAI.health.currentHP = enemyAI.health.maxHP;
+            
+            // --- YAPAY ZEKA UYANDIRMA VE LİSTEYE ALMA (KRİTİK FIX) ---
             enemyAI.health.updateHealth();
+            TurnManager.instance.RegisterEnemy(enemyAI); // Listeye anında ekle!
         }
 
         // 5. TURU BAŞLAT
         TurnManager.instance.isPlayerTurn = true;
         TurnManager.instance.player.UpdateHighlights();
-        TurnManager.instance.LockAllEnemyIntents();
+        
+        // Düşman niyetlerini kilitlemeyi 0.1 saniye geciktir ki Start() fonksiyonları çalışsın
+        TurnManager.instance.Invoke("LockAllEnemyIntents", 0.1f);
 
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
     }
 
-    // --- FLOOD FILL ALGORİTMASI (Bağlantısız adaları bulur ve yok eder) ---
+    // --- FLOOD FILL ALGORİTMASI ---
     private void CleanUpDisconnectedIslands()
     {
         if (validCells.Count == 0) return;
@@ -182,7 +211,6 @@ public class LevelGenerator : MonoBehaviour
         List<List<Vector3Int>> allIslands = new List<List<Vector3Int>>();
         HashSet<Vector3Int> unvisited = new HashSet<Vector3Int>(validCells);
 
-        // Tüm hücreleri gezerek birbirine bağlı adaları grupla
         while (unvisited.Count > 0)
         {
             Vector3Int startCell = unvisited.First();
@@ -212,7 +240,6 @@ public class LevelGenerator : MonoBehaviour
             allIslands.Add(currentIsland);
         }
 
-        // En büyük adayı bul (Ana kara)
         List<Vector3Int> largestIsland = allIslands[0];
         foreach (var island in allIslands)
         {
@@ -222,16 +249,14 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        // Ana karaya bağlı olmayan (kopuk) tüm karaları haritadan sil
         foreach (var cell in validCells)
         {
             if (!largestIsland.Contains(cell))
             {
-                groundMap.SetTile(cell, null); // Görseli sil
+                groundMap.SetTile(cell, null); 
             }
         }
 
-        // Sadece ana karayı geçerli hücreler olarak kaydet
         validCells = new List<Vector3Int>(largestIsland);
     }
 }

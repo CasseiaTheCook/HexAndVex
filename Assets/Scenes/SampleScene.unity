@@ -1784,10 +1784,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   groundMap: {fileID: 1259843048}
   groundTile: {fileID: 11400000, guid: 1853d7e37ba12a64db6fa78585741810, type: 2}
+  hazardTile: {fileID: 11400000, guid: 820d6bdbe3ed36544a317219361f884b, type: 2}
   playerPrefab: {fileID: 4451673360095616607}
   enemyPrefab: {fileID: 506802351436183914, guid: a0ec16531194a034583e5fd3b77d313f, type: 3}
   enemyHealth: 10
-  baseMapRadius: 2
+  baseMapRadius: 3
 --- !u!4 &1114187817
 Transform:
   m_ObjectHideFlags: 0
