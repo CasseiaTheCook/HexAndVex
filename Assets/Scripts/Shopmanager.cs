@@ -64,14 +64,20 @@ public class Shopmanager : MonoBehaviour
         RefreshRerollButton();
     }
 
-    // Dükkanı kapatıp yeni levele geç
+    // Dükkanı kapatıp oyuna devam et
     public void LeaveShop()
     {
         if (shopPanel != null) shopPanel.SetActive(false);
 
-        // Yeni oda / level-up ekranını aç
-        if (LevelUpManager.instance != null)
+        // Hâlâ savaşta düşman varsa oyuna dön, yoksa level-up ekranını aç
+        if (TurnManager.instance != null && TurnManager.instance.enemies.Count > 0)
+        {
+            TurnManager.instance.ResumeAfterShop();
+        }
+        else if (LevelUpManager.instance != null)
+        {
             LevelUpManager.instance.ShowLevelUpScreen();
+        }
         else
         {
             RunManager.instance.currentLevel++;

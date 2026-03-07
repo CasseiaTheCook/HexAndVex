@@ -29,6 +29,10 @@ public class TurnManager : MonoBehaviour
 
     private List<EnemyAI> stunnedEnemiesThisTurn = new List<EnemyAI>();
 
+    [Header("Shop Turu")]
+    public int shopEveryNTurns = 5; // Kaç turda bir shop açılsın?
+    private int turnCount = 0;
+
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
@@ -494,15 +498,36 @@ public class TurnManager : MonoBehaviour
             {
                 if (e != null && e.skipTurns > 0)
                 {
-                    e.skipTurns--; // Cezasını 1 tur azalt
-
+                    e.skipTurns--;
                     if (e.skipTurns <= 0)
-                    {
-                        e.SetStunVisual(false); // Cezası bittiyse kafasındaki yıldızları sil
-                    }
+                        e.SetStunVisual(false);
                 }
             }
 
+            turnCount++;
+            Debug.Log($"Tur: {turnCount}");
+
+            if (turnCount % shopEveryNTurns == 0)
+            {
+                Debug.Log($"🛒 {shopEveryNTurns} tur doldu, shop açılıyor!");
+                if (Shopmanager.instance != null)
+                {
+                    Shopmanager.instance.OpenShop();
+                    return; // Shop açıkken oyuncu turu başlatma
+                }
+            }
+
+            isPlayerTurn = true;
+            player.UpdateHighlights();
+            LockAllEnemyIntents();
+        }
+    }
+
+    // Shop kapandıktan sonra Shopmanager.LeaveShop() içinden çağrılır
+    public void ResumeAfterShop()
+    {
+        if (player != null && player.health.currentHP > 0)
+        {
             isPlayerTurn = true;
             player.UpdateHighlights();
             LockAllEnemyIntents();
