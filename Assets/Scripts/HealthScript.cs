@@ -46,9 +46,21 @@ public class HealthScript : MonoBehaviour
 
     public void TakeDamage(int dmg)
     {
-        if (isDead) return; // Zaten öldüyse havada sekip bir daha hasar yemesin
+        if (isDead) return;
 
         currentHP -= dmg;
+
+        // --- YENİ: HER HASARDA SERSEMLETME ---
+        // Eğer bu bir düşman ise, hasar aldığı an skipTurns'ü en az 1 yapıyoruz
+        // HealthScript.cs içindeki o kısım tam olarak şöyle olmalı:
+        EnemyAI enemy = GetComponentInParent<EnemyAI>();
+        if (enemy != null)
+        {
+            enemy.skipTurns = 1; // Hasar aldı, 1 tur şokta!
+            enemy.SetStunVisual(true);
+        }
+        // -------------------------------------
+
         OnDamaged?.Invoke(currentHP);
         updateHealth();
 
@@ -58,10 +70,8 @@ public class HealthScript : MonoBehaviour
         }
         else
         {
-            // Ölmediyse kırmızı parlama efektini başlat
             if (spriteRenderer != null && gameObject.activeInHierarchy)
             {
-                // Eğer önceki parlama bitmediyse onu durdur ki renkler çakışmasın
                 if (flashCoroutine != null) StopCoroutine(flashCoroutine);
                 flashCoroutine = StartCoroutine(DamageFlash());
             }
@@ -73,7 +83,7 @@ public class HealthScript : MonoBehaviour
     {
         // Vurulduğu an TIK diye kırmızı olur (Etki hissi için anlık olmalı)
         spriteRenderer.color = Color.red;
-        
+
         float duration = 0.35f; // Eski rengine dönme süresi (Fade out hızı)
         float elapsed = 0f;
 
@@ -84,7 +94,7 @@ public class HealthScript : MonoBehaviour
             spriteRenderer.color = Color.Lerp(Color.red, originalColor, elapsed / duration);
             yield return null;
         }
-        
+
         // Animasyon bitince rengin tam olarak eski haline döndüğünden emin ol
         spriteRenderer.color = originalColor;
     }
@@ -101,7 +111,7 @@ public class HealthScript : MonoBehaviour
         isDead = true; // Kilitledik
         Debug.Log($"{gameObject.name} öldü!");
         OnDeath?.Invoke();
-        
+
         if (hptext != null) hptext.gameObject.SetActive(false); // Can yazısını anında ekrandan sil
 
         // Anında yok etmek yerine ölüm animasyonunu başlatıyoruz
@@ -120,7 +130,7 @@ public class HealthScript : MonoBehaviour
     {
         float duration = 0.4f; // Objenin eriyip yok olma süresi
         float elapsed = 0f;
-        
+
         Vector3 startScale = transform.localScale;
         Color startColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
 

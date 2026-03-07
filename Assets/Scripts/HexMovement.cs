@@ -51,11 +51,11 @@ public class HexMovement : MonoBehaviour
             worldPoint.z = 0;
             Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
 
-            // YENİ: !LevelGenerator.instance.hazardCells.Contains(clickedCell) eklendi!
-            // Dikenlere tıklamayı yasaklar.
+            // YENİ: En sona !TurnManager.instance.IsEnemyAtCell(clickedCell) ekledik!
             if (IsNeighbor(currentCellPosition, clickedCell) &&
                 groundMap.HasTile(clickedCell) &&
-                !LevelGenerator.instance.hazardCells.Contains(clickedCell))
+                !LevelGenerator.instance.hazardCells.Contains(clickedCell) &&
+                !TurnManager.instance.IsEnemyAtCell(clickedCell))
             {
                 isKnockbackMove = false;
 
@@ -124,34 +124,31 @@ public class HexMovement : MonoBehaviour
         return false;
     }
 
-public void UpdateHighlights()
+    public void UpdateHighlights()
     {
         highlightMap.ClearAllTiles();
-        
-        // Kendi durduğumuz yeri mavi yapalım
         HighlightCell(currentCellPosition, CURRENT_POS_COLOR);
-        
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
 
         foreach (var off in offsets)
         {
             Vector3Int neighbor = currentCellPosition + off;
-            
-            // 1. Zemin var mı diye bakıyoruz
+
             if (groundMap.HasTile(neighbor))
             {
-                // 2. Diken mi (Hazard) diye kontrol ediyoruz (Hata vermesin diye Null kontrolü ekledim)
                 bool isHazard = false;
                 if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null)
                 {
                     isHazard = LevelGenerator.instance.hazardCells.Contains(neighbor);
                 }
 
-                // 3. EĞER DİKEN DEĞİLSE SARIYA BOYA!
-                if (!isHazard)
+                // YENİ: Eğer diken değilse VE o karede düşman YOKSA sarıya boya!
+                if (!isHazard && !TurnManager.instance.IsEnemyAtCell(neighbor))
                 {
                     HighlightCell(neighbor, MOVEABLE_COLOR);
                 }
+                // BONUS FİKİR: Eğer istersen else if (TurnManager.instance.IsEnemyAtCell(neighbor)) diyip 
+                // düşmanın olduğu kareyi KIRMIZI (Saldırı menzili) yapabiliriz?
             }
         }
     }
