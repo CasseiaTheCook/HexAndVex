@@ -362,7 +362,15 @@ public class TurnManager : MonoBehaviour
         }
 
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
-        if (enemies.Count <= 0) { HideDiceResults(); if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen(); yield break; }
+        if (enemies.Count <= 0)
+        {
+            HideDiceResults();
+            if (Shopmanager.instance != null)
+                Shopmanager.instance.OpenShop();
+            else if (LevelUpManager.instance != null)
+                LevelUpManager.instance.ShowLevelUpScreen();
+            yield break;
+        }
 
         yield return new WaitForSeconds(0.3f);
         HideDiceResults();
