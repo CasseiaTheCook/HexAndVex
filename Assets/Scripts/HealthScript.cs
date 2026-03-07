@@ -1,10 +1,10 @@
 using TMPro;
 using UnityEngine;
-using System.Collections; // Coroutine'ler (animasyonlar) için eklendi
+using System.Collections;
 
 /// <summary>
 /// Oyuncu ve düşman için ortak sağlık sistemi.
-/// Hasar, iyileştirme, yumuşak renk geçişleri (Damage Flash) ve ölüm animasyonunu yönetir.
+/// Hasar, iyileştirme, yumuşak renk geçişleri (Damage Flash), yumuşak saydamlaşma ve ölüm animasyonunu yönetir.
 /// </summary>
 public class HealthScript : MonoBehaviour
 {
@@ -17,15 +17,16 @@ public class HealthScript : MonoBehaviour
 
     public TMP_Text hptext;
 
-    // Görsel efektler için gereken değişkenler
     private SpriteRenderer spriteRenderer;
     private Color originalColor = Color.white;
-    private Coroutine flashCoroutine; // Üst üste hasar yediğinde renkler bug'a girmesin diye
-    private bool isDead = false; // Ölüm animasyonu iki kere tetiklenmesin diye kilit
+    private Coroutine flashCoroutine; 
+    private Coroutine alphaFadeCoroutine; // YENİ: Saydamlığın yavaşça değişmesini sağlayan animasyon
+    private bool isDead = false; 
+    
+    private bool isDeepStunnedAlpha = false; 
 
     void Start()
     {
-        // Karakterin SpriteRenderer'ını bul ve orijinal rengini kaydet
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         if (spriteRenderer != null) originalColor = spriteRenderer.color;
 
@@ -49,17 +50,13 @@ public class HealthScript : MonoBehaviour
         if (isDead) return;
 
         currentHP -= dmg;
-
-        // --- YENİ: HER HASARDA SERSEMLETME ---
-        // Eğer bu bir düşman ise, hasar aldığı an skipTurns'ü en az 1 yapıyoruz
-        // HealthScript.cs içindeki o kısım tam olarak şöyle olmalı:
+        
         EnemyAI enemy = GetComponentInParent<EnemyAI>();
         if (enemy != null)
         {
-            enemy.skipTurns = 1; // Hasar aldı, 1 tur şokta!
-            enemy.SetStunVisual(true);
+            enemy.skipTurns = Mathf.Max(enemy.skipTurns, 1);
+            enemy.SetStunVisual(true); 
         }
-        // -------------------------------------
 
         OnDamaged?.Invoke(currentHP);
         updateHealth();
@@ -78,25 +75,68 @@ public class HealthScript : MonoBehaviour
         }
     }
 
-    // --- YENİ: YUMUŞAK KIRMIZI PARLAMA (DAMAGE FLASH) ---
     private IEnumerator DamageFlash()
     {
-        // Vurulduğu an TIK diye kırmızı olur (Etki hissi için anlık olmalı)
         spriteRenderer.color = Color.red;
-
-        float duration = 0.35f; // Eski rengine dönme süresi (Fade out hızı)
+        
+        float duration = 0.35f; 
         float elapsed = 0f;
 
-        // Kırmızıdan orijinal renge yavaşça (Fade out) geçiş yap
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
+            // originalColor'ın alpha'sı o sırada değişiyor olsa bile sorunsuz takip eder
             spriteRenderer.color = Color.Lerp(Color.red, originalColor, elapsed / duration);
             yield return null;
         }
-
-        // Animasyon bitince rengin tam olarak eski haline döndüğünden emin ol
+        
         spriteRenderer.color = originalColor;
+        flashCoroutine = null; 
+    }
+
+    // --- YENİ: YUMUŞAK SAYDAMLAŞMA (FADE IN / FADE OUT) ---
+    public void SetStunnedAlpha(bool deepStun)
+    {
+        if (isDeepStunnedAlpha == deepStun || spriteRenderer == null || isDead) return;
+
+        isDeepStunnedAlpha = deepStun;
+        float targetAlpha = deepStun ? 0.45f : 1f; 
+
+        // Eğer halihazırda bir saydamlaşma animasyonu varsa durdur, yenisini başlat
+        if (alphaFadeCoroutine != null) StopCoroutine(alphaFadeCoroutine);
+        alphaFadeCoroutine = StartCoroutine(FadeAlphaCoroutine(targetAlpha));
+    }
+
+    private IEnumerator FadeAlphaCoroutine(float targetAlpha)
+    {
+        float startAlpha = originalColor.a;
+        float duration = 0.3f; // Saydamlaşma/Belirginleşme hızı (0.3 saniye)
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float newAlpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+            
+            // Orijinal rengin hafızasını güncelle
+            originalColor = new Color(originalColor.r, originalColor.g, originalColor.b, newAlpha);
+
+            // Eğer o an kırmızı parlama YOKSA, yeni saydamlığı direkt uygula
+            // (Kırmızı parlama varsa, zaten üstteki DamageFlash bu originalColor'ı kullanıyor)
+            if (flashCoroutine == null)
+            {
+                spriteRenderer.color = originalColor;
+            }
+
+            yield return null;
+        }
+
+        // Animasyon bitince tam değeri oturt
+        originalColor = new Color(originalColor.r, originalColor.g, originalColor.b, targetAlpha);
+        if (flashCoroutine == null)
+        {
+            spriteRenderer.color = originalColor;
+        }
     }
 
     public void Heal(int amount)
@@ -108,13 +148,12 @@ public class HealthScript : MonoBehaviour
 
     private void Die()
     {
-        isDead = true; // Kilitledik
+        isDead = true; 
         Debug.Log($"{gameObject.name} öldü!");
         OnDeath?.Invoke();
+        
+        if (hptext != null) hptext.gameObject.SetActive(false); 
 
-        if (hptext != null) hptext.gameObject.SetActive(false); // Can yazısını anında ekrandan sil
-
-        // Anında yok etmek yerine ölüm animasyonunu başlatıyoruz
         if (gameObject.activeInHierarchy)
         {
             StartCoroutine(DeathAnimation());
@@ -125,12 +164,11 @@ public class HealthScript : MonoBehaviour
         }
     }
 
-    // --- YENİ: KÜÇÜLEREK VE SİLİNEREK YOK OLMA (DEATH ANIMATION) ---
     private IEnumerator DeathAnimation()
     {
-        float duration = 0.4f; // Objenin eriyip yok olma süresi
+        float duration = 0.4f; 
         float elapsed = 0f;
-
+        
         Vector3 startScale = transform.localScale;
         Color startColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
 
@@ -139,10 +177,8 @@ public class HealthScript : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
 
-            // 1. Ölürken objeyi küçült (Scale'i 0'a doğru çek)
             transform.localScale = Vector3.Lerp(startScale, Vector3.zero, t);
 
-            // 2. Saydamlaşma efekti (Alpha değerini 0'a doğru çekip Fade Out yap)
             if (spriteRenderer != null)
             {
                 spriteRenderer.color = new Color(startColor.r, startColor.g, startColor.b, Mathf.Lerp(startColor.a, 0f, t));
@@ -151,7 +187,6 @@ public class HealthScript : MonoBehaviour
             yield return null;
         }
 
-        // Animasyon bittiğinde objeyi sahneden tamamen sil
         Destroy(gameObject);
     }
 

@@ -7,14 +7,17 @@ public class EnemyAI : MonoBehaviour
 {
     public Tilemap groundMap;
     public HealthScript health;
-    public int skipTurns = 0; // YENİ: Düşmanın kaç tur boyunca kilitli kalacağını tutar
 
     [Header("UI Settings")]
     public GameObject intentArrow;
-    public GameObject stunEffectObj; // YENİ: Kafada dönecek sersemleme görseli
-    
-    // OK YÖNÜ İNCE AYARI: Ok yan/ters bakıyorsa bunu 90, -90 veya 180 yap.
-    public float arrowAngleOffset = 0f; 
+    public GameObject stunEffectObj; // Sersemleme (yıldız) görseli
+
+    // Ok yan/ters bakıyorsa bunu 90, -90 veya 180 yapıp hizala
+    public float arrowAngleOffset = 0f;
+
+    // Okların Fade In / Fade Out animasyonları için
+    private SpriteRenderer arrowRenderer;
+    private Coroutine arrowFadeCoroutine;
 
     private Vector3Int cell;
     private Vector3 targetWorldPos;
@@ -24,6 +27,9 @@ public class EnemyAI : MonoBehaviour
 
     public Vector3Int lockedTargetCell;
     public bool hasLockedTarget = false;
+
+    // YENİ: Düşmanın kaç tur şokta kalacağını tutan hafıza
+    public int skipTurns = 0;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -42,25 +48,48 @@ public class EnemyAI : MonoBehaviour
     {
         cell = groundMap.WorldToCell(transform.position);
 
-        if (TurnManager.instance != null)
-        {
-            TurnManager.instance.RegisterEnemy(this);
-        }
-
+        if (TurnManager.instance != null) TurnManager.instance.RegisterEnemy(this);
         targetWorldPos = groundMap.GetCellCenterWorld(cell);
-        
-        // Oyun başlarken sersemleme efekti gizli olsun
+
         SetStunVisual(false);
+
+        // Başlangıçta okun görünmezliğini (Alpha = 0) ayarla
+        if (intentArrow != null)
+        {
+            arrowRenderer = intentArrow.GetComponentInChildren<SpriteRenderer>();
+            if (arrowRenderer != null)
+            {
+                Color c = arrowRenderer.color;
+                c.a = 0f;
+                arrowRenderer.color = c;
+            }
+            intentArrow.SetActive(false);
+        }
     }
 
     void Update()
     {
         HandleMovement();
+
+        // Düşman hayatta olduğu sürece şok durumunu her kare kontrol et
+        if (health != null && health.currentHP > 0)
+        {
+            // Adam şokta mı? (skipTurns 0'dan büyük mü?)
+            bool isStunned = skipTurns > 0;
+
+            // 1. Yıldızları aç/kapat
+            if (stunEffectObj != null)
+            {
+                if (stunEffectObj.activeSelf != isStunned) stunEffectObj.SetActive(isStunned);
+            }
+
+            // 2. KANKA SENİN İSTEDİĞİN YER: Şokta olduğu SÜRECE saydamlaştır!
+            health.SetStunnedAlpha(isStunned);
+        }
     }
 
     private void HandleMovement()
     {
-        // Eğer hareket etmiyorsa veya "duvara çarpma" animasyonu oynuyorsa normal yürüyüşü durdur
         if (!isMoving || isBumping) return;
 
         transform.position = Vector3.MoveTowards(transform.position, targetWorldPos, ENEMY_MOVE_SPEED * Time.deltaTime);
@@ -72,13 +101,13 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // --- YENİ EKLENEN SERSEMLEME GÖRSELİ KONTROLÜ ---
+    // --- SERSEMLEME GÖRSELİ ---
     public void SetStunVisual(bool state)
     {
         if (stunEffectObj != null) stunEffectObj.SetActive(state);
     }
 
-    // --- YENİ EKLENEN DUVARA ÇARPMA (BUMP) ANİMASYONU ---
+    // --- DUVARA ÇARPMA VE ESNEME (BUMP) ANİMASYONU ---
     public void StartWallBump(Vector3 direction)
     {
         StartCoroutine(WallBumpCoroutine(direction));
@@ -86,40 +115,68 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator WallBumpCoroutine(Vector3 direction)
     {
-        isBumping = true; 
-        isMoving = true;  
-        
+        isBumping = true;
+        isMoving = true;
+
         Vector3 originalPos = groundMap.GetCellCenterWorld(cell);
         originalPos.z = 0;
-        
-        // YENİ: 0.6f çok fazlaydı, 0.35f ile tam olarak kendi altıgeninin bittiği duvara yapışacak.
-        Vector3 bumpPos = originalPos + (direction * 0.10f); 
 
-        // YENİ: Hızları böldük ve yavaşlattık. 
-        float hitSpeed = 12f;   // Duvara çarpma hızı (eskiden 20'ydi)
-        float returnSpeed = 8f; // Yerine dönme hızı (sersemlediği için daha yavaş dönüyor)
-        
-        // 1. İleri (Duvarın dibine doğru) savrul
+        Vector3 bumpPos = originalPos + (direction * 0.10f);
+        float hitSpeed = 4f;
+        float returnSpeed = 1f;
+
         while (Vector3.Distance(transform.position, bumpPos) > 0.01f)
         {
             transform.position = Vector3.MoveTowards(transform.position, bumpPos, hitSpeed * Time.deltaTime);
             yield return null;
         }
 
-        // YENİ: HİTSTOP EFEKTİ! Duvara yapıştığı an çok ufak bir süre donar. 
-        // Vuruşun o "tok" hissini veren en büyük sırdır.
-        yield return new WaitForSeconds(0.05f); 
+        yield return new WaitForSeconds(0.05f); // Tokluk hissi veren Hitstop
 
-        // 2. Geri (Kendi hücresinin merkezine) sek
         while (Vector3.Distance(transform.position, originalPos) > 0.01f)
         {
             transform.position = Vector3.MoveTowards(transform.position, originalPos, returnSpeed * Time.deltaTime);
             yield return null;
         }
 
-        transform.position = originalPos; 
+        transform.position = originalPos;
         isBumping = false;
-        isMoving = false; 
+        isMoving = false;
+    }
+
+    // --- YUMUŞAK OK ANİMASYONU (FADE IN / FADE OUT) ---
+    public void SetArrowVisibility(bool show)
+    {
+        if (intentArrow == null || arrowRenderer == null) return;
+        if (show && !hasLockedTarget) return;
+
+        if (arrowFadeCoroutine != null) StopCoroutine(arrowFadeCoroutine);
+        arrowFadeCoroutine = StartCoroutine(FadeArrowCoroutine(show));
+    }
+
+    private IEnumerator FadeArrowCoroutine(bool show)
+    {
+        if (show) intentArrow.SetActive(true);
+
+        float targetAlpha = show ? 1f : 0f;
+        float startAlpha = arrowRenderer.color.a;
+        float duration = 0.2f; // Ne kadar sürede eriyip belireceği
+        float elapsed = 0f;
+
+        Color c = arrowRenderer.color;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            c.a = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+            arrowRenderer.color = c;
+            yield return null;
+        }
+
+        c.a = targetAlpha;
+        arrowRenderer.color = c;
+
+        if (!show) intentArrow.SetActive(false);
     }
 
     // --- OK GÖSTERME VE KİLİTLENME ---
@@ -130,7 +187,7 @@ public class EnemyAI : MonoBehaviour
         if (isStunned || health.currentHP <= 0 || IsNeighbor(cell, playerCell))
         {
             hasLockedTarget = false;
-            intentArrow.SetActive(false);
+            SetArrowVisibility(false);
             return;
         }
 
@@ -139,7 +196,6 @@ public class EnemyAI : MonoBehaviour
         if (lockedTargetCell != cell)
         {
             hasLockedTarget = true;
-            intentArrow.SetActive(true);
 
             Vector3 currentWorldPos = groundMap.GetCellCenterWorld(cell);
             Vector3 nextWorldPos = groundMap.GetCellCenterWorld(lockedTargetCell);
@@ -148,24 +204,28 @@ public class EnemyAI : MonoBehaviour
             intentArrow.transform.position = currentWorldPos;
 
             Vector3 direction = nextWorldPos - currentWorldPos;
-            
+
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
             intentArrow.transform.rotation = Quaternion.AngleAxis(angle + arrowAngleOffset, Vector3.forward);
+
+            SetArrowVisibility(true);
         }
         else
         {
             hasLockedTarget = false;
-            intentArrow.SetActive(false);
+            SetArrowVisibility(false);
         }
     }
 
     public void ExecuteLockedMove()
     {
-        // YENİ KONTROL: Eğer skipTurns > 0 ise, hiçbir şekilde hareket etme!
-        if (isMoving || health.currentHP <= 0 || skipTurns > 0) 
+        // KRİTİK: Eğer ölmüşse veya şoktaysa hareket E-DE-MEZ!
+        if (isMoving || health.currentHP <= 0 || skipTurns > 0)
         {
-            if (skipTurns > 0) Debug.Log($"{gameObject.name} sarsıldığı için hareket edemiyor!");
-            return; 
+            if (skipTurns > 0) Debug.Log($"{gameObject.name} sarsıldığı için bu tur kilitli!");
+            hasLockedTarget = false;
+            SetArrowVisibility(false);
+            return;
         }
 
         if (hasLockedTarget)
@@ -182,19 +242,19 @@ public class EnemyAI : MonoBehaviour
         }
 
         hasLockedTarget = false;
-        if (intentArrow != null) intentArrow.SetActive(false);
+        SetArrowVisibility(false); // Hareket başlarken oku usulca gizler
     }
 
-    // --- AKILLI YOL BULMA (BFS ALGORİTMASI) ---
+    // --- AKILLI YOL BULMA (BFS) ---
     public Vector3Int CalculateNextMove(Vector3Int playerCell)
     {
         Queue<Vector3Int> queue = new Queue<Vector3Int>();
         Dictionary<Vector3Int, Vector3Int> cameFrom = new Dictionary<Vector3Int, Vector3Int>();
-        
+
         queue.Enqueue(cell);
         cameFrom[cell] = cell;
 
-        Vector3Int targetNeighbor = playerCell; 
+        Vector3Int targetNeighbor = playerCell;
         bool foundPath = false;
 
         while (queue.Count > 0)
@@ -216,13 +276,8 @@ public class EnemyAI : MonoBehaviour
 
                 if (!cameFrom.ContainsKey(next))
                 {
-                    // Zemin yoksa geçemez
                     if (!groundMap.HasTile(next)) continue;
-                    
-                    // Diken (Hazard) varsa İÇİNE GİREMEZ
                     if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(next)) continue;
-                    
-                    // Başka bir düşman oradayken üzerinden geçemez
                     if (TurnManager.instance.IsEnemyAtCell(next) && next != cell) continue;
 
                     cameFrom[next] = current;
@@ -238,11 +293,10 @@ public class EnemyAI : MonoBehaviour
             {
                 step = cameFrom[step];
             }
-            return step; 
+            return step;
         }
 
-        // Eğer yol yoksa (ada ayrık veya sıkıştıysa) titremek yerine bekler
-        return cell; 
+        return cell;
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)
@@ -269,7 +323,7 @@ public class EnemyAI : MonoBehaviour
     }
 
     public Vector3Int GetCurrentCellPosition() => cell;
-    public bool IsMoving() => isMoving || isBumping; // Animasyon oynarken de hareket ediyor sayılır
+    public bool IsMoving() => isMoving || isBumping;
 
     private bool IsNeighbor(Vector3Int cell1, Vector3Int cell2)
     {

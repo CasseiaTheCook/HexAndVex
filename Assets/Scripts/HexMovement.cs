@@ -51,17 +51,18 @@ public class HexMovement : MonoBehaviour
             worldPoint.z = 0;
             Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
 
-            // YENİ: En sona !TurnManager.instance.IsEnemyAtCell(clickedCell) ekledik!
             if (IsNeighbor(currentCellPosition, clickedCell) &&
                 groundMap.HasTile(clickedCell) &&
                 !LevelGenerator.instance.hazardCells.Contains(clickedCell) &&
                 !TurnManager.instance.IsEnemyAtCell(clickedCell))
             {
                 isKnockbackMove = false;
-
                 TurnManager.instance.isPlayerTurn = false;
-                ClearHighlights();
 
+                // YENİ EKLENEN SATIR BURASI: Sen tıkladığın an tüm düşmanların okları yavaşça kaybolur!
+                TurnManager.instance.HideAllEnemyIntents();
+
+                ClearHighlights();
                 MoveCharacter(clickedCell);
             }
         }
