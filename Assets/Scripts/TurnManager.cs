@@ -18,6 +18,9 @@ public class TurnManager : MonoBehaviour
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
 
+    [Header("Coin UI")]
+    public TMP_Text coinText; // Coin sayısını göstermek için UI text
+
     // Sahnede o an var olan görsel zarların listesi
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
 
@@ -54,7 +57,14 @@ public class TurnManager : MonoBehaviour
     void Start()
     {
         HideDiceResults();
+        UpdateCoinUI();
         Invoke("LockAllEnemyIntents", 0.5f);
+    }
+
+    private void UpdateCoinUI()
+    {
+        if (coinText != null && RunManager.instance != null)
+            coinText.text = "Coins: " + RunManager.instance.currentGold;
     }
 
     public void RegisterEnemy(EnemyAI enemy)
@@ -87,6 +97,7 @@ public class TurnManager : MonoBehaviour
         if (!isPlayerTurn) return;
         foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
+        UpdateCoinUI();
         isPlayerTurn = false;
         StartCoroutine(EnemyPhase());
     }
@@ -285,7 +296,10 @@ public class TurnManager : MonoBehaviour
 
             if (dies)
             {
-                RunManager.instance.currentGold += Random.Range(5, 11) + RunManager.instance.bonusGold;
+                int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+                RunManager.instance.currentGold += coinDrop;
+                UpdateCoinUI();
+                Debug.Log($"{enemy.name} öldü! +{coinDrop} coin (Toplam: {RunManager.instance.currentGold})");
                 foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
                 enemies.Remove(enemy);
             }
