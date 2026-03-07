@@ -30,8 +30,7 @@ public class TurnManager : MonoBehaviour
     private List<EnemyAI> stunnedEnemiesThisTurn = new List<EnemyAI>();
 
     [Header("Shop Turu")]
-    public int shopEveryNTurns = 3; // Kaç turda bir shop açılsın?
-    private int turnCount = 0;
+
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -65,7 +64,7 @@ public class TurnManager : MonoBehaviour
         Invoke("LockAllEnemyIntents", 0.5f);
     }
 
-    private void UpdateCoinUI()
+    public void UpdateCoinUI()
     {
         if (coinText != null && RunManager.instance != null)
             coinText.text = "Coins: " + RunManager.instance.currentGold;
@@ -544,19 +543,6 @@ public class TurnManager : MonoBehaviour
                     e.skipTurns--;
                     if (e.skipTurns <= 0)
                         e.SetStunVisual(false);
-                }
-            }
-
-            turnCount++;
-            Debug.Log($"Tur: {turnCount}");
-
-            if (turnCount % shopEveryNTurns == 0)
-            {
-                Debug.Log($"🛒 {shopEveryNTurns} tur doldu, shop açılıyor!");
-                if (Shopmanager.instance != null)
-                {
-                    Shopmanager.instance.OpenShop();
-                    return; // Shop açıkken oyuncu turu başlatma
                 }
             }
 
