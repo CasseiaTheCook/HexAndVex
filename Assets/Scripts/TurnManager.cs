@@ -17,6 +17,7 @@ public class TurnManager : MonoBehaviour
     public Transform diceUIContainer;    // Horizontal Layout olan paneli buraya at
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
+    public GameObject criticalText;
 
     [Header("Coin UI")]
     public TMP_Text coinText; // Coin sayısını göstermek için UI text
@@ -322,6 +323,10 @@ public class TurnManager : MonoBehaviour
             payload.isCriticalHit = true;
             UpdateTotalDamageDisplay(payload.GetFinalDamage());
             Debug.Log("🎯 KRİTİK!");
+
+            // YENİ: Animasyonu tam bu saniye başlatıyoruz!
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); 
+
             yield return new WaitForSeconds(0.5f);
         }
 
@@ -741,6 +746,46 @@ public class TurnManager : MonoBehaviour
         spawnedDiceUI.Clear();
 
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
+        if (criticalText != null) criticalText.gameObject.SetActive(false); // YENİ EKLENDİ
+    }
+
+    // ==========================================
+    // YENİ: KRİTİK YAZISI ANİMASYONU
+    // ==========================================
+    private IEnumerator CriticalTextPopAnimation()
+    {
+        if (criticalText == null) yield break;
+
+        criticalText.gameObject.SetActive(true);
+        Transform t = criticalText.transform;
+
+        Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f); // Küçücük başlar
+        Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f); // Ekrana doğru devasa patlar
+        Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f); // Normal boyutuna (1,1,1) döner
+
+        float elapsed = 0f;
+        float popDuration = 0.1f;
+
+        // 1. AŞAMA: Aniden büyü ve ekrana vur (Overshoot)
+        while (elapsed < popDuration)
+        {
+            t.localScale = Vector3.Lerp(startScale, overshootScale, elapsed / popDuration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        elapsed = 0f;
+        float settleDuration = 0.1f;
+
+        // 2. AŞAMA: Hafifçe küçülüp asıl boyutuna esneyerek otur (Settle)
+        while (elapsed < settleDuration)
+        {
+            t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        t.localScale = endScale;
     }
 
     // --- YARDIMCI METOTLAR ---
