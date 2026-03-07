@@ -17,6 +17,7 @@ public class TurnManager : MonoBehaviour
     public Transform diceUIContainer;    // Horizontal Layout olan paneli buraya at
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
+    public GameObject criticalText;
 
     [Header("Coin UI")]
     public TMP_Text coinText; // Coin sayısını göstermek için UI text
@@ -30,8 +31,7 @@ public class TurnManager : MonoBehaviour
     private List<EnemyAI> stunnedEnemiesThisTurn = new List<EnemyAI>();
 
     [Header("Shop Turu")]
-    public int shopEveryNTurns = 3; // Kaç turda bir shop açılsın?
-    private int turnCount = 0;
+
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -65,7 +65,7 @@ public class TurnManager : MonoBehaviour
         Invoke("LockAllEnemyIntents", 0.5f);
     }
 
-    private void UpdateCoinUI()
+    public void UpdateCoinUI()
     {
         if (coinText != null && RunManager.instance != null)
             coinText.text = "Coins: " + RunManager.instance.currentGold;
@@ -247,6 +247,9 @@ public class TurnManager : MonoBehaviour
     }
     // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
     // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
+
+
+    // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
         yield return new WaitForSeconds(0.3f);
@@ -257,20 +260,25 @@ public class TurnManager : MonoBehaviour
         for (int i = 0; i < diceCount; i++) currentRolls.Add(Random.Range(1, 7));
 
         CombatPayload payload = new CombatPayload(currentRolls);
+
+        // ===============================================================
+        // YENİ: VİZYONER KONTROL! 
+        // Eğer adamda Sword Dance varsa, oyun daha zarları ekrana basmadan 
+        // matematiği direkt çarpmaya çevirir. Gereksiz toplamayı atlarız!
+        // ===============================================================
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk"))
+        {
+            payload.multiplyInsteadOfAdd = true;
+        }
+
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
-        // 2. Perkleri ve Jokerleri çalıştır
-        if (RunManager.instance != null)
-        {
-            foreach (BasePerk perk in RunManager.instance.activePerks)
-            {
-                if (perk.GetType().Name == "SwordDancePerk") perk.ModifyCombat(payload);
-            }
-        }
+        // Zarlar atıldıktan sonra İLK HASARI ekranda göster
+        // (Artık Sword Dance varsa ekranda 16 yerine şak diye 63 yazacak)
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
+        yield return new WaitForSeconds(0.5f);
 
-
-        // Perk işleme döngüsü (Jokerler vb.)
+        // 2. PERKLERİ SIRAYLA ÇALIŞTIR
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
@@ -294,6 +302,10 @@ public class TurnManager : MonoBehaviour
                 }
 
                 int afterTotal = payload.GetFinalDamage();
+
+                // Kanka burası çok kritik: Sword Dance döngüde sırası gelip tekrar çalıştığında,
+                // matematik zaten çarpma olduğu için beforeTotal ve afterTotal aynı kalacak.
+                // Bu sayede oyun "Aaa sayı değişmedi" deyip gereksiz yere ikinci bir animasyon OYNATMAYACAK!
                 if (beforeTotal != afterTotal || anyDieChanged)
                 {
                     perk.TriggerVisualPop();
@@ -303,12 +315,18 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // ... (Kodun geri kalanı aynı şekilde devam ediyor: Kritik vuruş, hasar uygulama vs.)
+
         // 3. Kritik Vuruş
         if (Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true;
             UpdateTotalDamageDisplay(payload.GetFinalDamage());
             Debug.Log("🎯 KRİTİK!");
+
+            // YENİ: Animasyonu tam bu saniye başlatıyoruz!
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); 
+
             yield return new WaitForSeconds(0.5f);
         }
 
@@ -587,19 +605,6 @@ public class TurnManager : MonoBehaviour
                 }
             }
 
-            turnCount++;
-            Debug.Log($"Tur: {turnCount}");
-
-            if (turnCount % shopEveryNTurns == 0)
-            {
-                Debug.Log($"🛒 {shopEveryNTurns} tur doldu, shop açılıyor!");
-                if (Shopmanager.instance != null)
-                {
-                    Shopmanager.instance.OpenShop();
-                    return; // Shop açıkken oyuncu turu başlatma
-                }
-            }
-
             isPlayerTurn = true;
             player.UpdateHighlights();
             LockAllEnemyIntents();
@@ -741,6 +746,46 @@ public class TurnManager : MonoBehaviour
         spawnedDiceUI.Clear();
 
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
+        if (criticalText != null) criticalText.gameObject.SetActive(false); // YENİ EKLENDİ
+    }
+
+    // ==========================================
+    // YENİ: KRİTİK YAZISI ANİMASYONU
+    // ==========================================
+    private IEnumerator CriticalTextPopAnimation()
+    {
+        if (criticalText == null) yield break;
+
+        criticalText.gameObject.SetActive(true);
+        Transform t = criticalText.transform;
+
+        Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f); // Küçücük başlar
+        Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f); // Ekrana doğru devasa patlar
+        Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f); // Normal boyutuna (1,1,1) döner
+
+        float elapsed = 0f;
+        float popDuration = 0.1f;
+
+        // 1. AŞAMA: Aniden büyü ve ekrana vur (Overshoot)
+        while (elapsed < popDuration)
+        {
+            t.localScale = Vector3.Lerp(startScale, overshootScale, elapsed / popDuration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        elapsed = 0f;
+        float settleDuration = 0.1f;
+
+        // 2. AŞAMA: Hafifçe küçülüp asıl boyutuna esneyerek otur (Settle)
+        while (elapsed < settleDuration)
+        {
+            t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        t.localScale = endScale;
     }
 
     // --- YARDIMCI METOTLAR ---
