@@ -11,9 +11,9 @@ public class EnemyAI : MonoBehaviour
     [Header("UI Settings")]
     public GameObject intentArrow;
     public GameObject stunEffectObj; // Sersemleme (yıldız) görseli
-    
+
     // Ok yan/ters bakıyorsa bunu 90, -90 veya 180 yapıp hizala
-    public float arrowAngleOffset = 0f; 
+    public float arrowAngleOffset = 0f;
 
     // Okların Fade In / Fade Out animasyonları için
     private SpriteRenderer arrowRenderer;
@@ -27,9 +27,9 @@ public class EnemyAI : MonoBehaviour
 
     public Vector3Int lockedTargetCell;
     public bool hasLockedTarget = false;
-    
+
     // YENİ: Düşmanın kaç tur şokta kalacağını tutan hafıza
-    public int skipTurns = 0; 
+    public int skipTurns = 0;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -50,7 +50,7 @@ public class EnemyAI : MonoBehaviour
 
         if (TurnManager.instance != null) TurnManager.instance.RegisterEnemy(this);
         targetWorldPos = groundMap.GetCellCenterWorld(cell);
-        
+
         SetStunVisual(false);
 
         // Başlangıçta okun görünmezliğini (Alpha = 0) ayarla
@@ -60,7 +60,7 @@ public class EnemyAI : MonoBehaviour
             if (arrowRenderer != null)
             {
                 Color c = arrowRenderer.color;
-                c.a = 0f; 
+                c.a = 0f;
                 arrowRenderer.color = c;
             }
             intentArrow.SetActive(false);
@@ -70,8 +70,22 @@ public class EnemyAI : MonoBehaviour
     void Update()
     {
         HandleMovement();
-        // DİKKAT: Burada eskiden olan Destroy(gameObject) satırını sildik! 
-        // Artık HealthScript kendi ölüm animasyonunu (küçülme/solma) bitirince kendisi silecek.
+
+        // Düşman hayatta olduğu sürece şok durumunu her kare kontrol et
+        if (health != null && health.currentHP > 0)
+        {
+            // Adam şokta mı? (skipTurns 0'dan büyük mü?)
+            bool isStunned = skipTurns > 0;
+
+            // 1. Yıldızları aç/kapat
+            if (stunEffectObj != null)
+            {
+                if (stunEffectObj.activeSelf != isStunned) stunEffectObj.SetActive(isStunned);
+            }
+
+            // 2. KANKA SENİN İSTEDİĞİN YER: Şokta olduğu SÜRECE saydamlaştır!
+            health.SetStunnedAlpha(isStunned);
+        }
     }
 
     private void HandleMovement()
@@ -101,16 +115,16 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator WallBumpCoroutine(Vector3 direction)
     {
-        isBumping = true; 
-        isMoving = true;  
-        
+        isBumping = true;
+        isMoving = true;
+
         Vector3 originalPos = groundMap.GetCellCenterWorld(cell);
         originalPos.z = 0;
-        
-        Vector3 bumpPos = originalPos + (direction * 0.35f); 
-        float hitSpeed = 12f;   
-        float returnSpeed = 8f; 
-        
+
+        Vector3 bumpPos = originalPos + (direction * 0.10f);
+        float hitSpeed = 4f;
+        float returnSpeed = 1f;
+
         while (Vector3.Distance(transform.position, bumpPos) > 0.01f)
         {
             transform.position = Vector3.MoveTowards(transform.position, bumpPos, hitSpeed * Time.deltaTime);
@@ -125,9 +139,9 @@ public class EnemyAI : MonoBehaviour
             yield return null;
         }
 
-        transform.position = originalPos; 
+        transform.position = originalPos;
         isBumping = false;
-        isMoving = false; 
+        isMoving = false;
     }
 
     // --- YUMUŞAK OK ANİMASYONU (FADE IN / FADE OUT) ---
@@ -182,7 +196,7 @@ public class EnemyAI : MonoBehaviour
         if (lockedTargetCell != cell)
         {
             hasLockedTarget = true;
-            
+
             Vector3 currentWorldPos = groundMap.GetCellCenterWorld(cell);
             Vector3 nextWorldPos = groundMap.GetCellCenterWorld(lockedTargetCell);
             currentWorldPos.z = 0; nextWorldPos.z = 0;
@@ -190,10 +204,10 @@ public class EnemyAI : MonoBehaviour
             intentArrow.transform.position = currentWorldPos;
 
             Vector3 direction = nextWorldPos - currentWorldPos;
-            
+
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
             intentArrow.transform.rotation = Quaternion.AngleAxis(angle + arrowAngleOffset, Vector3.forward);
-            
+
             SetArrowVisibility(true);
         }
         else
@@ -236,11 +250,11 @@ public class EnemyAI : MonoBehaviour
     {
         Queue<Vector3Int> queue = new Queue<Vector3Int>();
         Dictionary<Vector3Int, Vector3Int> cameFrom = new Dictionary<Vector3Int, Vector3Int>();
-        
+
         queue.Enqueue(cell);
         cameFrom[cell] = cell;
 
-        Vector3Int targetNeighbor = playerCell; 
+        Vector3Int targetNeighbor = playerCell;
         bool foundPath = false;
 
         while (queue.Count > 0)
@@ -279,10 +293,10 @@ public class EnemyAI : MonoBehaviour
             {
                 step = cameFrom[step];
             }
-            return step; 
+            return step;
         }
 
-        return cell; 
+        return cell;
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)
