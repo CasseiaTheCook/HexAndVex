@@ -121,13 +121,21 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
     {
-        // --- YENİ: TUZAK KONTROLÜ ---
+        // --- YENİ: TUZAK KONTROLÜ (GECİKMELİ VE PARLAMALI) ---
         if (LevelGenerator.instance.hazardCells.Contains(playerCell))
         {
             Debug.Log("🔥 Tuzağa bastın!");
-            player.health.TakeDamage(1); // 1 Hasar yer
 
-            // Etrafındaki güvenli (tuzaksız ve düşmansız) bir komşuya seker
+            // 1. Karakter dikene ulaştı, durumu algılaması için çok kısa bekle
+            yield return new WaitForSeconds(0.15f);
+
+            // 2. Diken yumuşakça parlasın (Aynı anda hasar yesin)
+            StartCoroutine(FlashHazardTileCoroutine(playerCell));
+            player.health.TakeDamage(1);
+
+            yield return new WaitForSeconds(0.15f); // Parlamanın bitişini çok az bekle
+
+            // 3. Etrafındaki güvenli bir komşuya can havliyle seker
             Vector3Int bounceCell = GetSafeNeighbor(playerCell);
             player.StartKnockbackMovement(bounceCell);
 
@@ -392,17 +400,38 @@ public class TurnManager : MonoBehaviour
             yield break;
         }
 
-        // 7. DİKEN (HAZARD) KONTROLÜ (SADECE HAYATTA KALANLAR)
-        bool anyoneBounced = false;
+        // 7. DİKEN (HAZARD) KONTROLÜ (BEKLEMELİ VE PARLAMALI)
+        List<EnemyAI> spikedEnemies = new List<EnemyAI>();
+        bool anyoneBounced = false; // İŞTE BURAYA ALDIK! Artık herkes görebilir.
+
         foreach (var s in knockedEnemies)
         {
             if (s != null && LevelGenerator.instance.hazardCells.Contains(s.GetCurrentCellPosition()))
             {
-                s.health.TakeDamage(Mathf.Max(1, s.health.maxHP / 2));
+                spikedEnemies.Add(s);
+            }
+        }
 
-                if (s.health.currentHP > 0)
+        if (spikedEnemies.Count > 0)
+        {
+            // 1. Ekranda o anı "hissetmek" için bekle
+            yield return new WaitForSeconds(0.2f);
+
+            // 2. Dikenler aynı anda parlasın ve adamlar hasar yesin
+            foreach (var s in spikedEnemies)
+            {
+                StartCoroutine(FlashHazardTileCoroutine(s.GetCurrentCellPosition()));
+                s.health.TakeDamage(Mathf.Max(1, s.health.maxHP / 2));
+            }
+
+            // 3. Hasarın ve parlamanın ekranda kalma süresi
+            yield return new WaitForSeconds(0.2f);
+
+            // 4. Hayatta kalanlar dikenden rastgele kaçsın
+            foreach (var s in spikedEnemies)
+            {
+                if (s != null && s.health.currentHP > 0)
                 {
-                    // YENİ: DİKENDEN RASTGELE GÜVENLİ BİR YERE SEKME
                     Vector3Int randomBounceCell = GetRandomSafeNeighbor(s.GetCurrentCellPosition());
                     s.StartKnockbackMovement(randomBounceCell);
                     anyoneBounced = true;
@@ -410,11 +439,12 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // Animasyonun bitmesini bekle (Artık hata vermeyecek)
         if (anyoneBounced)
         {
             yield return new WaitUntil(() =>
             {
-                foreach (var s in knockedEnemies) if (s != null && s.IsMoving()) return false;
+                foreach (var s in spikedEnemies) if (s != null && s.IsMoving()) return false;
                 return true;
             });
             enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -487,12 +517,22 @@ public class TurnManager : MonoBehaviour
             // Oyuncu dikene düştü mü kontrolü
             if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
             {
+                // 1. EKRAN DONMASI (VURGU ARTIRILDI): Oyuncu dikene girdi, tehlikeyi hissetmesi için daha uzun bekle
+                yield return new WaitForSeconds(0.4f); // Eski 0.2f değerini 0.4f yaptık, "eyvah" hissi pekişti
+
+                // 2. HASAR HESABI
                 int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
                 Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
-
                 player.health.TakeDamage(spikeDamage);
-                player.StartKnockbackMovement(playerOriginalCell); // Dikenden geri sekme
 
+                // 3. PARLAMA VE SEKME TAMAMEN EŞ ZAMANLI!
+                // Zemin parlamaya başladığı salise...
+                StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
+
+                // ...oyuncu da can havliyle oradan fırlıyor! (Aradaki beklemeyi sildik)
+                player.StartKnockbackMovement(playerOriginalCell);
+
+                // Geri sekme hareketinin bitmesini bekle
                 yield return new WaitUntil(() => !player.IsMoving());
             }
         }
@@ -833,5 +873,41 @@ public class TurnManager : MonoBehaviour
 
         // Eğer her yeri kapalıysa mecbur olduğu yerde (dikenin içinde) kalır
         return centerCell;
+    }
+    // ==========================================
+    // YENİ: DİKEN PARLAMA (FLASH) ANİMASYONU
+    // ==========================================
+    private IEnumerator FlashHazardTileCoroutine(Vector3Int cell)
+    {
+        if (groundMap == null) yield break;
+
+        // ÇOK ÖNEMLİ: Unity varsayılan olarak Tile renklerini kilitler. Önce o kilidi açıyoruz!
+        groundMap.SetTileFlags(cell, TileFlags.None);
+
+        Color originalColor = Color.white;
+        Color flashColor = new Color(1f, 0.4f, 0.4f, 1f); // Dikenin parlayacağı kırmızımtırak renk
+
+        float duration = 0.15f; // Parlama hızı
+        float elapsed = 0f;
+
+        // 1. Kırmızıya doğru yumuşak geçiş
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            groundMap.SetColor(cell, Color.Lerp(originalColor, flashColor, elapsed / duration));
+            yield return null;
+        }
+
+        elapsed = 0f;
+
+        // 2. Geri kendi rengine (beyaza) dönüş
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            groundMap.SetColor(cell, Color.Lerp(flashColor, originalColor, elapsed / duration));
+            yield return null;
+        }
+
+        groundMap.SetColor(cell, originalColor);
     }
 }
