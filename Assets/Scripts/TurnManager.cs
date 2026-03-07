@@ -225,7 +225,14 @@ public class TurnManager : MonoBehaviour
             EndTurnAndDecreaseStuns();
         }
     }
-
+    // YENİ: Oyuncu hamle yaptığı an tüm okları yavaşça siler
+    public void HideAllEnemyIntents()
+    {
+        foreach (var e in enemies)
+        {
+            if (e != null) e.SetArrowVisibility(false);
+        }
+    }
     // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
@@ -367,24 +374,24 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.3f);
         HideDiceResults();
 
-// 7. ZİNCİRLEME SALDIRI KONTROLÜ (YENİ MANTIK)
+        // 7. ZİNCİRLEME SALDIRI KONTROLÜ (YENİ MANTIK)
         List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
         List<EnemyAI> nextTargets = new List<EnemyAI>();
 
-        foreach (var e in allAdjacent) 
+        foreach (var e in allAdjacent)
         {
             // Sadece sersemlememiş düşmanlar zincirlemeye dahil olur
             if (e != null && e.skipTurns <= 0) nextTargets.Add(e);
         }
 
         // EĞER VURULACAK ADAM KALDIYSA ZİNCİRLEMEYE DEVAM ET
-        if (nextTargets.Count > 0) 
+        if (nextTargets.Count > 0)
         {
             yield return StartCoroutine(MultiAttack(nextTargets));
         }
         // İŞTE BURADAKİ "ELSE" KISMINI VE CEZA SİLME KOMUTUNU TAMAMEN SİLDİK!
         // Çünkü cezalar oyuncu saldırırken değil, düşmanın turu BİTİNCE silinmeli!
-    
+
     }
 
     // ==========================================
@@ -394,17 +401,81 @@ public class TurnManager : MonoBehaviour
     {
         // YENİ GÜVENLİK KONTROLÜ: Saldıranlardan şokta olan varsa listeyi temizle!
         attackers.RemoveAll(a => a.skipTurns > 0);
-        if (attackers.Count == 0) 
+        if (attackers.Count == 0)
         {
             EndTurnAndDecreaseStuns();
             yield break;
         }
 
         yield return new WaitForSeconds(0.2f);
-        // ... (geri kalan kodlar aynı)
+
+        // --- EKSİK OLAN VE SENİN "GERİ KALAN KODLAR" DİYE SİLDİĞİN ASIL KISIM BURASIYDI :) ---
+        bool dodged = false;
+        if (RunManager.instance != null)
+        {
+            dodged = RunManager.instance.hasHolyAegis || Random.value < RunManager.instance.dodgeChance;
+            if (RunManager.instance.hasHolyAegis) RunManager.instance.hasHolyAegis = false;
+        }
+
+        if (!dodged)
+        {
+            // Oyuncu Hasar Alır
+            player.health.TakeDamage(1);
+
+            // Oyuncu Geri Seker (Saldıran ilk düşmanın tersine doğru)
+            Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
+            Vector3Int playerTarget = GetOppositeCell(playerOriginalCell, attackers[0].GetCurrentCellPosition());
+
+            player.StartKnockbackMovement(playerTarget);
+            yield return new WaitUntil(() => !player.IsMoving());
+
+            // Oyuncu dikene düştü mü kontrolü
+            if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
+            {
+                int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
+                Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
+
+                player.health.TakeDamage(spikeDamage);
+                player.StartKnockbackMovement(playerOriginalCell); // Dikenden geri sekme
+
+                yield return new WaitUntil(() => !player.IsMoving());
+            }
+        }
+        else
+        {
+            Debug.Log("🛡️ DODGE! Hasar almadın.");
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
+        // --- EN KRİTİK YER: SALDIRI BİTİNCE TURU SANA VEREN KOD ---
+        EndTurnAndDecreaseStuns();
+
+        {
+            if (player != null && player.health.currentHP > 0)
+            {
+                Debug.Log("🔄 Düşman turu bitti. Sersemleme süreleri azalıyor...");
+
+                foreach (var e in enemies)
+                {
+                    if (e != null && e.skipTurns > 0)
+                    {
+                        e.skipTurns--; // Cezasını 1 tur azalt
+
+                        if (e.skipTurns <= 0)
+                        {
+                            e.SetStunVisual(false); // Cezası bittiyse kafasındaki yıldızları sil
+                        }
+                    }
+                }
+
+                isPlayerTurn = true;
+                player.UpdateHighlights();
+                LockAllEnemyIntents();
+            }
+        }
     }
 
-    // YENİ EKLENEN ANA YARDIMCI METOT
     private void EndTurnAndDecreaseStuns()
     {
         if (player != null && player.health.currentHP > 0)
