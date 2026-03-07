@@ -241,12 +241,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 506802351436183914}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d79996e931d985640b3d06ca11387bf3, type: 3}
+  m_Script: {fileID: 11500000, guid: 76d1e686a045a0640b93848fc8094d30, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   groundMap: {fileID: 0}
   health: {fileID: 4205142481590582313}
-  intentArrow: {fileID: 1595757694749280500}
+  intentArrow: {fileID: 3621328375706932076}
+  arrowAngleOffset: -90
   lockedTargetCell: {x: 0, y: 0, z: 0}
   hasLockedTarget: 0
 --- !u!114 &4205142481590582313
@@ -258,10 +259,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 506802351436183914}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 92285e237d8626343973e232673e2151, type: 3}
+  m_Script: {fileID: 11500000, guid: 0bc0a3b80bba5014ab275a958581def0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHP: 20
+  maxHP: 3
   currentHP: 0
   hptext: {fileID: 3984692308681975835}
 --- !u!1 &1595757694749280500
@@ -279,7 +280,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &5245103691642538496
 Transform:
   m_ObjectHideFlags: 0
