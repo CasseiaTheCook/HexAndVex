@@ -1,11 +1,21 @@
+using System.Collections.Generic;
+using System.Linq;
+
 public class AncientBlessingPerk : BasePerk
 {
     public override void OnAcquire()
     {
-        if (RunManager.instance.activePerks.Count > 1)
+        // Kendisi hariç aktif perkleri listele
+        var otherPerks = RunManager.instance.activePerks
+            .Where(p => p != this)
+            .ToList();
+
+        if (otherPerks.Count > 0)
         {
-            // Kendisi hariç rastgele bir perk bul ve güçlendir
-            // ...
+            // Rastgele birini seç ve varsa Upgrade metodunu çalıştır veya seviyesini artır
+            int randomIndex = UnityEngine.Random.Range(0, otherPerks.Count);
+            otherPerks[randomIndex].level++; 
+            
             TriggerVisualPop();
         }
     }
