@@ -30,7 +30,7 @@ public class TurnManager : MonoBehaviour
     private List<EnemyAI> stunnedEnemiesThisTurn = new List<EnemyAI>();
 
     [Header("Shop Turu")]
-    public int shopEveryNTurns = 5; // Kaç turda bir shop açılsın?
+    public int shopEveryNTurns = 3; // Kaç turda bir shop açılsın?
     private int turnCount = 0;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };

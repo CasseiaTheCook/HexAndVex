@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
@@ -7,36 +7,94 @@ public class Shopmanager : MonoBehaviour
 {
     public static Shopmanager instance;
 
+    // -------------------------------------------------------
+    // Dahili item tipi (prefab gerektirmez, anÄ±nda efekt uygular)
+    // -------------------------------------------------------
+    private enum SlotType { Perk, Item }
+
+    private class ShopItemData
+    {
+        public string name;
+        public string description;
+        public int price;
+        public System.Action onBuy;
+
+        public ShopItemData(string n, string desc, int p, System.Action effect)
+        { name = n; description = desc; price = p; onBuy = effect; }
+    }
+
     [Header("Panel")]
     public GameObject shopPanel;
 
-    [Header("Perk Listeleri (LevelUpManager ile aynı)")]
+    [Header("Perk Listeleri (LevelUpManager ile aynÄ±)")]
     public List<GameObject> commonPerks;
     public List<GameObject> rarePerks;
     public List<GameObject> epicPerks;
     public List<GameObject> legendaryPerks;
 
     [Header("UI Slotlar (3 adet)")]
-    public Button[] buyButtons;          // 3 adet Satın Al butonu
-    public TMP_Text[] itemNameTexts;     // Her slot için isim + açıklama
-    public TMP_Text[] itemPriceTexts;    // Her slot için fiyat etiketi
-    public Image[] soldOutOverlays;      // Satın alındığında üstüne gelen "Satıldı" görseli (opsiyonel)
+    public Button[] buyButtons;
+    public TMP_Text[] itemNameTexts;
+    public TMP_Text[] itemPriceTexts;
+    public Image[] soldOutOverlays;
 
     [Header("UI Genel")]
-    public TMP_Text coinDisplayText;     // Shopun içindeki coin sayacı
-    public Button rerollButton;          // Reroll butonu
-    public TMP_Text rerollPriceText;     // Reroll fiyatını gösterir
+    public TMP_Text coinDisplayText;
+    public Button rerollButton;
+    public TMP_Text rerollPriceText;
+    public Button shopButton;            // MainUI'daki Shop aÃ§/kapat butonu
 
-    [Header("Reroll Ayarları")]
-    public int rerollBaseCost = 2;       // İlk reroll maliyeti
-    public int rerollCostIncrease = 1;   // Her reroll'da artan miktar
+    [Header("Reroll AyarlarÄ±")]
+    public int rerollBaseCost = 2;
+    public int rerollCostIncrease = 1;
 
     // Dahili durum
-    private List<GameObject> currentItems = new List<GameObject>();
+    private List<GameObject> currentPerkItems = new List<GameObject>(); // perk slotlarÄ±
+    private ShopItemData[] currentShopItems = new ShopItemData[3];       // item slotlarÄ±
+    private SlotType[] slotTypes = new SlotType[3];
     private int[] currentPrices = new int[3];
     private bool[] purchased = new bool[3];
     private int currentRerollCost;
     private int rerollCount = 0;
+    private bool openedMidGame = false;
+
+    // 5 sabit consumable item havuzu
+    private List<ShopItemData> BuildItemPool()
+    {
+        return new List<ShopItemData>
+        {
+            new ShopItemData(
+                "âš—ï¸ SaÄŸlÄ±k Ä°ksiri", "AnÄ±nda 1 can yenile", 3,
+                () => {
+                    RunManager.instance.playerCurrentHealth = Mathf.Min(
+                        RunManager.instance.playerCurrentHealth + 1, RunManager.instance.playerMaxHealth);
+                    if (TurnManager.instance?.player?.health != null)
+                        TurnManager.instance.player.health.Heal(1);
+                }
+            ),
+            new ShopItemData(
+                "ğŸ§ª GÃ¼Ã§lÃ¼ Ä°ksir", "AnÄ±nda 2 can yenile", 5,
+                () => {
+                    RunManager.instance.playerCurrentHealth = Mathf.Min(
+                        RunManager.instance.playerCurrentHealth + 2, RunManager.instance.playerMaxHealth);
+                    if (TurnManager.instance?.player?.health != null)
+                        TurnManager.instance.player.health.Heal(2);
+                }
+            ),
+            new ShopItemData(
+                "ğŸ’° AltÄ±n CÃ¼zdan", "AnÄ±nda +6 coin kazan", 2,
+                () => RunManager.instance.currentGold += 6
+            ),
+            new ShopItemData(
+                "âš¡ Enerji Ä°Ã§eceÄŸi", "Bu savaÅŸta 1 ekstra hamle hakkÄ±", 4,
+                () => RunManager.instance.remainingMoves += 1
+            ),
+            new ShopItemData(
+                "ğŸ¯ SavaÅŸ BÃ¼yÃ¼sÃ¼", "Kritik vuruÅŸ ihtimali kalÄ±cÄ± +%15", 6,
+                () => RunManager.instance.criticalChance += 0.15f
+            )
+        };
+    }
 
     void Awake()
     {
@@ -48,13 +106,21 @@ public class Shopmanager : MonoBehaviour
         if (rerollButton != null)
             rerollButton.onClick.AddListener(TryReroll);
 
+        if (shopButton != null)
+            shopButton.onClick.AddListener(ToggleShopMidGame);
+
         if (shopPanel != null)
             shopPanel.SetActive(false);
     }
 
-    // Dungeon bitince TurnManager tarafından çağrılır
+    // -------------------------------------------------------
+    // AÃ§ / Kapat
+    // -------------------------------------------------------
+
+    // Dungeon bitti / tur sayÄ±sÄ± doldu â†’ TurnManager Ã§aÄŸÄ±rÄ±r
     public void OpenShop()
     {
+        openedMidGame = false;
         rerollCount = 0;
         currentRerollCost = rerollBaseCost;
 
@@ -64,13 +130,35 @@ public class Shopmanager : MonoBehaviour
         RefreshRerollButton();
     }
 
-    // Dükkanı kapatıp oyuna devam et
+    // ShopButton'a basÄ±nca toggle
+    public void ToggleShopMidGame()
+    {
+        if (shopPanel != null && shopPanel.activeSelf)
+        {
+            LeaveShop();
+            return;
+        }
+
+        if (TurnManager.instance != null && !TurnManager.instance.isPlayerTurn) return;
+
+        openedMidGame = true;
+        rerollCount = 0;
+        currentRerollCost = rerollBaseCost;
+
+        if (TurnManager.instance != null)
+            TurnManager.instance.isPlayerTurn = false;
+
+        if (shopPanel != null) shopPanel.SetActive(true);
+        GenerateShopItems();
+        RefreshCoinDisplay();
+        RefreshRerollButton();
+    }
+
     public void LeaveShop()
     {
         if (shopPanel != null) shopPanel.SetActive(false);
 
-        // Hâlâ savaşta düşman varsa oyuna dön, yoksa level-up ekranını aç
-        if (TurnManager.instance != null && TurnManager.instance.enemies.Count > 0)
+        if (openedMidGame || (TurnManager.instance != null && TurnManager.instance.enemies.Count > 0))
         {
             TurnManager.instance.ResumeAfterShop();
         }
@@ -95,7 +183,6 @@ public class Shopmanager : MonoBehaviour
         if (RunManager.instance.currentGold < currentRerollCost)
         {
             StartCoroutine(FlashText(rerollPriceText));
-            Debug.Log($"Reroll için yeterli coin yok! Gerekli: {currentRerollCost}");
             return;
         }
 
@@ -106,76 +193,130 @@ public class Shopmanager : MonoBehaviour
         GenerateShopItems();
         RefreshCoinDisplay();
         RefreshRerollButton();
-        Debug.Log($"Reroll yapıldı! Sonraki reroll maliyeti: {currentRerollCost}");
     }
 
     // -------------------------------------------------------
-    // Rastgele ürün oluştur
+    // Slot Ã¼retimi (perk + item karÄ±ÅŸÄ±k)
     // -------------------------------------------------------
     private void GenerateShopItems()
     {
-        currentItems.Clear();
+        currentPerkItems.Clear();
         purchased = new bool[3];
+        List<ShopItemData> itemPool = BuildItemPool();
+        List<int> usedItemIndices = new List<int>();
 
         for (int i = 0; i < 3; i++)
         {
-            GameObject perk = null;
-            int safety = 0;
-            int price = 3;
-            while (perk == null || currentItems.Contains(perk))
+            // %40 ihtimalle item, %60 ihtimalle perk (perk havuzu boÅŸsa item ver)
+            bool pickItem = (Random.value < 0.4f) || (AllPerkListsEmpty());
+
+            if (pickItem && itemPool.Count > usedItemIndices.Count)
             {
-                perk = GetRandomPerkByRarity(out price);
-                if (++safety > 100) break;
+                // Benzersiz item seÃ§
+                int idx;
+                int safety = 0;
+                do { idx = Random.Range(0, itemPool.Count); if (++safety > 100) break; }
+                while (usedItemIndices.Contains(idx));
+
+                usedItemIndices.Add(idx);
+                slotTypes[i] = SlotType.Item;
+                currentShopItems[i] = itemPool[idx];
+                currentPrices[i] = itemPool[idx].price;
+
+                SetSlotUI(i, itemPool[idx].name, itemPool[idx].description, itemPool[idx].price);
             }
-            currentItems.Add(perk);
-            currentPrices[i] = price;
-
-            if (perk == null) continue;
-
-            BasePerk script = perk.GetComponent<BasePerk>();
-            if (itemNameTexts != null && i < itemNameTexts.Length && itemNameTexts[i] != null)
-                itemNameTexts[i].text = script.perkName + "\n<size=70%>" + script.description + "</size>";
-
-            if (itemPriceTexts != null && i < itemPriceTexts.Length && itemPriceTexts[i] != null)
-                itemPriceTexts[i].text = currentPrices[i] + " Coin";
-
-            if (buyButtons != null && i < buyButtons.Length && buyButtons[i] != null)
+            else
             {
-                int idx = i;
-                buyButtons[i].onClick.RemoveAllListeners();
-                buyButtons[i].onClick.AddListener(() => TryBuy(idx));
-                buyButtons[i].interactable = true;
-            }
+                // Benzersiz perk seÃ§
+                GameObject perk = null;
+                int price = 3;
+                int safety = 0;
+                while (perk == null || currentPerkItems.Contains(perk))
+                {
+                    perk = GetRandomPerkByRarity(out price);
+                    if (++safety > 100) break;
+                }
+                currentPerkItems.Add(perk);
+                slotTypes[i] = SlotType.Perk;
+                currentShopItems[i] = null;
+                currentPrices[i] = price;
 
-            if (soldOutOverlays != null && i < soldOutOverlays.Length && soldOutOverlays[i] != null)
-                soldOutOverlays[i].gameObject.SetActive(false);
+                if (perk != null)
+                {
+                    BasePerk script = perk.GetComponent<BasePerk>();
+                    SetSlotUI(i, script.perkName, script.description, price);
+                }
+            }
         }
 
         RefreshAffordability();
     }
 
+    private void SetSlotUI(int i, string itemName, string description, int price)
+    {
+        if (itemNameTexts != null && i < itemNameTexts.Length && itemNameTexts[i] != null)
+            itemNameTexts[i].text = itemName + "\n<size=70%>" + description + "</size>";
+
+        if (itemPriceTexts != null && i < itemPriceTexts.Length && itemPriceTexts[i] != null)
+            itemPriceTexts[i].text = price + " Coin";
+
+        if (buyButtons != null && i < buyButtons.Length && buyButtons[i] != null)
+        {
+            int idx = i;
+            buyButtons[i].onClick.RemoveAllListeners();
+            buyButtons[i].onClick.AddListener(() => TryBuy(idx));
+            buyButtons[i].interactable = true;
+        }
+
+        if (soldOutOverlays != null && i < soldOutOverlays.Length && soldOutOverlays[i] != null)
+            soldOutOverlays[i].gameObject.SetActive(false);
+    }
+
     // -------------------------------------------------------
-    // Satın alma
+    // SatÄ±n alma
     // -------------------------------------------------------
     public void TryBuy(int index)
     {
-        if (purchased[index]) return;
-        if (RunManager.instance == null) return;
+        if (purchased[index] || RunManager.instance == null) return;
 
         int price = currentPrices[index];
-
         if (RunManager.instance.currentGold < price)
         {
             StartCoroutine(FlashPrice(index));
-            Debug.Log($"Yeterli coin yok! Gerekli: {price}, Mevcut: {RunManager.instance.currentGold}");
             return;
         }
 
         RunManager.instance.currentGold -= price;
-        RunManager.instance.AddPerk(currentItems[index]);
-        purchased[index] = true;
 
-        Debug.Log($"Satın alındı: {currentItems[index].GetComponent<BasePerk>().perkName} (-{price} coin)");
+        if (slotTypes[index] == SlotType.Item)
+        {
+            // Consumable item â†’ anÄ±nda efekti uygula
+            currentShopItems[index]?.onBuy?.Invoke();
+            Debug.Log($"SatÄ±n alÄ±ndÄ±: {currentShopItems[index]?.name} (-{price} coin)");
+        }
+        else
+        {
+            // Perk â†’ kalÄ±cÄ± ekle
+            int perkIdx = 0;
+            int remaining = index;
+            for (int i = 0; i <= index; i++)
+                if (slotTypes[i] == SlotType.Perk) { perkIdx = i; }
+
+            // currentPerkItems iÃ§indeki sÄ±rayÄ± bul
+            int perkListIdx = 0;
+            int count = -1;
+            for (int i = 0; i <= index; i++)
+                if (slotTypes[i] == SlotType.Perk) count++;
+            perkListIdx = count;
+
+            if (perkListIdx < currentPerkItems.Count && currentPerkItems[perkListIdx] != null)
+            {
+                RunManager.instance.AddPerk(currentPerkItems[perkListIdx]);
+                Debug.Log($"SatÄ±n alÄ±ndÄ±: {currentPerkItems[perkListIdx].GetComponent<BasePerk>().perkName} (-{price} coin)");
+            }
+        }
+
+        purchased[index] = true;
 
         if (buyButtons != null && index < buyButtons.Length && buyButtons[index] != null)
             buyButtons[index].interactable = false;
@@ -189,7 +330,7 @@ public class Shopmanager : MonoBehaviour
     }
 
     // -------------------------------------------------------
-    // UI Yardımcıları
+    // UI YardÄ±mcÄ±larÄ±
     // -------------------------------------------------------
     private void RefreshCoinDisplay()
     {
@@ -217,6 +358,12 @@ public class Shopmanager : MonoBehaviour
             rerollButton.interactable = RunManager.instance.currentGold >= currentRerollCost;
     }
 
+    private bool AllPerkListsEmpty() =>
+        (commonPerks == null || commonPerks.Count == 0) &&
+        (rarePerks == null || rarePerks.Count == 0) &&
+        (epicPerks == null || epicPerks.Count == 0) &&
+        (legendaryPerks == null || legendaryPerks.Count == 0);
+
     private System.Collections.IEnumerator FlashPrice(int index)
     {
         if (itemPriceTexts == null || index >= itemPriceTexts.Length || itemPriceTexts[index] == null) yield break;
@@ -233,29 +380,22 @@ public class Shopmanager : MonoBehaviour
     }
 
     // -------------------------------------------------------
-    // Rastgele perk seç (nadirliğe göre fiyat ata)
+    // Perk seÃ§imi
     // -------------------------------------------------------
     private GameObject GetRandomPerkByRarity(out int price)
     {
         float roll = Random.Range(0f, 100f);
 
         if (roll < 5f && legendaryPerks != null && legendaryPerks.Count > 0)
-        {
-            price = Random.Range(14, 21); // 14-20 coin
-            return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
-        }
-        if (roll < 15f && epicPerks != null && epicPerks.Count > 0)
-        {
-            price = Random.Range(9, 15); // 9-14 coin
-            return epicPerks[Random.Range(0, epicPerks.Count)];
-        }
-        if (roll < 40f && rarePerks != null && rarePerks.Count > 0)
-        {
-            price = Random.Range(5, 11); // 5-10 coin
-            return rarePerks[Random.Range(0, rarePerks.Count)];
-        }
+        { price = Random.Range(14, 21); return legendaryPerks[Random.Range(0, legendaryPerks.Count)]; }
 
-        price = Random.Range(3, 7); // 3-6 coin
+        if (roll < 15f && epicPerks != null && epicPerks.Count > 0)
+        { price = Random.Range(9, 15); return epicPerks[Random.Range(0, epicPerks.Count)]; }
+
+        if (roll < 40f && rarePerks != null && rarePerks.Count > 0)
+        { price = Random.Range(5, 11); return rarePerks[Random.Range(0, rarePerks.Count)]; }
+
+        price = Random.Range(3, 7);
         if (commonPerks != null && commonPerks.Count > 0)
             return commonPerks[Random.Range(0, commonPerks.Count)];
 
@@ -263,4 +403,3 @@ public class Shopmanager : MonoBehaviour
         return null;
     }
 }
-
