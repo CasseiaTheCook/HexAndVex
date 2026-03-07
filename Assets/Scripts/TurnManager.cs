@@ -238,6 +238,7 @@ public class TurnManager : MonoBehaviour
         }
     }
     // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
+    // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
         yield return new WaitForSeconds(0.3f);
@@ -259,7 +260,7 @@ public class TurnManager : MonoBehaviour
             }
         }
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
-        yield return new WaitForSeconds(0.7f);
+
 
         // Perk işleme döngüsü (Jokerler vb.)
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
@@ -289,7 +290,7 @@ public class TurnManager : MonoBehaviour
                 {
                     perk.TriggerVisualPop();
                     UpdateTotalDamageDisplay(afterTotal);
-                    yield return new WaitForSeconds(0.6f);
+                    yield return new WaitForSeconds(0.3f);
                 }
             }
         }
@@ -303,90 +304,131 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
 
-        // 4. Hasar Uygulama
+        // =========================================================
+        // YENİ: VURUŞ HİSSİYATI İÇİN ZARLARI AKSİYONDAN ÖNCE GİZLE!
+        // Oyuncu toplam hasarı saliselik görür ve ardından ekran temizlenir.
+        // =========================================================
+        yield return new WaitForSeconds(0.4f);
+        HideDiceResults();
+
+        // 4. HASAR UYGULAMA (Patlama ve ödüller uçtuktan sonraya saklanır)
         int finalDamage = payload.GetFinalDamage();
         int damagePerEnemy = finalDamage / targets.Count;
-        List<EnemyAI> survivors = new List<EnemyAI>();
+
+        List<EnemyAI> knockedEnemies = new List<EnemyAI>();
+        List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
 
         foreach (var enemy in targets)
         {
             if (enemy == null) continue;
+
             bool dies = enemy.health.currentHP <= damagePerEnemy;
-            enemy.health.TakeDamage(damagePerEnemy);
+            enemy.health.TakeDamage(damagePerEnemy); // Anında kırmızı yanar veya erimeye başlar
 
-            if (payload.triggerExplosion) TriggerExplosion(enemy.GetCurrentCellPosition());
+            knockedEnemies.Add(enemy);
+            if (dies) deadEnemiesThisTurn.Add(enemy);
+        }
 
-            if (dies)
+        // 5. KNOCKBACK (ÖLÜ YA DA DİRİ TÜM VURULANLARA UYGULANIR)
+        foreach (var e in knockedEnemies)
+        {
+            if (e == null) continue;
+
+            Vector3Int targetCell = GetOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
+
+            if (targetCell == e.GetCurrentCellPosition())
+            {
+                // Duvara Çarpma
+                e.skipTurns = 2;
+                e.SetStunVisual(true);
+
+                Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition());
+                Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
+                cPos.z = 0; pPos.z = 0;
+                e.StartWallBump((cPos - pPos).normalized);
+            }
+            else
+            {
+                // Normal Geri Sekme (Ölü bile olsa cesedi uçar!)
+                e.skipTurns = Mathf.Max(e.skipTurns, 1);
+                e.StartKnockbackMovement(targetCell);
+            }
+        }
+
+        // Düşmanların (ve cesetlerin) uçmasının bitmesini bekle
+        yield return new WaitUntil(() =>
+        {
+            foreach (var e in knockedEnemies) if (e != null && e.IsMoving()) return false;
+            return true;
+        });
+
+        // 6. HAREKET BİTTİ -> PATLAMALARI VE ÖLÜM ÖDÜLLERİNİ GİTTİKLERİ YERDE VER!
+        foreach (var e in knockedEnemies)
+        {
+            // Patlama perk'ü varsa uçtuğu yeni hücrede tetiklenir
+            if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition());
+        }
+
+        foreach (var deadEnemy in deadEnemiesThisTurn)
+        {
+            if (deadEnemy != null)
             {
                 int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
                 RunManager.instance.currentGold += coinDrop;
                 UpdateCoinUI();
-                Debug.Log($"{enemy.name} öldü! +{coinDrop} coin (Toplam: {RunManager.instance.currentGold})");
-                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
-                enemies.Remove(enemy);
+                Debug.Log($"💀 {deadEnemy.name} uçarak öldü! +{coinDrop} coin");
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+                enemies.Remove(deadEnemy); // Ana listeden düş
             }
-            else survivors.Add(enemy);
         }
 
-        yield return new WaitForSeconds(0.2f);
+        // Ölüleri bu geçici listelerden tamamen temizle
+        knockedEnemies.RemoveAll(e => deadEnemiesThisTurn.Contains(e) || e == null || e.health.currentHP <= 0);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
-        // 5. KNOCKBACK (DUVAR ÇARPMA VE STUN MANTIĞI)
-        foreach (var s in survivors)
+        if (enemies.Count <= 0)
         {
-            Vector3Int targetCell = GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition());
-
-            // Eğer targetCell orijinal yeriyse, DUVARDIR!
-            if (targetCell == s.GetCurrentCellPosition())
-            {
-                Debug.Log($"💥 {s.name} duvara çarptı ve 2 TUR SERSEMLEDİ!");
-                s.skipTurns = 2; // DUVAR CEZASI
-                s.SetStunVisual(true);
-
-                Vector3 currentWorldPos = groundMap.GetCellCenterWorld(s.GetCurrentCellPosition());
-                Vector3 playerWorldPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
-                currentWorldPos.z = 0; playerWorldPos.z = 0;
-                s.StartWallBump((currentWorldPos - playerWorldPos).normalized);
-            }
-            else
-            {
-                // Normal knockback
-                s.skipTurns = Mathf.Max(s.skipTurns, 1); // Normal vuruş 1 tur cezası
-                s.StartKnockbackMovement(targetCell);
-            }
+            if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+            yield break;
         }
 
-        yield return new WaitUntil(() =>
-        {
-            foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
-            return true;
-        });
-
-        // 6. Diken (Hazard) Kontrolü
-        foreach (var s in survivors)
+        // 7. DİKEN (HAZARD) KONTROLÜ (SADECE HAYATTA KALANLAR)
+        bool anyoneBounced = false;
+        foreach (var s in knockedEnemies)
         {
             if (s != null && LevelGenerator.instance.hazardCells.Contains(s.GetCurrentCellPosition()))
             {
                 s.health.TakeDamage(Mathf.Max(1, s.health.maxHP / 2));
-                if (s.health.currentHP > 0) s.StartKnockbackMovement(GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition()));
+
+                if (s.health.currentHP > 0)
+                {
+                    // YENİ: DİKENDEN RASTGELE GÜVENLİ BİR YERE SEKME
+                    Vector3Int randomBounceCell = GetRandomSafeNeighbor(s.GetCurrentCellPosition());
+                    s.StartKnockbackMovement(randomBounceCell);
+                    anyoneBounced = true;
+                }
             }
         }
 
-        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        if (anyoneBounced)
+        {
+            yield return new WaitUntil(() =>
+            {
+                foreach (var s in knockedEnemies) if (s != null && s.IsMoving()) return false;
+                return true;
+            });
+            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        }
+
         if (enemies.Count <= 0)
         {
-            HideDiceResults();
-            if (Shopmanager.instance != null)
-                Shopmanager.instance.OpenShop();
-            else if (LevelUpManager.instance != null)
-                LevelUpManager.instance.ShowLevelUpScreen();
+            if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
 
-        yield return new WaitForSeconds(0.3f);
-        HideDiceResults();
+        yield return new WaitForSeconds(0.2f);
 
-        // 7. ZİNCİRLEME SALDIRI KONTROLÜ (YENİ MANTIK)
+        // 8. ZİNCİRLEME SALDIRI KONTROLÜ (YENİ MANTIK)
         List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
         List<EnemyAI> nextTargets = new List<EnemyAI>();
 
@@ -401,8 +443,9 @@ public class TurnManager : MonoBehaviour
         {
             yield return StartCoroutine(MultiAttack(nextTargets));
         }
-        // İŞTE BURADAKİ "ELSE" KISMINI VE CEZA SİLME KOMUTUNU TAMAMEN SİLDİK!
-        // Çünkü cezalar oyuncu saldırırken değil, düşmanın turu BİTİNCE silinmeli!
+
+        // DİKKAT: BURADAKİ "else { EndTurnAndDecreaseStuns(); }" KISMINI TAMAMEN SİLDİK!
+
 
     }
 
@@ -761,5 +804,34 @@ public class TurnManager : MonoBehaviour
             yield return null;
         }
         t.localScale = Vector3.one;
+    }
+    // YENİ: Dikenden rastgele güvenli bir yöne sekme fonksiyonu
+    private Vector3Int GetRandomSafeNeighbor(Vector3Int centerCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        List<Vector3Int> safeNeighbors = new List<Vector3Int>();
+
+        foreach (var off in offsets)
+        {
+            Vector3Int neighbor = centerCell + off;
+
+            // Eğer karede zemin varsa, üstünde düşman yoksa, kendin (oyuncu) yoksan ve DİKEN DEĞİLSE güvenlidir!
+            if (groundMap.HasTile(neighbor) &&
+                !IsEnemyAtCell(neighbor) &&
+                player.GetCurrentCellPosition() != neighbor &&
+                !LevelGenerator.instance.hazardCells.Contains(neighbor))
+            {
+                safeNeighbors.Add(neighbor);
+            }
+        }
+
+        // Eğer etrafında kaçacak güvenli yer varsa rastgele birini seç
+        if (safeNeighbors.Count > 0)
+        {
+            return safeNeighbors[Random.Range(0, safeNeighbors.Count)];
+        }
+
+        // Eğer her yeri kapalıysa mecbur olduğu yerde (dikenin içinde) kalır
+        return centerCell;
     }
 }
