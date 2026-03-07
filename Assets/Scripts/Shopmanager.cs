@@ -17,10 +17,11 @@ public class Shopmanager : MonoBehaviour
         public string name;
         public string description;
         public int price;
+        public HotbarItemType itemType;
         public System.Action onBuy;
 
-        public ShopItemData(string n, string desc, int p, System.Action effect)
-        { name = n; description = desc; price = p; onBuy = effect; }
+        public ShopItemData(string n, string desc, int p, HotbarItemType type, System.Action effect = null)
+        { name = n; description = desc; price = p; itemType = type; onBuy = effect; }
     }
 
     [Header("Panel")]
@@ -63,36 +64,22 @@ public class Shopmanager : MonoBehaviour
     {
         return new List<ShopItemData>
         {
-            new ShopItemData(
-                "âš—ï¸ SaÄŸlÄ±k Ä°ksiri", "AnÄ±nda 1 can yenile", 3,
-                () => {
-                    RunManager.instance.playerCurrentHealth = Mathf.Min(
-                        RunManager.instance.playerCurrentHealth + 1, RunManager.instance.playerMaxHealth);
-                    if (TurnManager.instance?.player?.health != null)
-                        TurnManager.instance.player.health.Heal(1);
-                }
-            ),
-            new ShopItemData(
-                "ğŸ§ª GÃ¼Ã§lÃ¼ Ä°ksir", "AnÄ±nda 2 can yenile", 5,
-                () => {
-                    RunManager.instance.playerCurrentHealth = Mathf.Min(
-                        RunManager.instance.playerCurrentHealth + 2, RunManager.instance.playerMaxHealth);
-                    if (TurnManager.instance?.player?.health != null)
-                        TurnManager.instance.player.health.Heal(2);
-                }
-            ),
-            new ShopItemData(
-                "ğŸ’° AltÄ±n CÃ¼zdan", "AnÄ±nda +6 coin kazan", 2,
-                () => RunManager.instance.currentGold += 6
-            ),
-            new ShopItemData(
-                "âš¡ Enerji Ä°Ã§eceÄŸi", "Bu savaÅŸta 1 ekstra hamle hakkÄ±", 4,
-                () => RunManager.instance.remainingMoves += 1
-            ),
-            new ShopItemData(
-                "ğŸ¯ SavaÅŸ BÃ¼yÃ¼sÃ¼", "Kritik vuruÅŸ ihtimali kalÄ±cÄ± +%15", 6,
-                () => RunManager.instance.criticalChance += 0.15f
-            )
+            
+                new ShopItemData(
+    " Sağlık İksiri", "Anında 1 can yenile", 3,
+    HotbarItemType.HealthPotion),
+    new ShopItemData(
+    " Güçlü İksir", "Anında 2 can yenile", 5,
+    HotbarItemType.StrongPotion),
+    new ShopItemData(
+    " Altın Cüzdan", "Anında +6 coin kazan", 2,
+    HotbarItemType.GoldBag),
+    new ShopItemData(
+    " Enerji İçeceği", "Bu savaşta 1 ekstra hamle hakkı", 4,
+    HotbarItemType.EnergyDrink),
+    new ShopItemData(
+    " Savaş Büyüsü", "Kritik vuruş ihtimali kalıcı +%15", 6,
+    HotbarItemType.BattleSpell)
         };
     }
 
@@ -104,10 +91,16 @@ public class Shopmanager : MonoBehaviour
     void Start()
     {
         if (rerollButton != null)
+        {
+            rerollButton.onClick.RemoveAllListeners();
             rerollButton.onClick.AddListener(TryReroll);
+        }
 
         if (shopButton != null)
+        {
+            shopButton.onClick.RemoveAllListeners();
             shopButton.onClick.AddListener(ToggleShopMidGame);
+        }
 
         if (shopPanel != null)
             shopPanel.SetActive(false);
@@ -286,13 +279,25 @@ public class Shopmanager : MonoBehaviour
             return;
         }
 
+        // Item ise hotbar doluluk kontrolu
+        if (slotTypes[index] == SlotType.Item
+            && HotbarManager.instance != null
+            && !HotbarManager.instance.CanAddItem())
+        {
+            Debug.Log("Hotbar dolu, item eklenemiyor!");
+            return;
+        }
+
         RunManager.instance.currentGold -= price;
 
         if (slotTypes[index] == SlotType.Item)
         {
             // Consumable item â†’ anÄ±nda efekti uygula
-            currentShopItems[index]?.onBuy?.Invoke();
-            Debug.Log($"SatÄ±n alÄ±ndÄ±: {currentShopItems[index]?.name} (-{price} coin)");
+            if (HotbarManager.instance != null)
+                HotbarManager.instance.AddItem(currentShopItems[index].itemType);
+            else
+                currentShopItems[index]?.onBuy?.Invoke();
+            Debug.Log($"Hotbar'a eklendi: {currentShopItems[index]?.name}");
         }
         else
         {
