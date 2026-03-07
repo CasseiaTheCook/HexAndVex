@@ -25,7 +25,8 @@ public abstract class BasePerk : MonoBehaviour
     // Görsel geri bildirim: Perk çalıştığında ekranda zıplar
     public void TriggerVisualPop()
     {
-        StartCoroutine(PopAnimation());
+        if (gameObject.activeInHierarchy)
+            StartCoroutine(PopAnimation());
     }
 
     private IEnumerator PopAnimation()

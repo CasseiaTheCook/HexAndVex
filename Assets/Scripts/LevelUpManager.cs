@@ -78,11 +78,19 @@ public class LevelUpManager : MonoBehaviour
 
     public void SelectPerk(int index)
     {
+        // Yeni perk eklenmeden ÖNCE mevcut perkleri kaydet
+        List<BasePerk> existingPerks = new List<BasePerk>(RunManager.instance.activePerks);
+
         RunManager.instance.AddPerk(currentChoices[index]);
         levelUpPanel.SetActive(false);
 
         // --- YENİ SİSTEM: Sahne yükleme, sadece haritayı sıfırla ---
-        RunManager.instance.currentLevel++; // Odayı 1 artır
+        RunManager.instance.currentLevel++; // Oda sayısını artır
+
+        // Sadece zaten var olan perklerde OnLevelStart'ı tetikle (yeni eklenen hariç, o OnAcquire'da zaten çalıştı)
+        foreach (var perk in existingPerks)
+            if (perk != null) perk.OnLevelStart();
+
         LevelGenerator.instance.GenerateNextLevel(); // Yeni haritayı ve düşmanları çiz!
     }
 }
