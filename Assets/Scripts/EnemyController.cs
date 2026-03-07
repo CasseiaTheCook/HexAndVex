@@ -56,7 +56,6 @@ public class EnemyAI : MonoBehaviour
     void Update()
     {
         HandleMovement();
-        if (health != null && health.currentHP <= 0) Destroy(gameObject);
     }
 
     private void HandleMovement()
@@ -162,7 +161,12 @@ public class EnemyAI : MonoBehaviour
 
     public void ExecuteLockedMove()
     {
-        if (isMoving || health.currentHP <= 0) return;
+        // YENİ KONTROL: Eğer skipTurns > 0 ise, hiçbir şekilde hareket etme!
+        if (isMoving || health.currentHP <= 0 || skipTurns > 0) 
+        {
+            if (skipTurns > 0) Debug.Log($"{gameObject.name} sarsıldığı için hareket edemiyor!");
+            return; 
+        }
 
         if (hasLockedTarget)
         {

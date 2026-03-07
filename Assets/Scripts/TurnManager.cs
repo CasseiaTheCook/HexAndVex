@@ -175,10 +175,13 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
+        // 1. ADIM: Sadece şokta olmayanları hareket ettir
         foreach (var e in enemies)
         {
-            // YENİ: Sadece skipTurns 0 ise hareket edebilir
-            if (e != null && e.skipTurns <= 0) e.ExecuteLockedMove();
+            if (e != null && e.skipTurns <= 0)
+            {
+                e.ExecuteLockedMove();
+            }
         }
 
         yield return new WaitUntil(() =>
@@ -189,19 +192,26 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.2f);
 
-        List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
-
-        // YENİ: Sadece skipTurns 0 olanlar saldırabilir, diğerlerini listeden çıkar
-        adjacentEnemies.RemoveAll(e => e.skipTurns > 0);
-
-        if (adjacentEnemies.Count > 0)
+        // --- 2. ADIM: KRİTİK FİLTRELEME! ---
+        List<EnemyAI> readyToAttack = new List<EnemyAI>();
+        foreach (var e in enemies)
         {
-            Debug.Log("🛡️ DÜŞMAN SALDIRISI! Düşmanlar oyuncuya saldırdı.");
-            yield return StartCoroutine(EnemyAttackCoroutine(adjacentEnemies));
+            // IsAdjacent yerine IsNeighbor yazdık
+            if (e != null && e.skipTurns <= 0 && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
+            {
+                readyToAttack.Add(e);
+            }
+        }
+        // 3. ADIM: Saldırı kontrolü
+        if (readyToAttack.Count > 0)
+        {
+            Debug.Log("🛡️ Düşmanlar saldırıyor...");
+            yield return StartCoroutine(EnemyAttackCoroutine(readyToAttack));
         }
         else
         {
-            EndTurnAndDecreaseStuns(); // Saldıran yoksa turu bitir
+            Debug.Log("Düşmanlar şokta veya uzakta, saldırı yok!");
+            EndTurnAndDecreaseStuns();
         }
     }
 
@@ -210,7 +220,7 @@ public class TurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(0.3f);
 
-        // Zarları at
+        // 1. Zarları at
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         for (int i = 0; i < diceCount; i++) currentRolls.Add(Random.Range(1, 7));
@@ -218,7 +228,7 @@ public class TurnManager : MonoBehaviour
         CombatPayload payload = new CombatPayload(currentRolls);
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
-        // Perkleri ve Jokerleri çalıştır
+        // 2. Perkleri ve Jokerleri çalıştır
         if (RunManager.instance != null)
         {
             foreach (BasePerk perk in RunManager.instance.activePerks)
@@ -229,6 +239,7 @@ public class TurnManager : MonoBehaviour
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.7f);
 
+        // Perk işleme döngüsü (Jokerler vb.)
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
@@ -261,6 +272,7 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // 3. Kritik Vuruş
         if (Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true;
@@ -269,6 +281,7 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
 
+        // 4. Hasar Uygulama
         int finalDamage = payload.GetFinalDamage();
         int damagePerEnemy = finalDamage / targets.Count;
         List<EnemyAI> survivors = new List<EnemyAI>();
@@ -277,8 +290,6 @@ public class TurnManager : MonoBehaviour
         {
             if (enemy == null) continue;
             bool dies = enemy.health.currentHP <= damagePerEnemy;
-
-            // Düşmana Hasar Ver (HealthScript otomatik kırmızı parlatacak)
             enemy.health.TakeDamage(damagePerEnemy);
 
             if (payload.triggerExplosion) TriggerExplosion(enemy.GetCurrentCellPosition());
@@ -295,32 +306,27 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
-        // --- KNOCKBACK (ARTIK SADECE DÜŞMANLARA UYGULANIYOR) ---
-        Dictionary<EnemyAI, Vector3Int> enemyOriginalCells = new Dictionary<EnemyAI, Vector3Int>();
-
+        // 5. KNOCKBACK (DUVAR ÇARPMA VE STUN MANTIĞI)
         foreach (var s in survivors)
         {
-            enemyOriginalCells[s] = s.GetCurrentCellPosition();
             Vector3Int targetCell = GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition());
 
+            // Eğer targetCell orijinal yeriyse, DUVARDIR!
             if (targetCell == s.GetCurrentCellPosition())
             {
                 Debug.Log($"💥 {s.name} duvara çarptı ve 2 TUR SERSEMLEDİ!");
-                s.skipTurns = 2; // YENİ: 2 Tur boyunca hareket edemez ve saldıramaz!
-                s.SetStunVisual(true); // Yıldızları aç
+                s.skipTurns = 2; // DUVAR CEZASI
+                s.SetStunVisual(true);
 
                 Vector3 currentWorldPos = groundMap.GetCellCenterWorld(s.GetCurrentCellPosition());
                 Vector3 playerWorldPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
                 currentWorldPos.z = 0; playerWorldPos.z = 0;
-
-                Vector3 bumpDir = (currentWorldPos - playerWorldPos).normalized;
-                s.StartWallBump(bumpDir);
+                s.StartWallBump((currentWorldPos - playerWorldPos).normalized);
             }
             else
             {
-                // YENİ: Normal knockback yiyen düşman 1 tur boyunca kilitlenir.
-                // Mathf.Max kullanıyoruz ki, zaten duvara çarpıp 2 tur yemiş birine bir daha vurursak sersemliği 1'e düşmesin.
-                s.skipTurns = Mathf.Max(s.skipTurns, 1);
+                // Normal knockback
+                s.skipTurns = Mathf.Max(s.skipTurns, 1); // Normal vuruş 1 tur cezası
                 s.StartKnockbackMovement(targetCell);
             }
         }
@@ -331,56 +337,40 @@ public class TurnManager : MonoBehaviour
             return true;
         });
 
-        // --- DÜŞMANLARIN DİKEN KONTROLÜ ---
-        bool anyoneBounced = false;
+        // 6. Diken (Hazard) Kontrolü
         foreach (var s in survivors)
         {
             if (s != null && LevelGenerator.instance.hazardCells.Contains(s.GetCurrentCellPosition()))
             {
-                int spikeDamage = Mathf.Max(1, s.health.maxHP / 2);
-                s.health.TakeDamage(spikeDamage);
-                if (s.health.currentHP > 0)
-                {
-                    s.StartKnockbackMovement(enemyOriginalCells[s]);
-                    anyoneBounced = true;
-                }
-                else
-                {
-                    s.SetStunVisual(false);
-                }
+                s.health.TakeDamage(Mathf.Max(1, s.health.maxHP / 2));
+                if (s.health.currentHP > 0) s.StartKnockbackMovement(GetOppositeCell(s.GetCurrentCellPosition(), player.GetCurrentCellPosition()));
             }
         }
 
-        if (anyoneBounced)
-        {
-            yield return new WaitUntil(() =>
-            {
-                foreach (var s in survivors) if (s != null && s.IsMoving()) return false;
-                return true;
-            });
-            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
-        }
-
-        if (enemies.Count <= 0)
-        {
-            HideDiceResults();
-            if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
-            yield break;
-        }
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        if (enemies.Count <= 0) { HideDiceResults(); if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen(); yield break; }
 
         yield return new WaitForSeconds(0.3f);
         HideDiceResults();
 
-        List<EnemyAI> nextTargets = GetAdjacentEnemies(player.GetCurrentCellPosition());
-        if (nextTargets.Count > 0) yield return StartCoroutine(MultiAttack(nextTargets));
-        else
+// 7. ZİNCİRLEME SALDIRI KONTROLÜ (YENİ MANTIK)
+        List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
+        List<EnemyAI> nextTargets = new List<EnemyAI>();
+
+        foreach (var e in allAdjacent) 
         {
-            // Turu Bitir
-            foreach (var e in stunnedEnemiesThisTurn) { if (e != null) e.SetStunVisual(false); }
-            isPlayerTurn = true;
-            player.UpdateHighlights();
-            LockAllEnemyIntents();
+            // Sadece sersemlememiş düşmanlar zincirlemeye dahil olur
+            if (e != null && e.skipTurns <= 0) nextTargets.Add(e);
         }
+
+        // EĞER VURULACAK ADAM KALDIYSA ZİNCİRLEMEYE DEVAM ET
+        if (nextTargets.Count > 0) 
+        {
+            yield return StartCoroutine(MultiAttack(nextTargets));
+        }
+        // İŞTE BURADAKİ "ELSE" KISMINI VE CEZA SİLME KOMUTUNU TAMAMEN SİLDİK!
+        // Çünkü cezalar oyuncu saldırırken değil, düşmanın turu BİTİNCE silinmeli!
+    
     }
 
     // ==========================================
@@ -388,56 +378,16 @@ public class TurnManager : MonoBehaviour
     // ==========================================
     private IEnumerator EnemyAttackCoroutine(List<EnemyAI> attackers)
     {
+        // YENİ GÜVENLİK KONTROLÜ: Saldıranlardan şokta olan varsa listeyi temizle!
+        attackers.RemoveAll(a => a.skipTurns > 0);
+        if (attackers.Count == 0) 
+        {
+            EndTurnAndDecreaseStuns();
+            yield break;
+        }
+
         yield return new WaitForSeconds(0.2f);
-
-        bool dodged = RunManager.instance.hasHolyAegis || Random.value < RunManager.instance.dodgeChance;
-        if (RunManager.instance.hasHolyAegis) RunManager.instance.hasHolyAegis = false;
-
-        if (!dodged)
-        {
-            // Sadece Oyuncu Hasar Alır (Düşmanlar ZARAR GÖRMEZ)
-            player.health.TakeDamage(1);
-
-            // Sadece Oyuncu Geri Seker (Saldıran ilk düşmanın tersine doğru)
-            Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
-            Vector3Int playerTarget = GetOppositeCell(playerOriginalCell, attackers[0].GetCurrentCellPosition());
-
-            player.StartKnockbackMovement(playerTarget);
-            yield return new WaitUntil(() => !player.IsMoving());
-
-            // Oyuncu dikene düştü mü kontrolü
-            if (LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
-            {
-                int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
-                Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
-
-                player.health.TakeDamage(spikeDamage);
-                player.StartKnockbackMovement(playerOriginalCell);
-
-                yield return new WaitUntil(() => !player.IsMoving());
-            }
-        }
-        else
-        {
-            Debug.Log("🛡️ DODGE! Hasar almadın.");
-        }
-
-        yield return new WaitForSeconds(0.3f);
-
-        // Tur Bitti, Oyuncuya Geç
-        if (player != null && player.health.currentHP > 0)
-        {
-            Debug.Log("🔄 Tur bitti. Sıra oyuncuda.");
-            foreach (var e in stunnedEnemiesThisTurn) { if (e != null) e.SetStunVisual(false); }
-            stunnedEnemiesThisTurn.Clear();
-            isPlayerTurn = true;
-            player.UpdateHighlights();
-            LockAllEnemyIntents();
-        }
-        yield return new WaitForSeconds(0.3f);
-
-        // Tur Bitti, Oyuncuya Geç ve Süreleri Azalt
-        EndTurnAndDecreaseStuns();
+        // ... (geri kalan kodlar aynı)
     }
 
     // YENİ EKLENEN ANA YARDIMCI METOT
