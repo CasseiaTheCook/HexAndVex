@@ -247,6 +247,9 @@ public class TurnManager : MonoBehaviour
     }
     // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
     // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
+
+
+    // ARTIK SADECE OYUNCUNUN SALDIRISINI YÖNETİR!
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
         yield return new WaitForSeconds(0.3f);
@@ -257,20 +260,25 @@ public class TurnManager : MonoBehaviour
         for (int i = 0; i < diceCount; i++) currentRolls.Add(Random.Range(1, 7));
 
         CombatPayload payload = new CombatPayload(currentRolls);
+
+        // ===============================================================
+        // YENİ: VİZYONER KONTROL! 
+        // Eğer adamda Sword Dance varsa, oyun daha zarları ekrana basmadan 
+        // matematiği direkt çarpmaya çevirir. Gereksiz toplamayı atlarız!
+        // ===============================================================
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk"))
+        {
+            payload.multiplyInsteadOfAdd = true;
+        }
+
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
-        // 2. Perkleri ve Jokerleri çalıştır
-        if (RunManager.instance != null)
-        {
-            foreach (BasePerk perk in RunManager.instance.activePerks)
-            {
-                if (perk.GetType().Name == "SwordDancePerk") perk.ModifyCombat(payload);
-            }
-        }
+        // Zarlar atıldıktan sonra İLK HASARI ekranda göster
+        // (Artık Sword Dance varsa ekranda 16 yerine şak diye 63 yazacak)
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
+        yield return new WaitForSeconds(0.5f);
 
-
-        // Perk işleme döngüsü (Jokerler vb.)
+        // 2. PERKLERİ SIRAYLA ÇALIŞTIR
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
@@ -294,6 +302,10 @@ public class TurnManager : MonoBehaviour
                 }
 
                 int afterTotal = payload.GetFinalDamage();
+
+                // Kanka burası çok kritik: Sword Dance döngüde sırası gelip tekrar çalıştığında,
+                // matematik zaten çarpma olduğu için beforeTotal ve afterTotal aynı kalacak.
+                // Bu sayede oyun "Aaa sayı değişmedi" deyip gereksiz yere ikinci bir animasyon OYNATMAYACAK!
                 if (beforeTotal != afterTotal || anyDieChanged)
                 {
                     perk.TriggerVisualPop();
@@ -302,6 +314,8 @@ public class TurnManager : MonoBehaviour
                 }
             }
         }
+
+        // ... (Kodun geri kalanı aynı şekilde devam ediyor: Kritik vuruş, hasar uygulama vs.)
 
         // 3. Kritik Vuruş
         if (Random.value < RunManager.instance.criticalChance)

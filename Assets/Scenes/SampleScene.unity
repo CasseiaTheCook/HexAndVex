@@ -2015,7 +2015,7 @@ MonoBehaviour:
   dodgeChance: 0
   hasHolyAegis: 0
   skipBonusGold: 0
-  criticalChance: 0
+  criticalChance: 10
   criticalDamageMultiplier: 2
   perkUIContainer: {fileID: 1574552221}
   activePerks: []
@@ -2934,6 +2934,7 @@ MonoBehaviour:
   coinText: {fileID: 859433978}
   enemies: []
   isPlayerTurn: 1
+  shopEveryNTurns: 5
 --- !u!4 &1504787228
 Transform:
   m_ObjectHideFlags: 0
