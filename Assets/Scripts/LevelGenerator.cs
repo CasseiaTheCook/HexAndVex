@@ -75,8 +75,11 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        // Kopuk adaları temizle
+        // Fiziksel olarak kopuk adaları temizle
         CleanUpDisconnectedIslands();
+
+        // YENİ: Dikenlerin kapattığı, ulaşılamayan güvenli bölgeleri temizle
+        EnsureSafeConnectivity();
 
         // --- 3. OYUNCUYU MERKEZE YERLEŞTİR ---
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
@@ -101,19 +104,16 @@ public class LevelGenerator : MonoBehaviour
 
             List<Vector3Int> candidates = new List<Vector3Int>();
             
-            // Başlangıç beklentimiz (Esnek Arama)
             float currentSafeDist = 2.5f; 
             float currentEnemyDist = 2.5f;
 
             while (candidates.Count == 0 && currentSafeDist >= 0f)
             {
-                // Kural 1: Oyuncudan belli bir mesafe uzak ve tuzak olmayan hücreler
                 candidates = validCells.FindAll(cell => 
                     !hazardCells.Contains(cell) &&
                     Vector3.Distance(groundMap.GetCellCenterWorld(cell), playerWorldPos) >= currentSafeDist
                 );
 
-                // Kural 2: Diğer düşmanlara çok yakın olmasın
                 candidates.RemoveAll(cell => 
                     spawnedEnemyCells.Any(spawned => Vector3.Distance(groundMap.GetCellCenterWorld(cell), groundMap.GetCellCenterWorld(spawned)) < currentEnemyDist)
                 );
@@ -129,18 +129,15 @@ public class LevelGenerator : MonoBehaviour
 
             if (candidates.Count == 0)
             {
-                // Güvenlik sübabı (Yer kalmadıysa)
                 var safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
                 bestSpawnCell = safeCells.Count > 0 ? safeCells[Random.Range(0, safeCells.Count)] : validCells[0];
             }
             else if (spawnedEnemyCells.Count == 0)
             {
-                // İlk düşman oyuncuya en uzak yere
                 bestSpawnCell = candidates.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), playerWorldPos)).First();
             }
             else
             {
-                // Diğer düşmanlar çember oluşturacak şekilde (Dot Product) zıt yönlere
                 float bestScore = -float.MaxValue;
                 bestSpawnCell = candidates[0];
 
@@ -169,7 +166,6 @@ public class LevelGenerator : MonoBehaviour
             validCells.Remove(bestSpawnCell);
             spawnedEnemyCells.Add(bestSpawnCell);
 
-            // --- INSTANTIATE (DÜŞMANI OLUŞTURMA) ---
             Vector3 spawnPos = groundMap.GetCellCenterWorld(bestSpawnCell);
             GameObject newEnemyObj = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
 
@@ -188,22 +184,102 @@ public class LevelGenerator : MonoBehaviour
             enemyAI.health.maxHP = Mathf.Max(1, finalHP);
             enemyAI.health.currentHP = enemyAI.health.maxHP;
             
-            // --- YAPAY ZEKA UYANDIRMA VE LİSTEYE ALMA (KRİTİK FIX) ---
             enemyAI.health.updateHealth();
-            TurnManager.instance.RegisterEnemy(enemyAI); // Listeye anında ekle!
+            TurnManager.instance.RegisterEnemy(enemyAI); 
         }
 
         // 5. TURU BAŞLAT
         TurnManager.instance.isPlayerTurn = true;
         TurnManager.instance.player.UpdateHighlights();
         
-        // Düşman niyetlerini kilitlemeyi 0.1 saniye geciktir ki Start() fonksiyonları çalışsın
         TurnManager.instance.Invoke("LockAllEnemyIntents", 0.1f);
 
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
     }
 
-    // --- FLOOD FILL ALGORİTMASI ---
+    // ==============================================================
+    // YENİ: DİKENLERLE KAPATILMIŞ KÖR NOKTALARI SİLEN ALGORİTMA
+    // ==============================================================
+    private void EnsureSafeConnectivity()
+    {
+        // 1. Sadece GÜVENLİ (tuzaksız) hücreleri al
+        List<Vector3Int> safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        if (safeCells.Count == 0) return;
+
+        List<List<Vector3Int>> safeIslands = new List<List<Vector3Int>>();
+        HashSet<Vector3Int> unvisitedSafe = new HashSet<Vector3Int>(safeCells);
+
+        // 2. Güvenli hücreler arasında Flood Fill (Sadece güvenli yoldan gidilebilen alanları bul)
+        while (unvisitedSafe.Count > 0)
+        {
+            Vector3Int startCell = unvisitedSafe.First();
+            List<Vector3Int> currentIsland = new List<Vector3Int>();
+            Queue<Vector3Int> queue = new Queue<Vector3Int>();
+
+            queue.Enqueue(startCell);
+            unvisitedSafe.Remove(startCell);
+            currentIsland.Add(startCell);
+
+            while (queue.Count > 0)
+            {
+                Vector3Int curr = queue.Dequeue();
+                Vector3Int[] offsets = (curr.y % 2 != 0) ? evenOffsets : oddOffsets;
+
+                foreach (var off in offsets)
+                {
+                    Vector3Int neighbor = curr + off;
+                    if (unvisitedSafe.Contains(neighbor))
+                    {
+                        unvisitedSafe.Remove(neighbor);
+                        queue.Enqueue(neighbor);
+                        currentIsland.Add(neighbor);
+                    }
+                }
+            }
+            safeIslands.Add(currentIsland);
+        }
+
+        // 3. En büyük güvenli adayı bul (Oyuncunun ve düşmanların takılacağı ana alan)
+        List<Vector3Int> largestSafeIsland = safeIslands[0];
+        foreach (var island in safeIslands)
+        {
+            if (island.Count > largestSafeIsland.Count) largestSafeIsland = island;
+        }
+
+        HashSet<Vector3Int> mainSafeSet = new HashSet<Vector3Int>(largestSafeIsland);
+        List<Vector3Int> cellsToRemove = new List<Vector3Int>();
+
+        // 4. Ana adaya GÜVENLİ YOLDAN bağlı olmayan her şeyi işaretle
+        foreach (var cell in validCells)
+        {
+            if (hazardCells.Contains(cell))
+            {
+                // Tuzak, ana güvenli adaya komşu değilse havada asılı kalmasın, sil.
+                bool touchesMain = false;
+                Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
+                foreach (var off in offsets)
+                {
+                    if (mainSafeSet.Contains(cell + off)) { touchesMain = true; break; }
+                }
+                if (!touchesMain) cellsToRemove.Add(cell);
+            }
+            else
+            {
+                // Güvenli hücre ama ana adada değilse (yani araya diken girmişse) sil gitsin
+                if (!mainSafeSet.Contains(cell)) cellsToRemove.Add(cell);
+            }
+        }
+
+        // 5. İşaretlenenleri haritadan uçur
+        foreach (var cell in cellsToRemove)
+        {
+            groundMap.SetTile(cell, null);
+            validCells.Remove(cell);
+            hazardCells.Remove(cell);
+        }
+    }
+
+    // --- ESKİ: FİZİKSEL KOPUKLUKLARI SİLEN ALGORİTMA ---
     private void CleanUpDisconnectedIslands()
     {
         if (validCells.Count == 0) return;
@@ -249,14 +325,19 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
+        List<Vector3Int> toRemove = new List<Vector3Int>();
         foreach (var cell in validCells)
         {
             if (!largestIsland.Contains(cell))
             {
                 groundMap.SetTile(cell, null); 
+                toRemove.Add(cell);
             }
         }
 
-        validCells = new List<Vector3Int>(largestIsland);
+        foreach(var c in toRemove) {
+            validCells.Remove(c);
+            hazardCells.Remove(c);
+        }
     }
 }
