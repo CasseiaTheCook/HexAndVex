@@ -215,25 +215,46 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.2f);
 
-        // --- 2. ADIM: KRİTİK FİLTRELEME! ---
-        List<EnemyAI> readyToAttack = new List<EnemyAI>();
+        // --- 2. ADIM: KRİTİK FİLTRELEME! (Melee ve Alan Saldırısı ayrımı) ---
+        List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
+        List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
+
         foreach (var e in enemies)
         {
-            // IsAdjacent yerine IsNeighbor yazdık
-            if (e != null && e.skipTurns <= 0 && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
+            if (e != null && e.skipTurns <= 0)
             {
-                readyToAttack.Add(e);
+                // Eğer şarj ediyorsa Alan Saldırısı listesine al
+                if (e.isChargingAttack)
+                {
+                    readyToAoEAttack.Add(e);
+                }
+                // Etrafımızdaysa ve şarj etmiyorsa Melee listesine al
+                else if (IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
+                {
+                    readyToMeleeAttack.Add(e);
+                }
             }
         }
-        // 3. ADIM: Saldırı kontrolü
-        if (readyToAttack.Count > 0)
+
+        // 3. ADIM: Önce Uzaktan Gelen Alan Saldırıları Patlasın!
+        if (readyToAoEAttack.Count > 0)
         {
-            Debug.Log("🛡️ Düşmanlar saldırıyor...");
-            yield return StartCoroutine(EnemyAttackCoroutine(readyToAttack));
+            foreach (var aoeEnemy in readyToAoEAttack)
+            {
+                yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
+            }
+        }
+
+        // 4. ADIM: Sonra Normal Melee (Yakın Çekim) Saldırıları Çalışsın!
+        if (readyToMeleeAttack.Count > 0)
+        {
+            Debug.Log("🛡️ Yakın dövüşçüler saldırıyor...");
+            yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
         }
         else
         {
-            Debug.Log("Düşmanlar şokta veya uzakta, saldırı yok!");
+            // Eğer kimse melee atmadıysa turu biz manuel bitiriyoruz
+            Debug.Log("Düşmanlar şokta, uzakta veya sadece alan saldırısı yaptı. Tur geçiyor.");
             EndTurnAndDecreaseStuns();
         }
     }
@@ -325,7 +346,7 @@ public class TurnManager : MonoBehaviour
             Debug.Log("🎯 KRİTİK!");
 
             // YENİ: Animasyonu tam bu saniye başlatıyoruz!
-            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); 
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
 
             yield return new WaitForSeconds(0.5f);
         }
@@ -360,11 +381,40 @@ public class TurnManager : MonoBehaviour
         {
             if (e == null) continue;
 
-            Vector3Int targetCell = GetOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
+            // 1. Düşmanın itileceği o tam arkasındaki kareyi bul
+            Vector3Int rawTargetCell = GetRawOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
 
-            if (targetCell == e.GetCurrentCellPosition())
+            // 2. Arkadaki karede duran bir düşman var mı?
+            EnemyAI enemyBehind = GetEnemyAtCell(rawTargetCell);
+
+            if (enemyBehind != null)
             {
-                // Duvara Çarpma
+                // ==========================================
+                // BİLARDO ETKİSİ! Düşman düşmana çarptı!
+                // ==========================================
+                e.skipTurns = 2;
+                e.SetStunVisual(true);
+
+                enemyBehind.skipTurns = 2;
+                enemyBehind.SetStunVisual(true);
+
+                // Vuruş yönünü hesapla
+                Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition());
+                Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
+                cPos.z = 0; pPos.z = 0;
+                Vector3 bumpDir = (cPos - pPos).normalized;
+
+                // İkisini de aynı yöne doğru hafifçe sars!
+                e.StartWallBump(bumpDir);
+                enemyBehind.StartWallBump(bumpDir);
+
+                Debug.Log($"🎳 BİLARDO! {e.name}, {enemyBehind.name}'e çarptı! İkisi de şokta!");
+            }
+            else if (!groundMap.HasTile(rawTargetCell) || player.GetCurrentCellPosition() == rawTargetCell)
+            {
+                // ==========================================
+                // NORMAL DUVARA ÇARPMA
+                // ==========================================
                 e.skipTurns = 2;
                 e.SetStunVisual(true);
 
@@ -375,18 +425,13 @@ public class TurnManager : MonoBehaviour
             }
             else
             {
-                // Normal Geri Sekme (Ölü bile olsa cesedi uçar!)
-                e.skipTurns = Mathf.Max(e.skipTurns, 1);
-                e.StartKnockbackMovement(targetCell);
+                // ==========================================
+                // ARKASI BOŞ, SEKEREK UÇMA
+                // ==========================================
+                e.skipTurns = Mathf.Max(e.skipTurns, 1); // Zaten şoktaysa süresi azalmasın diye Max kullanıyoruz
+                e.StartKnockbackMovement(rawTargetCell);
             }
         }
-
-        // Düşmanların (ve cesetlerin) uçmasının bitmesini bekle
-        yield return new WaitUntil(() =>
-        {
-            foreach (var e in knockedEnemies) if (e != null && e.IsMoving()) return false;
-            return true;
-        });
 
         // 6. HAREKET BİTTİ -> PATLAMALARI VE ÖLÜM ÖDÜLLERİNİ GİTTİKLERİ YERDE VER!
         foreach (var e in knockedEnemies)
@@ -798,6 +843,32 @@ public class TurnManager : MonoBehaviour
         return false;
     }
 
+    // Verilen karede duran düşmanı direkt obje olarak döndürür (BİLARDO İÇİN)
+    public EnemyAI GetEnemyAtCell(Vector3Int cell)
+    {
+        foreach (var e in enemies)
+        {
+            if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == cell)
+                return e;
+        }
+        return null;
+    }
+
+    // Çarpmaları hesaba katmadan DÜMDÜZ arkadaki karenin koordinatını verir
+    private Vector3Int GetRawOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        for (int i = 0; i < 6; i++)
+        {
+            if (centerCell + offsets[i] == awayFromCell)
+            {
+                int oppositeIndex = (i + 3) % 6;
+                return centerCell + offsets[oppositeIndex];
+            }
+        }
+        return centerCell;
+    }
+
     private List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
     {
         List<EnemyAI> adjacentList = new List<EnemyAI>();
@@ -811,7 +882,7 @@ public class TurnManager : MonoBehaviour
         return adjacentList;
     }
 
-    private Vector3Int GetOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
+    public Vector3Int GetOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
     {
         // İŞTE BÜTÜN HATANIN SEBEBİ BURASIYDI! (Senin orijinalindeki gibi düzelttim)
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;

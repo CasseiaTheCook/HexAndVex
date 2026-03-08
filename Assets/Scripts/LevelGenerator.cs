@@ -9,20 +9,26 @@ public class LevelGenerator : MonoBehaviour
 
     [Header("Tilemaps")]
     public Tilemap groundMap;
-    public Tilemap backgroundMap; // Sütunların çizileceği alt harita
+    public Tilemap backgroundMap; 
 
     [Header("Tiles (Üst Zemin)")]
     public TileBase groundTile;
-    public TileBase hazardTile; // Tuzak görseli
+    public TileBase hazardTile; 
     
     [Header("Tiles (Arka Plan Sütun)")]
-    public TileBase columnTile; // YENİ: Tek ve yegane sütun görselimiz!
+    public TileBase columnTile; 
 
     [Header("Prefabs & Settings")]
     public GameObject playerPrefab;
-    public GameObject enemyPrefab;
+    
+    public GameObject meleeEnemyPrefab; 
+    public GameObject aoeEnemyPrefab;   
+
     public float enemyHealth = 10;
     public int baseMapRadius = 3;
+
+    // YENİ: AoE düşmanlar hangi leveldan sonra çıkmaya başlasın?
+    public int aoeStartLevel = 3;
 
     private List<Vector3Int> validCells = new List<Vector3Int>();
     public HashSet<Vector3Int> hazardCells = new HashSet<Vector3Int>();
@@ -90,13 +96,8 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        // Kopuklukları Temizle
         CleanUpDisconnectedIslands();
         EnsureSafeConnectivity();
-
-        // ==========================================
-        // YENİ: SADECE UÇURUM KENARLARINA TEK TİP SÜTUN ÇİZ
-        // ==========================================
         GenerateColumns();
 
         // --- 3. OYUNCUYU YERLEŞTİR ---
@@ -110,7 +111,7 @@ public class LevelGenerator : MonoBehaviour
         validCells.Remove(playerStartCell);
 
         // --- 4. DÜŞMANLARI ÇEVRELEYEREK SPAWN ET ---
-        int enemyCountToSpawn = 3 + (RunManager.instance.currentLevel / 3);
+        int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
         enemyHealth *= 1.1f;
         
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
@@ -121,7 +122,6 @@ public class LevelGenerator : MonoBehaviour
             if (validCells.Count == 0) break;
 
             List<Vector3Int> candidates = new List<Vector3Int>();
-            
             float currentSafeDist = 2.5f; 
             float currentEnemyDist = 2.5f;
 
@@ -185,17 +185,34 @@ public class LevelGenerator : MonoBehaviour
             spawnedEnemyCells.Add(bestSpawnCell);
 
             Vector3 spawnPos = groundMap.GetCellCenterWorld(bestSpawnCell);
-            GameObject newEnemyObj = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
 
+            // ========================================================
+            // YENİ: ZORLUK EĞRİSİ (DIFFICULTY CURVE) KONTROLÜ
+            // ========================================================
+            GameObject prefabToSpawn = meleeEnemyPrefab; // Varsayılan: Her zaman normal zombi
+            
+            // Eğer oyuncu yeterince ilerlediyse (Örn: Level 3 ve üstüyse) Balyozcular çıkmaya başlasın!
+            if (RunManager.instance.currentLevel >= aoeStartLevel)
+            {
+                // %30 ihtimalle AoE prefab seçilir
+                if (Random.value < 0.30f && aoeEnemyPrefab != null)
+                {
+                    prefabToSpawn = aoeEnemyPrefab;
+                }
+            }
+
+            // Seçilen prefab'ı sahneye koy
+            GameObject newEnemyObj = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
             EnemyAI enemyAI = newEnemyObj.GetComponent<EnemyAI>();
             enemyAI.groundMap = this.groundMap;
 
+            // Elite (Şampiyon) Sistemi
             float randomMultiplier = Random.Range(0.8f, 1.25f);
             if (Random.value < 0.10f)
             {
                 randomMultiplier *= 2.0f;
                 newEnemyObj.transform.localScale *= 1.2f;
-                newEnemyObj.name = "Elite Enemy";
+                newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
             int finalHP = Mathf.RoundToInt(enemyHealth * randomMultiplier);
@@ -214,9 +231,6 @@ public class LevelGenerator : MonoBehaviour
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
     }
 
-    // ==============================================================
-    // TEK TİP SÜTUN KOYAN MANTIK
-    // ==============================================================
     private void GenerateColumns()
     {
         if (backgroundMap == null || columnTile == null) return;
@@ -225,8 +239,6 @@ public class LevelGenerator : MonoBehaviour
         {
             Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
 
-            // Kamera açısına göre "Ön Uçurumlar": Sağ(0), Sol(3), Sol-Alt(4), Sağ-Alt(5)
-            // Eğer bu yönlerden HERHANGİ BİRİNDE zemin yoksa, o kare bir "Ön Kenar"dır ve altına o kalın sütun çizilir.
             int[] exposedIndices = { 0, 3, 4, 5 }; 
             bool isExposedEdge = false;
 
@@ -240,7 +252,6 @@ public class LevelGenerator : MonoBehaviour
                 }
             }
 
-            // Eğer kenardaysak, alt haritaya standart sütunumuzu basıyoruz!
             if (isExposedEdge)
             {
                 backgroundMap.SetTile(cell, columnTile);
@@ -248,9 +259,6 @@ public class LevelGenerator : MonoBehaviour
         }
     }
 
-    // ==============================================================
-    // DİKENLERLE KAPATILMIŞ KÖR NOKTALARI SİLEN ALGORİTMA
-    // ==============================================================
     private void EnsureSafeConnectivity()
     {
         List<Vector3Int> safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
@@ -323,7 +331,6 @@ public class LevelGenerator : MonoBehaviour
         }
     }
 
-    // --- ESKİ: FİZİKSEL KOPUKLUKLARI SİLEN ALGORİTMA ---
     private void CleanUpDisconnectedIslands()
     {
         if (validCells.Count == 0) return;
