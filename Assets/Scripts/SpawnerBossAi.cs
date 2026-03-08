@@ -188,8 +188,22 @@ public class SpawnerBossAI : MonoBehaviour
             }
         }
 
+        // === İŞTE DEĞİŞİKLİK BURADA ===
         if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
-        telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(true, new List<Vector3Int>(aoeWarningCells)));
+        
+        // ESKİ HALİ: telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(true, new List<Vector3Int>(aoeWarningCells))); (Bunu SİL)
+
+        // YENİ HALİ (Yağ gibi süzülerek çizen kodumuz):
+        if (TurnManager.instance != null)
+        {
+            foreach (var wCell in aoeWarningCells)
+            {
+                TurnManager.instance.DrawWarningTile(wCell);
+            }
+        }
+
+        //if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
+        //telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(true, new List<Vector3Int>(aoeWarningCells)));
     }
 
     private IEnumerator AnimateTelegraphCoroutine(bool show, List<Vector3Int> cellsToAnimate)
@@ -242,19 +256,64 @@ public class SpawnerBossAI : MonoBehaviour
         aoeWarningCells.Clear();
         isAoEWarningActive = false;
 
-        foreach (var c in cellsToExplode) warningMap.SetColor(c, Color.white);
-        yield return new WaitForSeconds(0.1f);
-        foreach (var c in cellsToExplode) warningMap.SetColor(c, new Color(1f, 0.8f, 0f, 0.9f));
-        yield return new WaitForSeconds(0.2f);
+        // =======================================================
+        // YENİ VE HAŞİN BOSS HASAR RENK ANİMASYONU
+        // =======================================================
+        if (warningMap != null && cellsToExplode.Count > 0)
+        {
+            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı
+            Color intenseRed = new Color(1f, 0f, 0f, 1f); 
+            
+            foreach (var c in cellsToExplode)
+            {
+                if (warningMap.HasTile(c))
+                {
+                    warningMap.SetColor(c, intenseRed);
+                }
+            }
 
+            yield return new WaitForSeconds(0.1f); // Çakma süresi
+
+            // 2. AŞAMA: Yumuşak Erime (Fade-Out)
+            float fadeDur = 0.5f; // Boss saldırısı daha büyük, izi de biraz daha uzun kalsın (0.5 sn)
+            float elapsed = 0f;
+            Color startFadeColor = intenseRed;
+            Color endFadeColor = new Color(1f, 0f, 0f, 0f); 
+
+            while (elapsed < fadeDur)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / fadeDur;
+                t = t * t * (3f - 2f * t); // SmoothStep
+                
+                Color current = Color.Lerp(startFadeColor, endFadeColor, t);
+                
+                foreach (var c in cellsToExplode)
+                {
+                    if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
+                }
+                yield return null;
+            }
+        }
+        // =======================================================
+
+        // ... (Hasar uygulama kodun) ...
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         if (cellsToExplode.Contains(playerCell))
         {
             TurnManager.instance.player.health.TakeDamage(2);
         }
 
-        if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
-        telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(false, cellsToExplode));
+        // ESKİ HALİ: SetTelegraphVisuals(false, cellsToExplode); (Bunu SİL)
+        
+        // Sadece karoları haritadan temizlemek için:
+        foreach (var c in cellsToExplode)
+        {
+            if (warningMap.HasTile(c) && !IsCellTargetedByNormalEnemy(c))
+            {
+                warningMap.SetTile(c, null);
+            }
+        }
 
         yield return new WaitForSeconds(0.2f);
     }

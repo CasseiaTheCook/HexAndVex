@@ -7,16 +7,16 @@ public class HexMovement : MonoBehaviour
 {
     public Tilemap groundMap;
     public Tilemap highlightMap;
-    
-    public UnityEngine.Tilemaps.AnimatedTile highlightTile; 
-    
+
+    public UnityEngine.Tilemaps.AnimatedTile highlightTile;
+
     public HealthScript health;
 
     [Header("Görsel Ayarlar")]
-    public float playerVisualOffsetY = 0.25f; 
-    
+    public float playerVisualOffsetY = 0.25f;
+
     // YENİ: Karakterin görselini döndürmek için
-    public SpriteRenderer visualRenderer; 
+    public SpriteRenderer visualRenderer;
 
     private const float MOVEMENT_SPEED = 8f;
 
@@ -36,23 +36,22 @@ public class HexMovement : MonoBehaviour
         if (groundMap == null) groundMap = GameObject.Find("GroundMap").GetComponent<Tilemap>();
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
-        
-        // Eğer SpriteRenderer atanmamışsa kendisi bulsun
+
         if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
 
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
-        targetWorldPosition.y += playerVisualOffsetY; 
+        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
         transform.position = targetWorldPosition;
-        
+
         UpdateHighlights();
     }
 
     void Update()
     {
         HandleMovement();
-        
+
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
         {
             HandleMovementInput();
@@ -63,8 +62,8 @@ public class HexMovement : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            worldPoint.z = 0;
+            // DÜZELTME: Perspektif kamerada farenin nereye tıkladığını doğru bulmak için Raycast Plane kullanıyoruz!
+            Vector3 worldPoint = GetMousePositionOnZPlane();
             Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
 
             if (IsNeighbor(currentCellPosition, clickedCell) &&
@@ -80,6 +79,20 @@ public class HexMovement : MonoBehaviour
                 MoveCharacter(clickedCell);
             }
         }
+    }
+
+    // YENİ: Perspektif Kamera için milimetrik farenin dünyadaki yerini hesaplayan o mükemmel fonksiyon
+    private Vector3 GetMousePositionOnZPlane()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Plane zPlane = new Plane(Vector3.forward, Vector3.zero); // Z=0 düzeyinde bir zemin
+
+        if (zPlane.Raycast(ray, out float distance))
+        {
+            return ray.GetPoint(distance);
+        }
+
+        return Vector3.zero; // Hata olursa merkeze döner
     }
 
     private void HandleMovement()
@@ -99,14 +112,13 @@ public class HexMovement : MonoBehaviour
 
                 Vector3 checkPos = transform.position;
                 checkPos.y -= playerVisualOffsetY;
-                
+
                 Vector3Int newCell = groundMap.WorldToCell(checkPos);
                 if (newCell != currentCellPosition)
                 {
                     currentCellPosition = newCell;
                 }
 
-                // YENİ: Hedefe vardığında etrafında düşman varsa yüzünü ona dön!
                 FaceCombatTarget();
 
                 if (!isKnockbackMove)
@@ -122,23 +134,21 @@ public class HexMovement : MonoBehaviour
     private void MoveCharacter(Vector3Int targetCell)
     {
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
-        targetWorldPosition.y += playerVisualOffsetY; 
+        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
-        
-        // YENİ: Yürümeye başladığı an gideceği yöne baksın
+
         if (visualRenderer != null)
         {
             float dx = targetWorldPosition.x - transform.position.x;
-            if (Mathf.Abs(dx) > 0.01f) // Sağa veya sola gidiyorsa (Dümdüz yukarı/aşağı değilse)
+            if (Mathf.Abs(dx) > 0.01f)
             {
-                visualRenderer.flipX = (dx < 0); // X eksi ise sola bak (flip)
+                visualRenderer.flipX = (dx < 0);
             }
         }
-        
+
         isMoving = true;
     }
 
-    // YENİ: Savaş için yüzünü düşmana dönme fonksiyonu
     private void FaceCombatTarget()
     {
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
@@ -149,12 +159,12 @@ public class HexMovement : MonoBehaviour
             {
                 Vector3 enemyPos = groundMap.GetCellCenterWorld(neighbor);
                 float dx = enemyPos.x - transform.position.x;
-                
+
                 if (Mathf.Abs(dx) > 0.01f && visualRenderer != null)
                 {
                     visualRenderer.flipX = (dx < 0);
                 }
-                break; // İlk bulduğu düşmana dönmesi yeterli
+                break;
             }
         }
     }
@@ -181,10 +191,10 @@ public class HexMovement : MonoBehaviour
     public void UpdateHighlights()
     {
         if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
-        
+
         highlightMap.ClearAllTiles();
         activeHighlightCells.Clear();
-        
+
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
 
         foreach (var off in offsets)
@@ -215,22 +225,26 @@ public class HexMovement : MonoBehaviour
     public void ClearHighlights()
     {
         if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
-        
+
         if (activeHighlightCells.Count > 0)
         {
             highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(false, new List<Vector3Int>(activeHighlightCells)));
         }
-        
+
         activeHighlightCells.Clear();
     }
 
     private IEnumerator FadeHighlightsCoroutine(bool fadeIn, List<Vector3Int> cellsToAnimate)
     {
-        float duration = 0.2f; 
+        float duration = 0.2f;
         float elapsed = 0f;
 
-        float startAlpha = fadeIn ? 0f : 1f;
-        float endAlpha = fadeIn ? 1f : 0f;
+        // ==========================================
+        // DÜZELTME: Maksimum parlaklığı 1f yerine 0.5f (%50 Opacity) yaptık!
+        // ==========================================
+        float maxAlpha = 0.5f;
+        float startAlpha = fadeIn ? 0f : maxAlpha;
+        float endAlpha = fadeIn ? maxAlpha : 0f;
 
         if (fadeIn)
         {

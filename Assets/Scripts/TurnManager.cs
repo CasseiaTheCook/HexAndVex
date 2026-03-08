@@ -9,18 +9,25 @@ public class TurnManager : MonoBehaviour
 {
     public static TurnManager instance;
 
+    [Header("Düşman Uyarı (Warning) Karosu")]
+    public Tilemap warningMap;
+    public UnityEngine.Tilemaps.TileBase warningTile;
+
+    [Header("Efektler")]
+    public GameObject explosionPrefab; // Senin hazırladığın o kırmızı daireyi buraya atacağız
+
     public HexMovement player;
     public Tilemap groundMap;
 
     [Header("Dinamik Zar UI Sistemi")]
-    public GameObject dieUIPrefab;       
-    public Transform diceUIContainer;    
+    public GameObject dieUIPrefab;
+    public Transform diceUIContainer;
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
     public GameObject criticalText;
 
     [Header("Coin UI")]
-    public TMP_Text coinText; 
+    public TMP_Text coinText;
 
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
@@ -117,15 +124,64 @@ public class TurnManager : MonoBehaviour
 
     public void TriggerExplosion(Vector3Int centerCell)
     {
+        // 1. Patlamanın merkezini bul ve görsel efekti başlat
+        Vector3 spawnPos = groundMap.GetCellCenterWorld(centerCell);
+        spawnPos.z = 0;
+        StartCoroutine(AnimateExplosionFX(spawnPos));
+
+        // 2. Etraftakilere (komşu altıgene) hasar ver
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
         foreach (var off in offsets)
         {
             Vector3Int neighbor = centerCell + off;
             foreach (var e in enemies)
             {
-                if (e != null && e.GetCurrentCellPosition() == neighbor) e.health.TakeDamage(1);
+                if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == neighbor)
+                {
+                    int explosionDamage = Mathf.Max(1, e.health.maxHP / 2);
+                    e.health.TakeDamage(explosionDamage);
+                    Debug.Log($"💥 NÜKLEER PATLAMA! {e.name} patlamadan {explosionDamage} hasar yedi!");
+                }
             }
         }
+    }
+
+    // İŞTE SENİN KIRMIZI DAİRENİ ANİMASYONA SOKAN KOD:
+    private IEnumerator AnimateExplosionFX(Vector3 pos)
+    {
+        if (explosionPrefab == null) yield break;
+
+        // Kırmızı daireyi yarat
+        GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
+        SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
+
+        Vector3 startScale = Vector3.one * 0.5f; // Ufak başlasın
+        Vector3 endScale = Vector3.one * 4f;     // Etraftaki altıgenleri yutacak kadar devasa şişsin
+
+        float duration = 0.25f; // Patlama hızı (0.25 saniye tam bir tokat hissiyatıdır)
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+
+            // Daireyi büyüt
+            fx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
+
+            // Daireyi usulca saydamlaştır (Fade Out)
+            foreach (var sr in renderers)
+            {
+                Color c = sr.color;
+                c.a = Mathf.Lerp(0.8f, 0f, t); // Başlangıçta %80 görünür, yavaşça silinir
+                sr.color = c;
+            }
+
+            yield return null;
+        }
+
+        // Animasyon bitince çöpü temizle
+        Destroy(fx);
     }
 
     private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
@@ -136,7 +192,7 @@ public class TurnManager : MonoBehaviour
 
             yield return new WaitForSeconds(0.15f);
             StartCoroutine(FlashHazardTileCoroutine(playerCell));
-            
+
             if (RunManager.instance.hasHolyAegis)
             {
                 foreach (var perk in RunManager.instance.activePerks)
@@ -155,7 +211,7 @@ public class TurnManager : MonoBehaviour
                 player.health.TakeDamage(1);
             }
 
-            yield return new WaitForSeconds(0.15f); 
+            yield return new WaitForSeconds(0.15f);
 
             Vector3Int bounceCell = GetSafeNeighbor(playerCell);
             player.StartKnockbackMovement(bounceCell);
@@ -171,7 +227,7 @@ public class TurnManager : MonoBehaviour
             {
                 StartCoroutine(EnemyPhase());
             }
-            yield break; 
+            yield break;
         }
 
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
@@ -204,7 +260,7 @@ public class TurnManager : MonoBehaviour
                 return neighbor;
             }
         }
-        return centerCell; 
+        return centerCell;
     }
 
     private IEnumerator EnemyPhase()
@@ -269,16 +325,19 @@ public class TurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(0.3f);
 
+        // 1. Zarları at
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
 
+        // --- İŞTE BURADA: PUSU PERK'ÜNÜN BİRİKTİRDİĞİ ZARLARI EKLE! ---
         int extraDices = 0;
         foreach (var p in RunManager.instance.activePerks)
         {
+            // Eğer perk "CalculatedAmbush" ise biriken zarlarını al
             if (p is CalculatedAmbushPerk ambushPerk)
             {
                 extraDices += ambushPerk.storedExtraDices;
-                ambushPerk.storedExtraDices = 0; 
+                ambushPerk.storedExtraDices = 0; // Birikenleri sıfırla
             }
         }
 
@@ -286,6 +345,9 @@ public class TurnManager : MonoBehaviour
 
         CombatPayload payload = new CombatPayload(currentRolls);
 
+        // ===============================================================
+        // VİZYONER KONTROL! (Sword Dance)
+        // ===============================================================
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk"))
         {
             payload.multiplyInsteadOfAdd = true;
@@ -293,9 +355,11 @@ public class TurnManager : MonoBehaviour
 
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
+        // Zarlar atıldıktan sonra İLK HASARI ekranda göster
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.5f);
 
+        // 2. PERKLERİ SIRAYLA ÇALIŞTIR
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
@@ -329,6 +393,7 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // 3. Kritik Vuruş
         if (Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true;
@@ -339,9 +404,11 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
 
+        // VURUŞ HİSSİYATI İÇİN ZARLARI AKSİYONDAN ÖNCE GİZLE!
         yield return new WaitForSeconds(0.4f);
         HideDiceResults();
 
+        // 4. HASAR UYGULAMA
         int finalDamage = payload.GetFinalDamage();
         int damagePerEnemy = finalDamage / targets.Count;
 
@@ -353,12 +420,13 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
 
             bool dies = enemy.health.currentHP <= damagePerEnemy;
-            enemy.health.TakeDamage(damagePerEnemy); 
+            enemy.health.TakeDamage(damagePerEnemy);
 
             knockedEnemies.Add(enemy);
             if (dies) deadEnemiesThisTurn.Add(enemy);
         }
 
+        // 5. KNOCKBACK (ÖLÜ YA DA DİRİ TÜM VURULANLARA UYGULANIR)
         foreach (var e in knockedEnemies)
         {
             if (e == null) continue;
@@ -393,8 +461,20 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // =======================================================
+        // YENİ EKLENEN KISIM: ADAM UÇARKEN BEKLE, ÇARPINCA DEVAM ET!
+        // =======================================================
+        yield return new WaitUntil(() =>
+        {
+            foreach (var e in knockedEnemies)
+                if (e != null && e.IsMoving()) return false;
+            return true;
+        });
+
+        // 6. HAREKET BİTTİ -> PATLAMALARI VE ÖLÜM ÖDÜLLERİNİ GİTTİKLERİ YERDE VER!
         foreach (var e in knockedEnemies)
         {
+            // Patlama perk'ü varsa artık çarptığı o son karede BUM diye patlayacak!
             if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition());
         }
 
@@ -406,7 +486,7 @@ public class TurnManager : MonoBehaviour
                 RunManager.instance.currentGold += coinDrop;
                 UpdateCoinUI();
                 foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
-                enemies.Remove(deadEnemy); 
+                enemies.Remove(deadEnemy);
             }
         }
 
@@ -421,8 +501,9 @@ public class TurnManager : MonoBehaviour
             yield break;
         }
 
+        // 7. DİKEN (HAZARD) KONTROLÜ
         List<EnemyAI> spikedEnemies = new List<EnemyAI>();
-        bool anyoneBounced = false; 
+        bool anyoneBounced = false;
 
         foreach (var s in knockedEnemies)
         {
@@ -469,6 +550,7 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.2f);
 
+        // 8. ZİNCİRLEME SALDIRI KONTROLÜ
         List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
         List<EnemyAI> nextTargets = new List<EnemyAI>();
 
@@ -526,11 +608,11 @@ public class TurnManager : MonoBehaviour
 
             if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
             {
-                yield return new WaitForSeconds(0.4f); 
+                yield return new WaitForSeconds(0.4f);
 
                 int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
                 Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
-                
+
                 if (RunManager.instance.hasHolyAegis)
                 {
                     foreach (var perk in RunManager.instance.activePerks)
@@ -706,9 +788,9 @@ public class TurnManager : MonoBehaviour
         if (criticalText == null) yield break;
         criticalText.gameObject.SetActive(true);
         Transform t = criticalText.transform;
-        Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f); 
-        Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f); 
-        Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f); 
+        Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f);
+        Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f);
+        Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f);
         float elapsed = 0f;
         float popDuration = 0.1f;
         while (elapsed < popDuration)
@@ -819,7 +901,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator DiePopAnimation(Transform t)
     {
-        Vector3 startScale = Vector3.one * 1.6f; 
+        Vector3 startScale = Vector3.one * 1.6f;
         float dur = 0.2f;
         float elapsed = 0f;
         while (elapsed < dur)
@@ -853,8 +935,8 @@ public class TurnManager : MonoBehaviour
         if (groundMap == null) yield break;
         groundMap.SetTileFlags(cell, TileFlags.None);
         Color originalColor = Color.white;
-        Color flashColor = new Color(1f, 0.4f, 0.4f, 1f); 
-        float duration = 0.15f; 
+        Color flashColor = new Color(1f, 0.4f, 0.4f, 1f);
+        float duration = 0.15f;
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -870,5 +952,53 @@ public class TurnManager : MonoBehaviour
             yield return null;
         }
         groundMap.SetColor(cell, originalColor);
+    }
+    // ==========================================
+    // YENİ: DÜŞMAN VE BOSS İÇİN YUMUŞAK (SMOOTH) UYARI ÇİZİCİ
+    // ==========================================
+    // ==========================================
+    // YENİ: HERKES İÇİN TEK TİP YUMUŞAK (SMOOTH) UYARI ÇİZİCİ
+    // ==========================================
+    public void DrawWarningTile(Vector3Int cell)
+    {
+        // Artık isBoss falan sormuyoruz, direkt basıp geçiyoruz!
+        if (warningMap == null || warningTile == null) return;
+
+        StartCoroutine(SmoothWarningFadeIn(cell));
+    }
+
+    private IEnumerator SmoothWarningFadeIn(Vector3Int cell)
+    {
+        // 1. Karoyu haritaya yerleştir ama TAMAMEN SAYDAM (Görünmez) yap
+        warningMap.SetTile(cell, warningTile);
+        warningMap.SetTileFlags(cell, TileFlags.None); // Renk kilidini aç
+
+        Color startColor = new Color(1f, 1f, 1f, 0f);   // Alpha 0 (Görünmez)
+
+        // ==========================================
+        // DÜZELTME: Alpha 1 yerine 0.5f (%50 Opacity)
+        // ==========================================
+        Color endColor = new Color(1f, 1f, 1f, 0.5f);   // Alpha 0.5 (Yarı Saydam)
+
+        warningMap.SetColor(cell, startColor);
+
+        // 2. Yumuşak geçiş (Fade-In) süreci
+        float duration = 0.3f; // Yumuşama süresi
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+
+            // "SmoothStep" matematiği ile yağ gibi akması için
+            float t = elapsed / duration;
+            t = t * t * (3f - 2f * t);
+
+            warningMap.SetColor(cell, Color.Lerp(startColor, endColor, t));
+            yield return null;
+        }
+
+        // 3. Geçiş bitince rengi %50 saydam olarak sabitle
+        warningMap.SetColor(cell, endColor);
     }
 }

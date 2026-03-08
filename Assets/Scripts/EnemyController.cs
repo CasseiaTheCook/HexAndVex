@@ -253,7 +253,20 @@ public class EnemyAI : MonoBehaviour
                 SetArrowVisibility(false);
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
-                SetTelegraphVisuals(true, false);
+
+                // === İŞTE DEĞİŞİKLİK BURADA ===
+                // ESKİ HALİ: SetTelegraphVisuals(true, false); (Bunu siliyorsun!)
+
+                // YENİ HALİ (Yağ gibi süzülerek çizen kodumuz):
+                if (TurnManager.instance != null)
+                {
+                    foreach (var wCell in warningCells)
+                    {
+                        TurnManager.instance.DrawWarningTile(wCell);
+                    }
+                }
+                // ==============================
+
                 return;
             }
             else
@@ -268,6 +281,8 @@ public class EnemyAI : MonoBehaviour
         }
 
         lockedTargetCell = CalculateNextMove(playerCell);
+
+
 
         if (lockedTargetCell != cell)
         {
@@ -512,36 +527,55 @@ public class EnemyAI : MonoBehaviour
     {
         if (!isChargingAttack) yield break;
 
+        // =======================================================
+        // YENİ VE HAŞİN HASAR RENK ANİMASYONU
+        // =======================================================
         if (warningMap != null && warningCells.Count > 0)
         {
-            float flashDur = 0.05f; float elapsed = 0f;
-            Color startRed = new Color(1f, 0.2f, 0.2f, 0.65f);
-            Color whiteFlash = new Color(1f, 1f, 1f, 0.9f);
+            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı (Kritik hissi)
+            Color intenseRed = new Color(1f, 0f, 0f, 1f); // Tam kırmızı, tam opak
 
-            while (elapsed < flashDur)
+            foreach (var c in warningCells)
             {
-                elapsed += Time.deltaTime;
-                Color current = Color.Lerp(startRed, whiteFlash, elapsed / flashDur);
-                foreach (var c in warningCells) warningMap.SetColor(c, current);
-                yield return null;
+                if (warningMap.HasTile(c))
+                {
+                    warningMap.SetColor(c, intenseRed);
+                }
             }
 
-            elapsed = 0f; float burnDur = 0.15f;
-            Color yellowBurn = new Color(1f, 0.8f, 0f, 0.8f);
-
-            while (elapsed < burnDur)
-            {
-                elapsed += Time.deltaTime;
-                Color current = Color.Lerp(whiteFlash, yellowBurn, elapsed / burnDur);
-                foreach (var c in warningCells) warningMap.SetColor(c, current);
-                yield return null;
-            }
-
+            // Bu sert kırmızının ekranda "çakması" için çok kısa bir bekleme (0.1 sn)
             yield return new WaitForSeconds(0.1f);
+
+            // 2. AŞAMA: Yumuşak Erime (Fade-Out)
+            float fadeDur = 0.4f; // Yavaşça kaybolma süresi (Tokatın izi)
+            float elapsed = 0f;
+            Color startFadeColor = intenseRed;
+            Color endFadeColor = new Color(1f, 0f, 0f, 0f); // Kırmızı ama tamamen saydam
+
+            while (elapsed < fadeDur)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / fadeDur;
+
+                // Matematiksel yumuşatma ile "yağ gibi" erime
+                t = t * t * (3f - 2f * t);
+
+                Color current = Color.Lerp(startFadeColor, endFadeColor, t);
+
+                foreach (var c in warningCells)
+                {
+                    if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
+                }
+                yield return null;
+            }
         }
+        // =======================================================
+
+        // ... (Bundan sonrası senin eski hasar uygulama ve geri tepme kodların, dokunmuyoruz) ...
 
         if (warningCells.Contains(player.GetCurrentCellPosition()))
         {
+            // (Eski dodge ve hasar kodların buradadır...)
             bool dodged = false;
             if (RunManager.instance != null)
             {
@@ -552,14 +586,24 @@ public class EnemyAI : MonoBehaviour
             if (!dodged)
             {
                 player.health.TakeDamage(2);
-
                 Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
                 player.StartKnockbackMovement(pushTarget);
                 yield return new WaitUntil(() => !player.IsMoving());
             }
         }
 
-        SetTelegraphVisuals(false, false);
+        // Saldırı bitti, her şeyi temizle
+        // ESKİ HALİ: SetTelegraphVisuals(false, false); (Bunu silebilirsin çünkü zaten yukarıda erittik)
+
+        // Sadece karoları haritadan temizlemek için:
+        foreach (var c in warningCells)
+        {
+            if (warningMap.HasTile(c) && !IsCellTargetedByOtherEnemy(c))
+            {
+                warningMap.SetTile(c, null);
+            }
+        }
+
         isChargingAttack = false;
         warningCells.Clear();
         currentCooldown = aoeCooldown;
