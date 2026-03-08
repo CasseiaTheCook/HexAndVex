@@ -52,10 +52,32 @@ public class LevelGenerator : MonoBehaviour
         }
     }
 
-    void Start()
+void Start()
+{
+    // Direkt çalıştırmak yerine bir yardımcı (Coroutine) çağırıyoruz
+    StartCoroutine(LevelBaslatmaSırası());
+}
+
+System.Collections.IEnumerator LevelBaslatmaSırası()
+{
+    // 1. Adım: ScreenFader hazır olana kadar bir kare bekle
+    yield return null; 
+
+    // 2. Adım: ScreenFader sahnede var mı kontrol et
+    if (ScreenFader.instance != null)
     {
+        Debug.Log("Fader bulundu, karartma başlıyor...");
+        ScreenFader.instance.FadeAndLoad(() =>
+        {
+            GenerateNextLevel();
+        });
+    }
+    else
+    {
+        Debug.LogWarning("Fader bulunamadı, direkt yükleniyor!");
         GenerateNextLevel();
     }
+}
 
     public void GenerateNextLevel()
     {
