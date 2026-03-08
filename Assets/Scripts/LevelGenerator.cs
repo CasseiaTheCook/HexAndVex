@@ -7,25 +7,39 @@ public class LevelGenerator : MonoBehaviour
 {
     public static LevelGenerator instance;
 
+    [Header("Tilemaps")]
     public Tilemap groundMap;
+    public Tilemap backgroundMap; // Sütunların çizileceği alt harita
+
+    [Header("Tiles (Üst Zemin)")]
     public TileBase groundTile;
     public TileBase hazardTile; // Tuzak görseli
+    
+    [Header("Tiles (Arka Plan Sütun)")]
+    public TileBase columnTile; // YENİ: Tek ve yegane sütun görselimiz!
+
+    [Header("Prefabs & Settings")]
     public GameObject playerPrefab;
     public GameObject enemyPrefab;
-
     public float enemyHealth = 10;
     public int baseMapRadius = 3;
 
     private List<Vector3Int> validCells = new List<Vector3Int>();
-    public HashSet<Vector3Int> hazardCells = new HashSet<Vector3Int>(); // Tuzakların listesi
+    public HashSet<Vector3Int> hazardCells = new HashSet<Vector3Int>();
 
-    // --- HEX OFFSETLERİ (Bağlantıları kontrol etmek için) ---
+    // --- HEX OFFSETLERİ ---
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
     void Awake()
     {
         if (instance == null) instance = this;
+
+        if (backgroundMap == null)
+        {
+            GameObject bgObj = GameObject.Find("BackgroundMap");
+            if (bgObj != null) backgroundMap = bgObj.GetComponent<Tilemap>();
+        }
     }
 
     void Start()
@@ -35,8 +49,10 @@ public class LevelGenerator : MonoBehaviour
 
     public void GenerateNextLevel()
     {
-        // 1. ESKİ HARİTAYI VE DÜŞMANLARI TEMİZLE
+        // 1. ESKİ HARİTAYI TEMİZLE
         groundMap.ClearAllTiles();
+        if (backgroundMap != null) backgroundMap.ClearAllTiles(); 
+        
         validCells.Clear();
         hazardCells.Clear();
 
@@ -59,7 +75,6 @@ public class LevelGenerator : MonoBehaviour
 
                     if (Random.value > 0.15f)
                     {
-                        // %10 İhtimalle tuzak, %90 normal zemin
                         if (Random.value < 0.10f)
                         {
                             groundMap.SetTile(cell, hazardTile);
@@ -75,13 +90,16 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        // Fiziksel olarak kopuk adaları temizle
+        // Kopuklukları Temizle
         CleanUpDisconnectedIslands();
-
-        // YENİ: Dikenlerin kapattığı, ulaşılamayan güvenli bölgeleri temizle
         EnsureSafeConnectivity();
 
-        // --- 3. OYUNCUYU MERKEZE YERLEŞTİR ---
+        // ==========================================
+        // YENİ: SADECE UÇURUM KENARLARINA TEK TİP SÜTUN ÇİZ
+        // ==========================================
+        GenerateColumns();
+
+        // --- 3. OYUNCUYU YERLEŞTİR ---
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
         
@@ -91,7 +109,7 @@ public class LevelGenerator : MonoBehaviour
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        // --- 4. DÜŞMANLARI STRATEJİK (ÇEVRELEYEREK) SPAWN ET ---
+        // --- 4. DÜŞMANLARI ÇEVRELEYEREK SPAWN ET ---
         int enemyCountToSpawn = 3 + (RunManager.instance.currentLevel / 3);
         enemyHealth *= 1.1f;
         
@@ -188,7 +206,6 @@ public class LevelGenerator : MonoBehaviour
             TurnManager.instance.RegisterEnemy(enemyAI); 
         }
 
-        // 5. TURU BAŞLAT
         TurnManager.instance.isPlayerTurn = true;
         TurnManager.instance.player.UpdateHighlights();
         
@@ -198,18 +215,50 @@ public class LevelGenerator : MonoBehaviour
     }
 
     // ==============================================================
-    // YENİ: DİKENLERLE KAPATILMIŞ KÖR NOKTALARI SİLEN ALGORİTMA
+    // TEK TİP SÜTUN KOYAN MANTIK
+    // ==============================================================
+    private void GenerateColumns()
+    {
+        if (backgroundMap == null || columnTile == null) return;
+
+        foreach (var cell in validCells)
+        {
+            Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
+
+            // Kamera açısına göre "Ön Uçurumlar": Sağ(0), Sol(3), Sol-Alt(4), Sağ-Alt(5)
+            // Eğer bu yönlerden HERHANGİ BİRİNDE zemin yoksa, o kare bir "Ön Kenar"dır ve altına o kalın sütun çizilir.
+            int[] exposedIndices = { 0, 3, 4, 5 }; 
+            bool isExposedEdge = false;
+
+            foreach (int i in exposedIndices)
+            {
+                Vector3Int neighbor = cell + offsets[i];
+                if (!validCells.Contains(neighbor))
+                {
+                    isExposedEdge = true;
+                    break;
+                }
+            }
+
+            // Eğer kenardaysak, alt haritaya standart sütunumuzu basıyoruz!
+            if (isExposedEdge)
+            {
+                backgroundMap.SetTile(cell, columnTile);
+            }
+        }
+    }
+
+    // ==============================================================
+    // DİKENLERLE KAPATILMIŞ KÖR NOKTALARI SİLEN ALGORİTMA
     // ==============================================================
     private void EnsureSafeConnectivity()
     {
-        // 1. Sadece GÜVENLİ (tuzaksız) hücreleri al
         List<Vector3Int> safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
         if (safeCells.Count == 0) return;
 
         List<List<Vector3Int>> safeIslands = new List<List<Vector3Int>>();
         HashSet<Vector3Int> unvisitedSafe = new HashSet<Vector3Int>(safeCells);
 
-        // 2. Güvenli hücreler arasında Flood Fill (Sadece güvenli yoldan gidilebilen alanları bul)
         while (unvisitedSafe.Count > 0)
         {
             Vector3Int startCell = unvisitedSafe.First();
@@ -239,7 +288,6 @@ public class LevelGenerator : MonoBehaviour
             safeIslands.Add(currentIsland);
         }
 
-        // 3. En büyük güvenli adayı bul (Oyuncunun ve düşmanların takılacağı ana alan)
         List<Vector3Int> largestSafeIsland = safeIslands[0];
         foreach (var island in safeIslands)
         {
@@ -249,12 +297,10 @@ public class LevelGenerator : MonoBehaviour
         HashSet<Vector3Int> mainSafeSet = new HashSet<Vector3Int>(largestSafeIsland);
         List<Vector3Int> cellsToRemove = new List<Vector3Int>();
 
-        // 4. Ana adaya GÜVENLİ YOLDAN bağlı olmayan her şeyi işaretle
         foreach (var cell in validCells)
         {
             if (hazardCells.Contains(cell))
             {
-                // Tuzak, ana güvenli adaya komşu değilse havada asılı kalmasın, sil.
                 bool touchesMain = false;
                 Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
                 foreach (var off in offsets)
@@ -265,12 +311,10 @@ public class LevelGenerator : MonoBehaviour
             }
             else
             {
-                // Güvenli hücre ama ana adada değilse (yani araya diken girmişse) sil gitsin
                 if (!mainSafeSet.Contains(cell)) cellsToRemove.Add(cell);
             }
         }
 
-        // 5. İşaretlenenleri haritadan uçur
         foreach (var cell in cellsToRemove)
         {
             groundMap.SetTile(cell, null);

@@ -5,11 +5,17 @@ public class HexMovement : MonoBehaviour
 {
     public Tilemap groundMap;
     public Tilemap highlightMap;
-    public Tile highlightTile;
+    
+    // Unity'nin kendi animasyonlu tile yapısı için (Eğer hata verirse AnimatedTile yerine TileBase yapabilirsin)
+    public UnityEngine.Tilemaps.AnimatedTile highlightTile; 
+    
     public HealthScript health;
 
-    private readonly Color CURRENT_POS_COLOR = Color.blue;
-    private readonly Color MOVEABLE_COLOR = Color.yellow;
+    [Header("Görsel Ayarlar")]
+    // YENİ: Karakterin zemine gömük durmaması için yukarı doğru kaydırma miktarı
+    // Inspector'dan bu sayıyla oynayıp karakterin tam zemine basmasını sağlayabilirsin.
+    public float playerVisualOffsetY = 0.25f; 
+
     private const float MOVEMENT_SPEED = 8f;
 
     private Vector3Int currentCellPosition;
@@ -26,17 +32,20 @@ public class HexMovement : MonoBehaviour
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
 
+        // Başlangıç pozisyonunu ayarla
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
+        targetWorldPosition.y += playerVisualOffsetY; // Karakteri hafif havaya kaldır
         targetWorldPosition.z = 0;
         transform.position = targetWorldPosition;
+        
         UpdateHighlights();
     }
 
     void Update()
     {
         HandleMovement();
-        // HexMovement.cs Update içinde:
+        
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
         {
             HandleMovementInput();
@@ -59,7 +68,6 @@ public class HexMovement : MonoBehaviour
                 isKnockbackMove = false;
                 TurnManager.instance.isPlayerTurn = false;
 
-                // YENİ EKLENEN SATIR BURASI: Sen tıkladığın an tüm düşmanların okları yavaşça kaybolur!
                 TurnManager.instance.HideAllEnemyIntents();
 
                 ClearHighlights();
@@ -83,7 +91,11 @@ public class HexMovement : MonoBehaviour
                 transform.position = targetWorldPosition;
                 isMoving = false;
 
-                Vector3Int newCell = groundMap.WorldToCell(transform.position);
+                // Koordinat bulurken offset'i çıkarıyoruz ki altımızdaki doğru hücreyi saptayalım
+                Vector3 checkPos = transform.position;
+                checkPos.y -= playerVisualOffsetY;
+                
+                Vector3Int newCell = groundMap.WorldToCell(checkPos);
                 if (newCell != currentCellPosition)
                 {
                     currentCellPosition = newCell;
@@ -102,7 +114,11 @@ public class HexMovement : MonoBehaviour
     private void MoveCharacter(Vector3Int targetCell)
     {
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
+        
+        // YENİ: Karakter hedefe giderken zeminin merkezine değil, biraz üstüne gider
+        targetWorldPosition.y += playerVisualOffsetY; 
         targetWorldPosition.z = 0;
+        
         isMoving = true;
     }
 
@@ -127,8 +143,10 @@ public class HexMovement : MonoBehaviour
 
     public void UpdateHighlights()
     {
-        highlightMap.ClearAllTiles();
-        HighlightCell(currentCellPosition, CURRENT_POS_COLOR);
+        ClearHighlights();
+        
+        // DİKKAT: Artık bulunduğumuz kareyi (currentCellPosition) boyamıyoruz!
+        
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
 
         foreach (var off in offsets)
@@ -143,13 +161,10 @@ public class HexMovement : MonoBehaviour
                     isHazard = LevelGenerator.instance.hazardCells.Contains(neighbor);
                 }
 
-                // YENİ: Eğer diken değilse VE o karede düşman YOKSA sarıya boya!
                 if (!isHazard && !TurnManager.instance.IsEnemyAtCell(neighbor))
                 {
-                    HighlightCell(neighbor, MOVEABLE_COLOR);
+                    HighlightCell(neighbor); // Artık renk parametresi yollamıyoruz!
                 }
-                // BONUS FİKİR: Eğer istersen else if (TurnManager.instance.IsEnemyAtCell(neighbor)) diyip 
-                // düşmanın olduğu kareyi KIRMIZI (Saldırı menzili) yapabiliriz?
             }
         }
     }
@@ -159,11 +174,13 @@ public class HexMovement : MonoBehaviour
         highlightMap.ClearAllTiles();
     }
 
-    private void HighlightCell(Vector3Int cell, Color color)
+    // ==========================================
+    // RENK BOYAMASI İPTAL EDİLDİ (Orijinal haliyle çizilir)
+    // ==========================================
+    private void HighlightCell(Vector3Int cell)
     {
+        // Sadece tile'ı koyuyoruz, renk (tint) ayarıyla oynamıyoruz.
         highlightMap.SetTile(cell, highlightTile);
-        highlightMap.SetTileFlags(cell, TileFlags.None);
-        highlightMap.SetColor(cell, color);
     }
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;
