@@ -459,7 +459,8 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0)
         {
-            if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+            if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
+            else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
 
@@ -515,7 +516,8 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0)
         {
-            if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+            if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
+            else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
 
