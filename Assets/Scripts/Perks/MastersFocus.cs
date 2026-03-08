@@ -14,7 +14,9 @@ public class MastersFocusPerk : BasePerk
         {
             if (payload.diceRolls[i] <= 3)
             {
+                int oldVal = payload.diceRolls[i];
                 payload.diceRolls[i] = Random.Range(1, 7);
+                Debug.Log($"MastersFocus: Zar {i + 1} yeniden atildi: {oldVal} -> {payload.diceRolls[i]}");
             }
         }
     }
