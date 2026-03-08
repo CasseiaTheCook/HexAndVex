@@ -2,13 +2,18 @@ using UnityEngine;
 
 public class VeteransVitalityPerk : BasePerk
 {
-    // İlk alındığında da hemen 1 can ver
     public override void OnAcquire()
     {
         ApplyHealthBoost();
     }
 
-    // Her yeni level başlınca da 1 can ver
+    // YENİ: Kart tekrar seçildiğinde (Upgrade) HEMEN ekstra canı bassın!
+    public override void Upgrade()
+    {
+        base.Upgrade(); // Seviyeyi artır
+        ApplyHealthBoost(); // Seviye atladığı an canı ver!
+    }
+
     public override void OnLevelStart()
     {
         ApplyHealthBoost();
@@ -18,16 +23,17 @@ public class VeteransVitalityPerk : BasePerk
     {
         if (RunManager.instance == null) return;
 
-        // Sadece mevcut canı 1 artır (max canı değiştirme)
+        // Seviyesi ne kadarsa o kadar can versin (Lv 1 = 1 Can, Lv 3 = 3 Can)
+        int healAmount = currentLevel;
+
         RunManager.instance.playerCurrentHealth = Mathf.Min(
-            RunManager.instance.playerCurrentHealth + 1,
+            RunManager.instance.playerCurrentHealth + healAmount,
             RunManager.instance.playerMaxHealth
         );
 
-        // Sahnedeki gerçek HealthScript'i de iyileştir
         HexMovement player = TurnManager.instance != null ? TurnManager.instance.player : null;
         if (player != null && player.health != null)
-            player.health.Heal(1);
+            player.health.Heal(healAmount);
 
         TriggerVisualPop();
     }

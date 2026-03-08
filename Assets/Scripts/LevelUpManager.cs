@@ -1,16 +1,17 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using System.Linq; // Listeleri filtrelemek için eklendi
+using System.Linq; 
 
 public class LevelUpManager : MonoBehaviour
 {
     public static LevelUpManager instance;
 
     public GameObject levelUpPanel;
-    
+
     [Header("Perk Listeleri")]
     public List<GameObject> commonPerks;
     public List<GameObject> rarePerks;
@@ -24,6 +25,9 @@ public class LevelUpManager : MonoBehaviour
 
     private List<GameObject> currentChoices = new List<GameObject>();
 
+    [Header("Animasyon Ayarları")]
+    public CanvasGroup levelUpCanvasGroup; 
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -32,26 +36,23 @@ public class LevelUpManager : MonoBehaviour
     public void ShowLevelUpScreen()
     {
         levelUpPanel.SetActive(true);
+        if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(true);
         currentChoices.Clear();
 
-        // YENİ: Şu an biten bölüm Boss bölümü mü? (5, 10, 15...)
         bool isBossReward = (RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0);
 
         for (int i = 0; i < 3; i++)
         {
             GameObject randomPerk = null;
-            int safetyBreak = 0; 
-            
-            // Seçilen perk zaten listede varsa, farklı bir tane bulana kadar dene
-            while (randomPerk == null || currentChoices.Contains(randomPerk))
+            int safetyBreak = 0;
+
+            // DÜZELTME: Kart zaten seçili mi VEYA Max seviyeye ulaştı mı kontrolü eklendi!
+            while (randomPerk == null || currentChoices.Contains(randomPerk) || IsPerkMaxedOut(randomPerk))
             {
                 randomPerk = GetRandomPerkByRarity(isBossReward);
-
                 safetyBreak++;
-                if (safetyBreak > 50) 
+                if (safetyBreak > 50)
                 {
-                    // EĞER HAVUZDA YETERİNCE KART KALMADIYSA (Örn: Sadece 2 Legendary kaldıysa)
-                    // Oyunu dondurmamak için eldeki diğer yeteneklere yönel.
                     randomPerk = GetAnyValidFallback();
                     break;
                 }
@@ -60,95 +61,167 @@ public class LevelUpManager : MonoBehaviour
             if (randomPerk != null)
             {
                 currentChoices.Add(randomPerk);
-
                 BasePerk perkScript = randomPerk.GetComponent<BasePerk>();
-                choiceTexts[i].text = perkScript.perkName + "\n" + perkScript.description;
+                
+                // VİZYON DETAYI: Ekranda kaçıncı seviyeye yükseleceğini gösterelim (Örn: Swift Action (Lv 2))
+                BasePerk existing = RunManager.instance.activePerks.Find(p => p.GetType() == perkScript.GetType());
+                int displayLevel = (existing != null) ? existing.currentLevel + 1 : 1;
 
-                //if (choiceIcons[i] != null && perkScript.perkIcon != null)
-                //    choiceIcons[i].sprite = perkScript.perkIcon;
+                choiceTexts[i].text = perkScript.perkName + $" (Lv {displayLevel})\n" + perkScript.description;
 
                 int index = i;
                 choiceButtons[i].onClick.RemoveAllListeners();
                 choiceButtons[i].onClick.AddListener(() => SelectPerk(index));
-                
-                choiceButtons[i].gameObject.SetActive(true); // Butonu aç
+                choiceButtons[i].gameObject.SetActive(true); 
             }
             else
             {
-                // Oyundaki BÜTÜN perkleri aldıysa ve destede kart kalmadıysa butonu kapat
-                choiceButtons[i].gameObject.SetActive(false); 
+                choiceButtons[i].gameObject.SetActive(false);
             }
         }
+        
+        StopAllCoroutines();
+        StartCoroutine(FadeInAndPopRoutine()); 
+    }
+
+    // YENİ: Perk Max Seviyeye Ulaştı mı Dedektörü
+    private bool IsPerkMaxedOut(GameObject perkPrefab)
+    {
+        if (perkPrefab == null || RunManager.instance == null) return true;
+        
+        BasePerk checkPerk = perkPrefab.GetComponent<BasePerk>();
+        BasePerk existing = RunManager.instance.activePerks.Find(p => p.GetType() == checkPerk.GetType());
+        
+        if (existing != null && existing.currentLevel >= existing.maxLevel)
+        {
+            return true; // Max seviyede, havuza bir daha girme!
+        }
+        return false;
     }
 
     public GameObject GetRandomPerkByRarity(bool isBossReward)
     {
-        // 1. BOSS KONTROLÜ (Garantili Legendary)
-        if (isBossReward && legendaryPerks.Count > 0)
-        {
-            return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
-        }
-
-        // 2. NORMAL ZAR (%60 Common, %30 Rare, %10 Epic)
+        if (isBossReward && legendaryPerks.Count > 0) return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
         float roll = Random.Range(0f, 100f);
-
-        if (roll < 10f && epicPerks.Count > 0) 
-        {
-            return epicPerks[Random.Range(0, epicPerks.Count)]; // %10 İhtimal (0-10 arası)
-        }
-        else if (roll < 40f && rarePerks.Count > 0) 
-        {
-            return rarePerks[Random.Range(0, rarePerks.Count)]; // %30 İhtimal (10-40 arası)
-        }
-        else if (commonPerks.Count > 0)
-        {
-            return commonPerks[Random.Range(0, commonPerks.Count)]; // %60 İhtimal (40-100 arası)
-        }
-
+        if (roll < 10f && epicPerks.Count > 0) return epicPerks[Random.Range(0, epicPerks.Count)]; 
+        else if (roll < 40f && rarePerks.Count > 0) return rarePerks[Random.Range(0, rarePerks.Count)]; 
+        else if (commonPerks.Count > 0) return commonPerks[Random.Range(0, commonPerks.Count)]; 
         return null;
     }
 
-    // YEDEK PLAN: Eğer istenen nadirlikte kart bittiyse (veya Boss'ta yeterli Legendary kalmadıysa) 
-    // elde olan, henüz ekranda olmayan ilk kartı ver.
     private GameObject GetAnyValidFallback()
     {
         List<GameObject> allAvailable = new List<GameObject>();
-        
-        allAvailable.AddRange(epicPerks.Where(p => !currentChoices.Contains(p)));
-        allAvailable.AddRange(rarePerks.Where(p => !currentChoices.Contains(p)));
-        allAvailable.AddRange(commonPerks.Where(p => !currentChoices.Contains(p)));
-        // Legendaryleri normal havuza bilerek katmadım, o sadece Boss'ta çıksın diye. İstersen ekleyebilirsin.
+        // Max seviye olanları ve o an ekranda olanları ayıkla
+        allAvailable.AddRange(epicPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
+        allAvailable.AddRange(rarePerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
+        allAvailable.AddRange(commonPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
 
-        if (allAvailable.Count > 0)
-        {
-            return allAvailable[Random.Range(0, allAvailable.Count)];
-        }
+        if (allAvailable.Count > 0) return allAvailable[Random.Range(0, allAvailable.Count)];
         return null;
     }
 
     public void SelectPerk(int index)
     {
+        foreach (var btn in choiceButtons) btn.interactable = false;
+
         GameObject chosenPerk = currentChoices[index];
-
-        // =======================================================
-        // YENİ: KARTI DESTEDEN YIRTIP ATMA SİSTEMİ (TEK SEFERLİK)
-        // Seçilen kart ait olduğu listeden kalıcı olarak silinir.
-        // =======================================================
-        if (commonPerks.Contains(chosenPerk)) commonPerks.Remove(chosenPerk);
-        if (rarePerks.Contains(chosenPerk)) rarePerks.Remove(chosenPerk);
-        if (epicPerks.Contains(chosenPerk)) epicPerks.Remove(chosenPerk);
-        if (legendaryPerks.Contains(chosenPerk)) legendaryPerks.Remove(chosenPerk);
-
         List<BasePerk> existingPerks = new List<BasePerk>(RunManager.instance.activePerks);
-
+        
+        // Perk'i Ekle veya Yükselt (Bunu RunManager kendi içinde hallediyor)
         RunManager.instance.AddPerk(chosenPerk);
-        levelUpPanel.SetActive(false);
+        RunManager.instance.currentLevel++;
 
-        RunManager.instance.currentLevel++; 
+        // =========================================================
+        // YENİ: KART YIRTMA SİSTEMİ (SADECE MAX SEVİYEYSE SİLİNİR)
+        // =========================================================
+        BasePerk checkScript = chosenPerk.GetComponent<BasePerk>();
+        BasePerk activeInstance = RunManager.instance.activePerks.Find(p => p.GetType() == checkScript.GetType());
+        
+        if (activeInstance != null && activeInstance.currentLevel >= activeInstance.maxLevel)
+        {
+            if (commonPerks.Contains(chosenPerk)) commonPerks.Remove(chosenPerk);
+            if (rarePerks.Contains(chosenPerk)) rarePerks.Remove(chosenPerk);
+            if (epicPerks.Contains(chosenPerk)) epicPerks.Remove(chosenPerk);
+            if (legendaryPerks.Contains(chosenPerk)) legendaryPerks.Remove(chosenPerk);
+            Debug.Log($"🔥 {activeInstance.perkName} Max Seviyeye ulaştı! Havuzdan kalıcı olarak silindi.");
+        }
 
         foreach (var perk in existingPerks)
             if (perk != null) perk.OnLevelStart();
 
-        LevelGenerator.instance.GenerateNextLevel(); 
+        StartCoroutine(FadeOutAndShrinkRoutine());
+    }
+
+    private IEnumerator FadeInAndPopRoutine()
+    {
+        Transform panelTransform = levelUpPanel.transform; 
+        if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = 0f;
+        panelTransform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+        
+        float popDuration = 0.20f; 
+        float elapsed = 0f;
+        
+        while (elapsed < popDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / popDuration;
+            float easeOutQuad = 1 - (1 - t) * (1 - t);
+            
+            if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = Mathf.Lerp(0f, 1f, easeOutQuad);
+            panelTransform.localScale = Vector3.Lerp(new Vector3(0.2f, 0.2f, 0.2f), new Vector3(1.1f, 1.1f, 1.1f), easeOutQuad);
+            yield return null;
+        }
+
+        float settleDuration = 0.15f;
+        elapsed = 0f;
+        
+        while (elapsed < settleDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / settleDuration;
+            panelTransform.localScale = Vector3.Lerp(new Vector3(1.1f, 1.1f, 1.1f), Vector3.one, t);
+            yield return null;
+        }
+        
+        if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = 1f;
+        panelTransform.localScale = Vector3.one;
+    }
+
+    private IEnumerator FadeOutAndShrinkRoutine()
+    {
+        Transform panelTransform = levelUpPanel.transform;
+        float duration = 0.2f; 
+        float elapsed = 0f;
+        
+        Vector3 startScale = panelTransform.localScale;
+        Vector3 endScale = new Vector3(0.2f, 0.2f, 0.2f); 
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+            float easeInQuad = t * t;
+            
+            if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = Mathf.Lerp(1f, 0f, easeInQuad);
+            panelTransform.localScale = Vector3.Lerp(startScale, endScale, easeInQuad);
+            yield return null;
+        }
+        
+        levelUpPanel.SetActive(false);
+        if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(false);
+        foreach (var btn in choiceButtons) btn.interactable = true;
+
+        if (ScreenFader.instance != null)
+        {
+            ScreenFader.instance.FadeAndLoad(() =>
+            {
+                LevelGenerator.instance.GenerateNextLevel();
+            });
+        }
+        else
+        {
+            LevelGenerator.instance.GenerateNextLevel();
+        }
     }
 }

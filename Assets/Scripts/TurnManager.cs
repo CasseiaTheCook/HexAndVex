@@ -14,7 +14,8 @@ public class TurnManager : MonoBehaviour
     public UnityEngine.Tilemaps.TileBase warningTile;
 
     [Header("Efektler")]
-    public GameObject explosionPrefab; // Senin hazırladığın o kırmızı daireyi buraya atacağız
+    public GameObject explosionPrefab; 
+    public GameObject dodgeEffectPrefab; 
 
     public HexMovement player;
     public Tilemap groundMap;
@@ -32,14 +33,11 @@ public class TurnManager : MonoBehaviour
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
     public bool isPlayerTurn = true;
-    private List<EnemyAI> stunnedEnemiesThisTurn = new List<EnemyAI>();
-
-    [Header("Shop Turu")]
+    
+    public bool hasAttackedThisTurn = false; 
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
-
-    private const float COMBAT_START_DELAY = 0.5f;
 
     void Awake()
     {
@@ -51,13 +49,13 @@ public class TurnManager : MonoBehaviour
         if (groundMap == null)
         {
             GameObject mapObj = GameObject.Find("GroundMap");
-            if (mapObj != null) groundMap = mapObj.GetComponent<Tilemap>();
+            if (groundMap == null && mapObj != null) groundMap = mapObj.GetComponent<Tilemap>();
         }
 
         if (totalDamageText == null)
         {
             GameObject tdt = GameObject.Find("TotalDamageText");
-            if (tdt != null) totalDamageText = tdt.GetComponent<TMP_Text>();
+            if (totalDamageText == null && tdt != null) totalDamageText = tdt.GetComponent<TMP_Text>();
         }
     }
 
@@ -65,12 +63,25 @@ public class TurnManager : MonoBehaviour
     {
         HideDiceResults();
         UpdateCoinUI();
-        Invoke("LockAllEnemyIntents", 0.5f);
+        Invoke("StartPlayerTurn", 0.5f);
     }
 
-    // ==========================================
-    // YENİ YARDIMCI METOT: HARİTAYI TEMİZLE (BOSS İÇİN)
-    // ==========================================
+    public void StartPlayerTurn()
+    {
+        if (player == null || player.health.currentHP <= 0) return;
+
+        isPlayerTurn = true;
+        hasAttackedThisTurn = false; 
+
+        if (RunManager.instance != null)
+        {
+            RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
+        }
+
+        player.UpdateHighlights();
+        LockAllEnemyIntents();
+    }
+
     public void ClearWarningMap()
     {
         GameObject warningMapObj = GameObject.Find("WarningMap");
@@ -118,18 +129,19 @@ public class TurnManager : MonoBehaviour
         foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
+        
         isPlayerTurn = false;
+        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0; 
+        
         StartCoroutine(EnemyPhase());
     }
 
     public void TriggerExplosion(Vector3Int centerCell)
     {
-        // 1. Patlamanın merkezini bul ve görsel efekti başlat
         Vector3 spawnPos = groundMap.GetCellCenterWorld(centerCell);
         spawnPos.z = 0;
         StartCoroutine(AnimateExplosionFX(spawnPos));
 
-        // 2. Etraftakilere (komşu altıgene) hasar ver
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
         foreach (var off in offsets)
         {
@@ -140,25 +152,22 @@ public class TurnManager : MonoBehaviour
                 {
                     int explosionDamage = Mathf.Max(1, e.health.maxHP / 2);
                     e.health.TakeDamage(explosionDamage);
-                    Debug.Log($"💥 NÜKLEER PATLAMA! {e.name} patlamadan {explosionDamage} hasar yedi!");
                 }
             }
         }
     }
 
-    // İŞTE SENİN KIRMIZI DAİRENİ ANİMASYONA SOKAN KOD:
     private IEnumerator AnimateExplosionFX(Vector3 pos)
     {
         if (explosionPrefab == null) yield break;
 
-        // Kırmızı daireyi yarat
         GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
 
-        Vector3 startScale = Vector3.one * 0.5f; // Ufak başlasın
-        Vector3 endScale = Vector3.one * 4f;     // Etraftaki altıgenleri yutacak kadar devasa şişsin
+        Vector3 startScale = Vector3.one * 0.5f; 
+        Vector3 endScale = Vector3.one * 2f;    
 
-        float duration = 0.25f; // Patlama hızı (0.25 saniye tam bir tokat hissiyatıdır)
+        float duration = 0.15f; 
         float elapsed = 0f;
 
         while (elapsed < duration)
@@ -166,21 +175,17 @@ public class TurnManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
 
-            // Daireyi büyüt
             fx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
 
-            // Daireyi usulca saydamlaştır (Fade Out)
             foreach (var sr in renderers)
             {
                 Color c = sr.color;
-                c.a = Mathf.Lerp(0.8f, 0f, t); // Başlangıçta %80 görünür, yavaşça silinir
+                c.a = Mathf.Lerp(0.8f, 0f, t); 
                 sr.color = c;
             }
 
             yield return null;
         }
-
-        // Animasyon bitince çöpü temizle
         Destroy(fx);
     }
 
@@ -188,8 +193,6 @@ public class TurnManager : MonoBehaviour
     {
         if (LevelGenerator.instance.hazardCells.Contains(playerCell))
         {
-            Debug.Log("🔥 Tuzağa bastın!");
-
             yield return new WaitForSeconds(0.15f);
             StartCoroutine(FlashHazardTileCoroutine(playerCell));
 
@@ -197,14 +200,9 @@ public class TurnManager : MonoBehaviour
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis)
-                    {
-                        aegis.BreakShield();
-                        break;
-                    }
+                    if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
                 }
                 RunManager.instance.hasHolyAegis = false;
-                Debug.Log("🛡️ Holy Aegis kırıldı!");
             }
             else
             {
@@ -222,6 +220,11 @@ public class TurnManager : MonoBehaviour
                 RunManager.instance.remainingMoves--;
                 isPlayerTurn = true;
                 player.UpdateHighlights();
+                
+                // ==========================================
+                // YENİ: OKLARI GERİ GETİR (Tuzağa basıp sekse bile oklar gelsin)
+                // ==========================================
+                ShowAllEnemyIntents(); 
             }
             else if (player != null && player.health.currentHP > 0)
             {
@@ -231,9 +234,15 @@ public class TurnManager : MonoBehaviour
         }
 
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
-        if (adjacentEnemies.Count > 0)
+        
+        if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
+            hasAttackedThisTurn = true; 
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
+        }
+        else if (adjacentEnemies.Count > 0 && hasAttackedThisTurn)
+        {
+            Debug.Log("🏃 Saldırı hakkı zaten kullanıldı, sadece pozisyon alındı!");
         }
 
         if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
@@ -242,6 +251,11 @@ public class TurnManager : MonoBehaviour
             Debug.Log($"⚡ EKSTRA HAMLE! Kalan hak: {RunManager.instance.remainingMoves}");
             isPlayerTurn = true;
             player.UpdateHighlights();
+
+            // ==========================================
+            // YENİ: OKLARI GERİ GETİR (Normal hareket veya saldırı sonrası oklar geri gelsin)
+            // ==========================================
+            ShowAllEnemyIntents(); 
         }
         else
         {
@@ -303,12 +317,10 @@ public class TurnManager : MonoBehaviour
 
         if (readyToMeleeAttack.Count > 0)
         {
-            Debug.Log("🛡️ Yakın dövüşçüler saldırıyor...");
             yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
         }
         else
         {
-            Debug.Log("Düşmanlar şokta, uzakta veya sadece alan saldırısı yaptı. Tur geçiyor.");
             EndTurnAndDecreaseStuns();
         }
     }
@@ -321,23 +333,32 @@ public class TurnManager : MonoBehaviour
         }
     }
 
+    // ==========================================
+    // YENİ: DÜŞMANIN OKLARINI GERİ ÇAĞIRAN FONKSİYON
+    // ==========================================
+    public void ShowAllEnemyIntents()
+    {
+        foreach (var e in enemies)
+        {
+            // Eğer adam sersemlemiş değilse (skipTurns <= 0) ve okları varsa görünür yap
+            if (e != null && e.skipTurns <= 0) e.SetArrowVisibility(true);
+        }
+    }
+
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
         yield return new WaitForSeconds(0.3f);
 
-        // 1. Zarları at
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
 
-        // --- İŞTE BURADA: PUSU PERK'ÜNÜN BİRİKTİRDİĞİ ZARLARI EKLE! ---
         int extraDices = 0;
         foreach (var p in RunManager.instance.activePerks)
         {
-            // Eğer perk "CalculatedAmbush" ise biriken zarlarını al
             if (p is CalculatedAmbushPerk ambushPerk)
             {
                 extraDices += ambushPerk.storedExtraDices;
-                ambushPerk.storedExtraDices = 0; // Birikenleri sıfırla
+                ambushPerk.storedExtraDices = 0; 
             }
         }
 
@@ -345,9 +366,6 @@ public class TurnManager : MonoBehaviour
 
         CombatPayload payload = new CombatPayload(currentRolls);
 
-        // ===============================================================
-        // VİZYONER KONTROL! (Sword Dance)
-        // ===============================================================
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk"))
         {
             payload.multiplyInsteadOfAdd = true;
@@ -355,11 +373,9 @@ public class TurnManager : MonoBehaviour
 
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
 
-        // Zarlar atıldıktan sonra İLK HASARI ekranda göster
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.5f);
 
-        // 2. PERKLERİ SIRAYLA ÇALIŞTIR
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
@@ -393,7 +409,6 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // 3. Kritik Vuruş
         if (Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true;
@@ -404,11 +419,9 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
 
-        // VURUŞ HİSSİYATI İÇİN ZARLARI AKSİYONDAN ÖNCE GİZLE!
         yield return new WaitForSeconds(0.4f);
         HideDiceResults();
 
-        // 4. HASAR UYGULAMA
         int finalDamage = payload.GetFinalDamage();
         int damagePerEnemy = finalDamage / targets.Count;
 
@@ -426,7 +439,6 @@ public class TurnManager : MonoBehaviour
             if (dies) deadEnemiesThisTurn.Add(enemy);
         }
 
-        // 5. KNOCKBACK (ÖLÜ YA DA DİRİ TÜM VURULANLARA UYGULANIR)
         foreach (var e in knockedEnemies)
         {
             if (e == null) continue;
@@ -461,9 +473,6 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // =======================================================
-        // YENİ EKLENEN KISIM: ADAM UÇARKEN BEKLE, ÇARPINCA DEVAM ET!
-        // =======================================================
         yield return new WaitUntil(() =>
         {
             foreach (var e in knockedEnemies)
@@ -471,37 +480,30 @@ public class TurnManager : MonoBehaviour
             return true;
         });
 
-        // 6. HAREKET BİTTİ -> PATLAMALARI VE ÖLÜM ÖDÜLLERİNİ GİTTİKLERİ YERDE VER!
         foreach (var e in knockedEnemies)
         {
-            // Patlama perk'ü varsa artık çarptığı o son karede BUM diye patlayacak!
             if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition());
         }
 
-        foreach (var deadEnemy in deadEnemiesThisTurn)
+        List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+        foreach (var deadEnemy in deadFromSpikes)
         {
-            if (deadEnemy != null)
-            {
-                int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
-                RunManager.instance.currentGold += coinDrop;
-                UpdateCoinUI();
-                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
-                enemies.Remove(deadEnemy);
-            }
+            int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+            RunManager.instance.currentGold += coinDrop;
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }
+        UpdateCoinUI();
 
-        knockedEnemies.RemoveAll(e => deadEnemiesThisTurn.Contains(e) || e == null || e.health.currentHP <= 0);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
         if (enemies.Count <= 0)
         {
-            ClearWarningMap(); // EKRANDAKİ KIRMIZI KARELERİ SİL
+            ClearWarningMap(); 
             if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
             else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
 
-        // 7. DİKEN (HAZARD) KONTROLÜ
         List<EnemyAI> spikedEnemies = new List<EnemyAI>();
         bool anyoneBounced = false;
 
@@ -537,12 +539,22 @@ public class TurnManager : MonoBehaviour
                 foreach (var s in spikedEnemies) if (s != null && s.IsMoving()) return false;
                 return true;
             });
-            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         }
+
+        deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+        foreach (var deadEnemy in deadFromSpikes)
+        {
+            int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+            RunManager.instance.currentGold += coinDrop;
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+        }
+        UpdateCoinUI();
+
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
         if (enemies.Count <= 0)
         {
-            ClearWarningMap(); // EKRANDAKİ KIRMIZI KARELERİ SİL
+            ClearWarningMap(); 
             if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
             else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
@@ -550,7 +562,6 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.2f);
 
-        // 8. ZİNCİRLEME SALDIRI KONTROLÜ
         List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
         List<EnemyAI> nextTargets = new List<EnemyAI>();
 
@@ -573,15 +584,51 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.2f);
 
-        // --- DÜZELTME: Kalkan bug'ı engellendi, sadece normal dodge kaldı ---
         bool dodged = false;
         if (RunManager.instance != null)
         {
             dodged = Random.value < RunManager.instance.dodgeChance;
         }
 
-        if (!dodged)
+        if (dodged)
         {
+            Debug.Log("🛡️ DODGE! Hasar engellendi ama savruluyorsun!");
+            if (dodgeEffectPrefab != null)
+            {
+                Instantiate(dodgeEffectPrefab, player.transform.position, Quaternion.identity);
+            }
+        }
+        else if (RunManager.instance.hasHolyAegis)
+        {
+            foreach (var perk in RunManager.instance.activePerks)
+            {
+                if (perk is HolyAegisPerk aegis)
+                {
+                    aegis.BreakShield();
+                    break;
+                }
+            }
+            RunManager.instance.hasHolyAegis = false;
+            Debug.Log("🛡️ Holy Aegis kırıldı!");
+        }
+        else
+        {
+            player.health.TakeDamage(1);
+        }
+
+        Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
+        Vector3Int playerTarget = GetOppositeCell(playerOriginalCell, attackers[0].GetCurrentCellPosition());
+
+        player.StartKnockbackMovement(playerTarget);
+        yield return new WaitUntil(() => !player.IsMoving());
+
+        if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
+        {
+            yield return new WaitForSeconds(0.4f);
+
+            int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
+            Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
+
             if (RunManager.instance.hasHolyAegis)
             {
                 foreach (var perk in RunManager.instance.activePerks)
@@ -593,52 +640,16 @@ public class TurnManager : MonoBehaviour
                     }
                 }
                 RunManager.instance.hasHolyAegis = false;
-                Debug.Log("🛡️ Holy Aegis kırıldı!");
+                Debug.Log("🛡️ Holy Aegis dikenlerde kırıldı!");
             }
             else
             {
                 player.health.TakeDamage(1);
             }
 
-            Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
-            Vector3Int playerTarget = GetOppositeCell(playerOriginalCell, attackers[0].GetCurrentCellPosition());
-
-            player.StartKnockbackMovement(playerTarget);
+            StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
+            player.StartKnockbackMovement(playerOriginalCell);
             yield return new WaitUntil(() => !player.IsMoving());
-
-            if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
-            {
-                yield return new WaitForSeconds(0.4f);
-
-                int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
-                Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
-
-                if (RunManager.instance.hasHolyAegis)
-                {
-                    foreach (var perk in RunManager.instance.activePerks)
-                    {
-                        if (perk is HolyAegisPerk aegis)
-                        {
-                            aegis.BreakShield();
-                            break;
-                        }
-                    }
-                    RunManager.instance.hasHolyAegis = false;
-                    Debug.Log("🛡️ Holy Aegis kırıldı!");
-                }
-                else
-                {
-                    player.health.TakeDamage(1);
-                }
-
-                StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
-                player.StartKnockbackMovement(playerOriginalCell);
-                yield return new WaitUntil(() => !player.IsMoving());
-            }
-        }
-        else
-        {
-            Debug.Log("🛡️ DODGE! Hasar almadın.");
         }
 
         yield return new WaitForSeconds(0.3f);
@@ -658,20 +669,13 @@ public class TurnManager : MonoBehaviour
                     if (e.skipTurns <= 0) e.SetStunVisual(false);
                 }
             }
-            isPlayerTurn = true;
-            player.UpdateHighlights();
-            LockAllEnemyIntents();
+            StartPlayerTurn();
         }
     }
 
     public void ResumeAfterShop()
     {
-        if (player != null && player.health.currentHP > 0)
-        {
-            isPlayerTurn = true;
-            player.UpdateHighlights();
-            LockAllEnemyIntents();
-        }
+        StartPlayerTurn();
     }
 
     private IEnumerator ShowDiceSequence(List<int> rolls)
@@ -953,52 +957,35 @@ public class TurnManager : MonoBehaviour
         }
         groundMap.SetColor(cell, originalColor);
     }
-    // ==========================================
-    // YENİ: DÜŞMAN VE BOSS İÇİN YUMUŞAK (SMOOTH) UYARI ÇİZİCİ
-    // ==========================================
-    // ==========================================
-    // YENİ: HERKES İÇİN TEK TİP YUMUŞAK (SMOOTH) UYARI ÇİZİCİ
-    // ==========================================
+
     public void DrawWarningTile(Vector3Int cell)
     {
-        // Artık isBoss falan sormuyoruz, direkt basıp geçiyoruz!
         if (warningMap == null || warningTile == null) return;
-
         StartCoroutine(SmoothWarningFadeIn(cell));
     }
 
     private IEnumerator SmoothWarningFadeIn(Vector3Int cell)
     {
-        // 1. Karoyu haritaya yerleştir ama TAMAMEN SAYDAM (Görünmez) yap
         warningMap.SetTile(cell, warningTile);
-        warningMap.SetTileFlags(cell, TileFlags.None); // Renk kilidini aç
+        warningMap.SetTileFlags(cell, TileFlags.None); 
 
-        Color startColor = new Color(1f, 1f, 1f, 0f);   // Alpha 0 (Görünmez)
-
-        // ==========================================
-        // DÜZELTME: Alpha 1 yerine 0.5f (%50 Opacity)
-        // ==========================================
-        Color endColor = new Color(1f, 1f, 1f, 0.5f);   // Alpha 0.5 (Yarı Saydam)
+        Color startColor = new Color(1f, 1f, 1f, 0f);   
+        Color endColor = new Color(1f, 1f, 1f, 0.5f);   
 
         warningMap.SetColor(cell, startColor);
 
-        // 2. Yumuşak geçiş (Fade-In) süreci
-        float duration = 0.3f; // Yumuşama süresi
+        float duration = 0.3f; 
         float elapsed = 0f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-
-            // "SmoothStep" matematiği ile yağ gibi akması için
             float t = elapsed / duration;
             t = t * t * (3f - 2f * t);
 
             warningMap.SetColor(cell, Color.Lerp(startColor, endColor, t));
             yield return null;
         }
-
-        // 3. Geçiş bitince rengi %50 saydam olarak sabitle
         warningMap.SetColor(cell, endColor);
     }
 }

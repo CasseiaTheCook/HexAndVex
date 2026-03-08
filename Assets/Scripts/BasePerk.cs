@@ -3,6 +3,9 @@ using System.Collections;
 
 public abstract class BasePerk : MonoBehaviour
 {
+    [Header("Seviye Sistemi")]
+    public int currentLevel = 1;
+    public int maxLevel = 3; // Unity'den her yetenek için bunu değiştirebilirsin (Örn: SwiftAction max 2 olsun gibi)
     public string perkName;
     [TextArea] public string description;
     public int priority = 0;
@@ -26,6 +29,15 @@ public abstract class BasePerk : MonoBehaviour
     // İŞTE YENİ EKLENEN KISIM BURASI KANKA:
     // Ancient Blessing bu komutu çağıracak. Diğer perkler de bu komutu alınca ne yapacaklarını bilecek.
     public virtual void UpgradePerk() { }
+
+    public virtual void Upgrade()
+    {
+        currentLevel++;
+        Debug.Log($"{perkName} seviye atladı! Yeni Seviye: {currentLevel}");
+        
+        // İleride yeteneklerine özel Upgrade işlemleri yapmak istersen, 
+        // SwiftActionPerk gibi alt kodlarda "public override void Upgrade()" diyerek ezeceksin.
+    }
     // ======================================================
 
     // Görsel geri bildirim: Perk çalıştığında ekranda zıplar

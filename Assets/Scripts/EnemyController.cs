@@ -575,21 +575,35 @@ public class EnemyAI : MonoBehaviour
 
         if (warningCells.Contains(player.GetCurrentCellPosition()))
         {
-            // (Eski dodge ve hasar kodların buradadır...)
             bool dodged = false;
             if (RunManager.instance != null)
             {
-                dodged = RunManager.instance.hasHolyAegis || Random.value < RunManager.instance.dodgeChance;
-                if (RunManager.instance.hasHolyAegis) RunManager.instance.hasHolyAegis = false;
+                dodged = Random.value < RunManager.instance.dodgeChance;
             }
 
-            if (!dodged)
+            // HASAR KISMI
+            if (dodged)
+            {
+                // Dodge efekti (TurnManager'daki prefabı kullanıyoruz)
+                if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
+                {
+                    Instantiate(TurnManager.instance.dodgeEffectPrefab, player.transform.position, Quaternion.identity);
+                }
+            }
+            else if (RunManager.instance.hasHolyAegis)
+            {
+                RunManager.instance.hasHolyAegis = false;
+                // Kalkan kırılma efekti zaten HolyAegis perk kodunda tetikleniyor
+            }
+            else
             {
                 player.health.TakeDamage(2);
-                Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
-                player.StartKnockbackMovement(pushTarget);
-                yield return new WaitUntil(() => !player.IsMoving());
             }
+
+            // KNOCKBACK KISMI (Her halükarda uçar)
+            Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
+            player.StartKnockbackMovement(pushTarget);
+            yield return new WaitUntil(() => !player.IsMoving());
         }
 
         // Saldırı bitti, her şeyi temizle
