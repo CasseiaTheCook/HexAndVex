@@ -65,11 +65,11 @@ public class Shopmanager : MonoBehaviour
     // -------------------------------------------------------
     private List<ShopItemData> BuildItemPool() => new List<ShopItemData>
     {
-        new ShopItemData("Saglik Iksiri",   "1 can yenile",                 3, HotbarItemType.HealthPotion),
-        new ShopItemData("Guclu Iksir",     "2 can yenile",                 5, HotbarItemType.StrongPotion),
-        new ShopItemData("Altin Cuzdan",    "+6 coin kazan",                2, HotbarItemType.GoldBag),
-        new ShopItemData("Enerji Icecegi",  "Bu savaşta 1 ekstra hamle",    4, HotbarItemType.EnergyDrink),
-        new ShopItemData("Savas Buyusu",    "Kritik sans kalici +%15",      6, HotbarItemType.BattleSpell)
+        new ShopItemData("Sağlık İksiri",   "1 can yenile",                     3, HotbarItemType.HealthPotion),
+        new ShopItemData("Güçlü İksir",     "2 can yenile",                     5, HotbarItemType.StrongPotion),
+        new ShopItemData("Altın Cüzdan",    "+6 coin kazan",                    2, HotbarItemType.GoldBag),
+        new ShopItemData("Enerji İçeceği",  "Bu savaşta 1 ekstra hamle",        4, HotbarItemType.EnergyDrink),
+        new ShopItemData("Savaş Büyüsü",    "Kritik şans kalıcı +%15",          6, HotbarItemType.BattleSpell)
     };
 
     // -------------------------------------------------------
@@ -83,6 +83,23 @@ public class Shopmanager : MonoBehaviour
     void Start()
     {
         currentRerollCost = rerollBaseCost;
+
+        // Container layout'unu ve boyutunu kod üzerinden garantile
+        if (shopSlotContainer != null)
+        {
+            var hlg = shopSlotContainer.GetComponent<HorizontalLayoutGroup>();
+            if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 10;
+            hlg.padding = new RectOffset(8, 8, 8, 8);
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlWidth  = true;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth  = true;
+            hlg.childForceExpandHeight = true;
+
+            var rt = shopSlotContainer as RectTransform;
+            if (rt != null) rt.sizeDelta = new Vector2(shopSlotCount * 210f, 140f);
+        }
 
         if (rerollButton != null)
         {
@@ -163,6 +180,13 @@ public class Shopmanager : MonoBehaviour
             bool pickItem = (Random.value < 0.4f) || AllPerkListsEmpty();
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
+
+            // Prefab'da Canvas varsa scale bozuluyor — hepsini temizle
+            foreach (var c in slotGO.GetComponents<Canvas>())           Destroy(c);
+            foreach (var c in slotGO.GetComponents<CanvasScaler>())      Destroy(c);
+            foreach (var c in slotGO.GetComponents<GraphicRaycaster>()) Destroy(c);
+            slotGO.transform.localScale = Vector3.one;
+
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
             purchased.Add(false);
@@ -241,6 +265,11 @@ public class Shopmanager : MonoBehaviour
 
         if (slot.buyButton != null)
         {
+            // Prefab'dan kalan eski etiket metnini temizle
+            var btnLabel = slot.buyButton.GetComponentInChildren<TMP_Text>();
+            if (btnLabel != null && btnLabel != slot.nameText && btnLabel != slot.priceText)
+                btnLabel.text = "";
+
             int idx = index;
             slot.buyButton.onClick.RemoveAllListeners();
             slot.buyButton.onClick.AddListener(() => TryBuy(idx));
