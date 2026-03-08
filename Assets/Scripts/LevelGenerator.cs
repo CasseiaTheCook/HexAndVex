@@ -27,7 +27,6 @@ public class LevelGenerator : MonoBehaviour
     public GameObject bossPrefab;
     public GameObject totemPrefab;
 
-    // enemyHealth'i kilitli bir float yapmak yerine, get ile levela göre otomatik hesaplatan bir property yaptık!
     public float CurrentEnemyHealth
     {
         get { return 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel); }
@@ -55,15 +54,11 @@ public class LevelGenerator : MonoBehaviour
 
     void Start()
     {
-        // ESKİ HALİ:
-        // LevelGenerator.instance.GenerateNextLevel();
-
-        // YENİ HALİ (Yağ gibi geçişli):
         ScreenFader.instance.FadeAndLoad(() =>
         {
-            LevelGenerator.instance.GenerateNextLevel(); // Senin bölüm yükleme kodun neyse onu buraya yazıyorsun
+            LevelGenerator.instance.GenerateNextLevel();
         });
-    } //amk pornosu
+    }
 
     public void GenerateNextLevel()
     {
@@ -226,14 +221,12 @@ public class LevelGenerator : MonoBehaviour
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
-            // DÜZELTME: Canlar artık Property'den çekiliyor, tam scale oluyor
             int finalHP = Mathf.RoundToInt(CurrentEnemyHealth * randomMultiplier);
             enemyAI.health.maxHP = Mathf.Max(1, finalHP);
             enemyAI.health.currentHP = enemyAI.health.maxHP;
 
             enemyAI.health.updateHealth();
             TurnManager.instance.RegisterEnemy(enemyAI);
-            // Bunu RegisterEnemy(enemyAI); yazan yerin hemen altına ekle:
             StartCoroutine(enemyAI.FadeSpawnCoroutine());
         }
 
@@ -245,6 +238,9 @@ public class LevelGenerator : MonoBehaviour
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
     }
 
+    // =======================================================
+    // YENİ VE KAOTİK BOSS ARENASI ÜRETİCİSİ!
+    // =======================================================
     public void GenerateBossArena()
     {
         Debug.Log("🔥 BOSS BÖLÜMÜ YÜKLENİYOR! 🔥");
@@ -259,7 +255,9 @@ public class LevelGenerator : MonoBehaviour
         }
         TurnManager.instance.enemies.Clear();
 
-        int arenaRadius = baseMapRadius + 2;
+        // 1. ARENAYI RASTGELE OLUŞTUR (Normal bölüm gibi ama daha büyük)
+        int arenaRadius = baseMapRadius + 2 + (RunManager.instance.currentLevel / 10); // Boss arenası gittikçe daha da büyür
+        
         for (int x = -arenaRadius; x <= arenaRadius; x++)
         {
             for (int y = -arenaRadius; y <= arenaRadius; y++)
@@ -267,57 +265,94 @@ public class LevelGenerator : MonoBehaviour
                 if (Mathf.Abs(x + y) <= arenaRadius)
                 {
                     Vector3Int cell = new Vector3Int(x, y, 0);
-                    groundMap.SetTile(cell, groundTile);
-                    validCells.Add(cell);
+
+                    // %5 ihtimalle haritadan parça kopar (Girintili çıkıntılı asimetrik olsun)
+                    if (Random.value > 0.05f) 
+                    {
+                        // Boss arenasına hafif bir diken (hazard) serpiştirelim (%5 ihtimal)
+                        if (Random.value < 0.05f && Vector3Int.zero != cell) 
+                        {
+                            groundMap.SetTile(cell, hazardTile);
+                            hazardCells.Add(cell);
+                        }
+                        else
+                        {
+                            groundMap.SetTile(cell, groundTile);
+                        }
+                        validCells.Add(cell);
+                    }
                 }
             }
         }
+
+        CleanUpDisconnectedIslands();
+        EnsureSafeConnectivity();
         GenerateColumns();
 
-        TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(Vector3Int.zero);
-        TurnManager.instance.player.StartKnockbackMovement(Vector3Int.zero);
-        validCells.Remove(Vector3Int.zero);
+        // 2. OYUNCUYU MERKEZE VEYA EN YAKIN GÜVENLİ YERE KOY
+        Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
+        List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
-        List<Vector3Int> edgeCells = validCells.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), Vector3.zero)).ToList();
+        TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
+        TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
+        validCells.Remove(playerStartCell);
 
-        if (bossPrefab != null)
+        // 3. BOSS VE TOTEMLERİ RASTGELE AMA UZAK YERLERE DAĞIT
+        List<Vector3Int> availableSpawnCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        
+        // Karıştır (Shuffle)
+        for (int i = 0; i < availableSpawnCells.Count; i++)
         {
-            Vector3Int bossCell = edgeCells[0];
+            Vector3Int temp = availableSpawnCells[i];
+            int r = Random.Range(i, availableSpawnCells.Count);
+            availableSpawnCells[i] = availableSpawnCells[r];
+            availableSpawnCells[r] = temp;
+        }
+
+        // Listeyi Oyuncuya Uzaklığına Göre Sırala (Önce en uzaklar)
+        availableSpawnCells = availableSpawnCells.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).ToList();
+
+        // BOSS'U DOĞUR
+        if (bossPrefab != null && availableSpawnCells.Count > 0)
+        {
+            Vector3Int bossCell = availableSpawnCells[0]; // En uzak nokta!
             Vector3 bossPos = groundMap.GetCellCenterWorld(bossCell);
 
             GameObject bossObj = Instantiate(bossPrefab, bossPos, Quaternion.identity);
             EnemyAI bossAI = bossObj.GetComponent<EnemyAI>();
 
-            // DÜZELTME: Boss'un canı normal düşmanın 5 katı olacak şekilde scale oluyor!
             bossAI.health.maxHP = Mathf.RoundToInt(CurrentEnemyHealth * 3f);
             bossAI.health.currentHP = bossAI.health.maxHP;
             bossAI.health.updateHealth();
 
             StartCoroutine(bossAI.FadeSpawnCoroutine());
 
-            validCells.Remove(bossCell);
-            edgeCells.RemoveAt(0);
+            availableSpawnCells.RemoveAt(0);
         }
 
+        // TOTEMLERİ DOĞUR (Kalan uzak/rastgele noktalara)
         if (totemPrefab != null)
         {
             for (int i = 0; i < 4; i++)
             {
-                int index = i * (edgeCells.Count / 4);
-                Vector3Int totemCell = edgeCells[index];
+                if (availableSpawnCells.Count == 0) break; // Yer kalmadıysa doğurma
+
+                // Totemleri birbirine çok yapıştırmamak için listenin farklı bölgelerinden çek
+                int index = (i * (availableSpawnCells.Count / 4)); 
+                Vector3Int totemCell = availableSpawnCells[index];
                 Vector3 totemPos = groundMap.GetCellCenterWorld(totemCell);
 
                 GameObject totemObj = Instantiate(totemPrefab, totemPos, Quaternion.identity);
                 EnemyAI totemAI = totemObj.GetComponent<EnemyAI>();
 
-                // DÜZELTME: Totemin canı level ile çok az artar
                 totemAI.health.maxHP = 5 + (RunManager.instance.currentLevel / 2);
                 totemAI.health.currentHP = totemAI.health.maxHP;
                 totemAI.health.updateHealth();
 
                 StartCoroutine(totemAI.FadeSpawnCoroutine());
 
-                validCells.Remove(totemCell);
+                availableSpawnCells.RemoveAt(index);
             }
         }
 
