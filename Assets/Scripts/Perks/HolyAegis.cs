@@ -25,9 +25,13 @@ public class HolyAegisPerk : BasePerk
     {
         if (currentShieldInstance != null) Destroy(currentShieldInstance);
         
-        // Oyuncunun üzerine kalkanı ekle
-        currentShieldInstance = Instantiate(shieldPrefab, transform.position, Quaternion.identity, transform);
-        currentShieldInstance.transform.localPosition = Vector3.zero; // Tam üstüne koy
+        // DÜZELTME: Kalkanı UI'a değil, OYUNCUNUN üstüne ekliyoruz!
+        if (TurnManager.instance != null && TurnManager.instance.player != null)
+        {
+            Transform playerTransform = TurnManager.instance.player.transform;
+            currentShieldInstance = Instantiate(shieldPrefab, playerTransform.position, Quaternion.identity, playerTransform);
+            currentShieldInstance.transform.localPosition = Vector3.zero; // Karakterin tam ortasına oturt
+        }
     }
 
     public void BreakShield()
@@ -44,7 +48,7 @@ public class HolyAegisPerk : BasePerk
         Animator anim = currentShieldInstance.GetComponent<Animator>();
         if (anim != null)
         {
-            anim.SetTrigger("Break"); // Eğer objende "Break" trigger'ı varsa
+            anim.SetTrigger("Break"); 
             yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length);
         }
         else
