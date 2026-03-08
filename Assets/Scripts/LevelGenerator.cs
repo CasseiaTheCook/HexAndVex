@@ -63,7 +63,7 @@ public class LevelGenerator : MonoBehaviour
         {
             LevelGenerator.instance.GenerateNextLevel(); // Senin bölüm yükleme kodun neyse onu buraya yazıyorsun
         });
-    }
+    } //amk pornosu
 
     public void GenerateNextLevel()
     {
