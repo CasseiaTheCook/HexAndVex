@@ -121,11 +121,11 @@ public class HotbarManager : MonoBehaviour
 
     public static string GetItemName(HotbarItemType type) => type switch
     {
-        HotbarItemType.HealthPotion => "Saglik Iksiri",
-        HotbarItemType.StrongPotion => "Guclu Iksir",
-        HotbarItemType.GoldBag      => "Altin Cuzdan",
-        HotbarItemType.EnergyDrink  => "Enerji Icecegi",
-        HotbarItemType.BattleSpell  => "Savas Buyusu",
+        HotbarItemType.HealthPotion => "Sağlık İksiri",
+        HotbarItemType.StrongPotion => "Güçlü İksir",
+        HotbarItemType.GoldBag      => "Altın Cüzdan",
+        HotbarItemType.EnergyDrink  => "Enerji İçeceği",
+        HotbarItemType.BattleSpell  => "Savaş Büyüsü",
         _                           => "?"
     };
 }
