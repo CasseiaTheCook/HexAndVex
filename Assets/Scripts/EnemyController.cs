@@ -500,25 +500,40 @@ public class EnemyAI : MonoBehaviour
             }
         }
 
+        // Çakışan tile'ları animasyon dışında tut
+        HashSet<Vector3Int> sharedFadeCells = new HashSet<Vector3Int>();
+        if (!show)
+        {
+            foreach (var c in cells)
+                if (IsCellTargetedByOtherEnemy(c)) sharedFadeCells.Add(c);
+        }
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             Color current = Color.Lerp(startColor, endColor, elapsed / duration);
             foreach (var c in cells)
             {
-                if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
+                if (!sharedFadeCells.Contains(c) && warningMap.HasTile(c))
+                    warningMap.SetColor(c, current);
             }
             yield return null;
         }
 
-        foreach (var c in cells) if (warningMap.HasTile(c)) warningMap.SetColor(c, endColor);
+        foreach (var c in cells)
+        {
+            if (!sharedFadeCells.Contains(c) && warningMap.HasTile(c))
+                warningMap.SetColor(c, endColor);
+        }
 
         if (!show)
         {
             foreach (var c in cells)
             {
-                if (!IsCellTargetedByOtherEnemy(c)) warningMap.SetTile(c, null);
-                else warningMap.SetColor(c, visibleColor);
+                if (sharedFadeCells.Contains(c))
+                    warningMap.SetColor(c, visibleColor); // Çakışan tile'ın rengini koru
+                else
+                    warningMap.SetTile(c, null);
             }
         }
     }
@@ -532,37 +547,40 @@ public class EnemyAI : MonoBehaviour
         // =======================================================
         if (warningMap != null && warningCells.Count > 0)
         {
-            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı (Kritik hissi)
-            Color intenseRed = new Color(1f, 0f, 0f, 1f); // Tam kırmızı, tam opak
-
+            // Çakışan tile'ları belirle — başka düşman da kullanıyorsa onlara dokunma
+            HashSet<Vector3Int> sharedCells = new HashSet<Vector3Int>();
+            List<Vector3Int> ownCells = new List<Vector3Int>();
             foreach (var c in warningCells)
             {
-                if (warningMap.HasTile(c))
-                {
-                    warningMap.SetColor(c, intenseRed);
-                }
+                if (IsCellTargetedByOtherEnemy(c)) sharedCells.Add(c);
+                else ownCells.Add(c);
             }
 
-            // Bu sert kırmızının ekranda "çakması" için çok kısa bir bekleme (0.1 sn)
+            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı (Kritik hissi)
+            Color intenseRed = new Color(1f, 0f, 0f, 1f);
+
+            foreach (var c in ownCells)
+            {
+                if (warningMap.HasTile(c)) warningMap.SetColor(c, intenseRed);
+            }
+
             yield return new WaitForSeconds(0.1f);
 
-            // 2. AŞAMA: Yumuşak Erime (Fade-Out)
-            float fadeDur = 0.4f; // Yavaşça kaybolma süresi (Tokatın izi)
+            // 2. AŞAMA: Yumuşak Erime (Fade-Out) — sadece bize ait tile'lar
+            float fadeDur = 0.4f;
             float elapsed = 0f;
             Color startFadeColor = intenseRed;
-            Color endFadeColor = new Color(1f, 0f, 0f, 0f); // Kırmızı ama tamamen saydam
+            Color endFadeColor = new Color(1f, 0f, 0f, 0f);
 
             while (elapsed < fadeDur)
             {
                 elapsed += Time.deltaTime;
                 float t = elapsed / fadeDur;
-
-                // Matematiksel yumuşatma ile "yağ gibi" erime
                 t = t * t * (3f - 2f * t);
 
                 Color current = Color.Lerp(startFadeColor, endFadeColor, t);
 
-                foreach (var c in warningCells)
+                foreach (var c in ownCells)
                 {
                     if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
                 }
@@ -612,9 +630,12 @@ public class EnemyAI : MonoBehaviour
         // Sadece karoları haritadan temizlemek için:
         foreach (var c in warningCells)
         {
-            if (warningMap.HasTile(c) && !IsCellTargetedByOtherEnemy(c))
+            if (warningMap.HasTile(c))
             {
-                warningMap.SetTile(c, null);
+                if (!IsCellTargetedByOtherEnemy(c))
+                    warningMap.SetTile(c, null);
+                else
+                    warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f)); // Çakışan tile'ı geri yükle
             }
         }
 

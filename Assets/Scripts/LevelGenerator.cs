@@ -383,17 +383,18 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
     {
         if (backgroundMap == null || columnTile == null) return;
 
+        // Tüm geçerli hücreleri hızlı lookup için HashSet'e al
+        HashSet<Vector3Int> validSet = new HashSet<Vector3Int>(validCells);
+
+        // 1. Kenar hücrelerine column ekle (mevcut mantık — tüm 6 yön kontrol)
         foreach (var cell in validCells)
         {
             Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
 
-            int[] exposedIndices = { 0, 3, 4, 5 };
             bool isExposedEdge = false;
-
-            foreach (int i in exposedIndices)
+            foreach (var off in offsets)
             {
-                Vector3Int neighbor = cell + offsets[i];
-                if (!validCells.Contains(neighbor))
+                if (!validSet.Contains(cell + off))
                 {
                     isExposedEdge = true;
                     break;
@@ -403,6 +404,39 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
             if (isExposedEdge)
             {
                 backgroundMap.SetTile(cell, columnTile);
+            }
+        }
+
+        // 2. İç boşlukları doldur — komşularının çoğunluğu geçerli olan boş hücreler (harita ortasındaki delikler)
+        HashSet<Vector3Int> holeFills = new HashSet<Vector3Int>();
+        foreach (var cell in validCells)
+        {
+            Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
+            foreach (var off in offsets)
+            {
+                Vector3Int neighbor = cell + off;
+                if (!validSet.Contains(neighbor) && !holeFills.Contains(neighbor))
+                {
+                    // Bu boş hücrenin kaç komşusu geçerli tile?
+                    Vector3Int[] nOffsets = (neighbor.y % 2 != 0) ? evenOffsets : oddOffsets;
+                    int validNeighborCount = 0;
+                    foreach (var nOff in nOffsets)
+                    {
+                        if (validSet.Contains(neighbor + nOff)) validNeighborCount++;
+                    }
+
+                    // 4+ komşusu varsa iç deliktir, doldur
+                    if (validNeighborCount >= 4)
+                        holeFills.Add(neighbor);
+                }
+            }
+        }
+
+        foreach (var hole in holeFills)
+        {
+            if (!backgroundMap.HasTile(hole))
+            {
+                backgroundMap.SetTile(hole, columnTile);
             }
         }
     }

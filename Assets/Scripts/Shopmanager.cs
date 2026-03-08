@@ -99,13 +99,13 @@ public class Shopmanager : MonoBehaviour
         {
             var hlg = shopSlotContainer.GetComponent<HorizontalLayoutGroup>();
             if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 4;
+            hlg.spacing = 8;
             hlg.padding = new RectOffset(4, 4, 4, 4);
-            hlg.childAlignment = TextAnchor.UpperLeft;
-            hlg.childControlWidth  = true;
-            hlg.childControlHeight = true;
-            hlg.childForceExpandWidth  = true;
-            hlg.childForceExpandHeight = true;
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlWidth  = false;
+            hlg.childControlHeight = false;
+            hlg.childForceExpandWidth  = false;
+            hlg.childForceExpandHeight = false;
         }
 
         if (rerollButton != null)
@@ -196,6 +196,17 @@ public class Shopmanager : MonoBehaviour
 
             slotGO.transform.localScale = Vector3.one;
 
+            // Sabit slot boyutu — slotlar sıkışmasın
+            RectTransform slotRT = slotGO.GetComponent<RectTransform>();
+            if (slotRT != null) slotRT.sizeDelta = new Vector2(65f, 65f);
+
+            var le = slotGO.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (le == null) le = slotGO.AddComponent<UnityEngine.UI.LayoutElement>();
+            le.preferredWidth = 65f;
+            le.preferredHeight = 65f;
+            le.flexibleWidth = 0f;
+            le.flexibleHeight = 0f;
+
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
             purchased.Add(false);
@@ -263,17 +274,10 @@ public class Shopmanager : MonoBehaviour
     {
         if (slot == null) return;
 
-        if (slot.nameText != null)
-        {
-            slot.nameText.text = itemName + "\n<size=70%>" + desc + "</size>";
-            slot.nameText.raycastTarget = false;
-        }
-
-        if (slot.priceText != null)
-        {
-            slot.priceText.text = price + " Coin";
-            slot.priceText.raycastTarget = false;
-        }
+        // Tooltip verilerini kaydet
+        slot.tooltipName = itemName;
+        slot.tooltipDesc = desc;
+        slot.tooltipPrice = price;
 
         if (slot.soldOutOverlay != null)
             slot.soldOutOverlay.SetActive(false);

@@ -28,6 +28,9 @@ public class LevelUpManager : MonoBehaviour
     [Header("Animasyon Ayarları")]
     public CanvasGroup levelUpCanvasGroup; 
 
+    [Header("Debug")]
+    [HideInInspector] public GameObject forcedPerk;
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -45,6 +48,13 @@ public class LevelUpManager : MonoBehaviour
         {
             GameObject randomPerk = null;
             int safetyBreak = 0;
+
+            // DEBUG: Forced perk varsa ilk slota yerleştir
+            if (i == 0 && forcedPerk != null && !IsPerkMaxedOut(forcedPerk))
+            {
+                randomPerk = forcedPerk;
+                forcedPerk = null; // Bir kez kullanıldıktan sonra sıfırla
+            }
 
             // DÜZELTME: Kart zaten seçili mi VEYA Max seviyeye ulaştı mı kontrolü eklendi!
             while (randomPerk == null || currentChoices.Contains(randomPerk) || IsPerkMaxedOut(randomPerk))
