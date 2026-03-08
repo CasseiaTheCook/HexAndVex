@@ -84,21 +84,18 @@ public class Shopmanager : MonoBehaviour
     {
         currentRerollCost = rerollBaseCost;
 
-        // Container layout'unu ve boyutunu kod üzerinden garantile
+        // Sadece HLG ayarlarini kod uzerinden garantile, pozisyonu editor'a birak
         if (shopSlotContainer != null)
         {
             var hlg = shopSlotContainer.GetComponent<HorizontalLayoutGroup>();
             if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 10;
+            hlg.spacing = 8;
             hlg.padding = new RectOffset(8, 8, 8, 8);
-            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childAlignment = TextAnchor.UpperLeft;
             hlg.childControlWidth  = true;
             hlg.childControlHeight = true;
-            hlg.childForceExpandWidth  = true;
+            hlg.childForceExpandWidth  = false;
             hlg.childForceExpandHeight = true;
-
-            var rt = shopSlotContainer as RectTransform;
-            if (rt != null) rt.sizeDelta = new Vector2(shopSlotCount * 210f, 140f);
         }
 
         if (rerollButton != null)
@@ -181,11 +178,19 @@ public class Shopmanager : MonoBehaviour
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
 
-            // Prefab'da Canvas varsa scale bozuluyor — hepsini temizle
-            foreach (var c in slotGO.GetComponents<Canvas>())           Destroy(c);
-            foreach (var c in slotGO.GetComponents<CanvasScaler>())      Destroy(c);
-            foreach (var c in slotGO.GetComponents<GraphicRaycaster>()) Destroy(c);
+            // CanvasScaler scale'i bozuyor — onu sil.
+            // Canvas ve GraphicRaycaster'i BIRAK (nested canvas olarak calissin).
+            foreach (var c in slotGO.GetComponents<CanvasScaler>()) DestroyImmediate(c);
+            // Nested canvas override sorting olmadan calissin
+            var slotCanvas = slotGO.GetComponent<Canvas>();
+            if (slotCanvas != null) slotCanvas.overrideSorting = false;
             slotGO.transform.localScale = Vector3.one;
+
+            // Her slot icin sabit tercih genisligi ata
+            var le = slotGO.GetComponent<LayoutElement>();
+            if (le == null) le = slotGO.AddComponent<LayoutElement>();
+            le.preferredWidth  = 200f;
+            le.preferredHeight = 114f;
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
