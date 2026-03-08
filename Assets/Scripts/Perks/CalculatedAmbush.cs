@@ -1,33 +1,15 @@
+using UnityEngine; // Unity motoru için
+using System;      // Temel fonksiyonlar için
+using System.Collections.Generic; // Listeler için
 public class CalculatedAmbushPerk : BasePerk
 {
-    private int storedExtraDices = 0;
-    private bool appliedThisBattle = false;
+    public int storedExtraDices = 0;
 
     public override void OnSkip()
     {
         storedExtraDices++;
+        Debug.Log($"🎯 Ambush: 1 zar birikti! Toplam: {storedExtraDices}");
         TriggerVisualPop();
     }
-
-    public override void OnLevelStart()
-    {
-        // Yeni odaya geçince saldırı hakkını sıfırla
-        appliedThisBattle = false;
-    }
-
-    public override void ModifyCombat(CombatPayload payload)
-    {
-        // Sadece savaşın ilk saldırısında biriken zarları ekle
-        if (!appliedThisBattle && storedExtraDices > 0)
-        {
-            for (int i = 0; i < storedExtraDices; i++)
-            {
-                payload.diceRolls.Add(UnityEngine.Random.Range(1, 7));
-            }
-            
-            storedExtraDices = 0; // Kullanılanları sıfırla
-            appliedThisBattle = true; // Bu savaşta bir kez çalıştı
-            TriggerVisualPop();
-        }
-    }
+    // ModifyCombat artık burada değil, TurnManager'da yönetiliyor!
 }

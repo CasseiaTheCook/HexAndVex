@@ -1,21 +1,32 @@
 ﻿using UnityEngine;
 using UnityEngine.Tilemaps;
+using System.Collections;
+using System.Collections.Generic;
 
 public class HexMovement : MonoBehaviour
 {
     public Tilemap groundMap;
     public Tilemap highlightMap;
-    public Tile highlightTile;
+
+    public UnityEngine.Tilemaps.AnimatedTile highlightTile;
+
     public HealthScript health;
 
-    private readonly Color CURRENT_POS_COLOR = Color.blue;
-    private readonly Color MOVEABLE_COLOR = Color.yellow;
+    [Header("Görsel Ayarlar")]
+    public float playerVisualOffsetY = 0.25f;
+
+    // YENİ: Karakterin görselini döndürmek için
+    public SpriteRenderer visualRenderer;
+
     private const float MOVEMENT_SPEED = 8f;
 
     private Vector3Int currentCellPosition;
     private Vector3 targetWorldPosition;
     private bool isMoving = false;
     private bool isKnockbackMove = false;
+
+    private List<Vector3Int> activeHighlightCells = new List<Vector3Int>();
+    private Coroutine highlightFadeCoroutine;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -26,17 +37,21 @@ public class HexMovement : MonoBehaviour
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
 
+        if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
+
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
+        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
         transform.position = targetWorldPosition;
+
         UpdateHighlights();
     }
 
     void Update()
     {
         HandleMovement();
-        // HexMovement.cs Update içinde:
+
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
         {
             HandleMovementInput();
@@ -47,8 +62,8 @@ public class HexMovement : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            worldPoint.z = 0;
+            // DÜZELTME: Perspektif kamerada farenin nereye tıkladığını doğru bulmak için Raycast Plane kullanıyoruz!
+            Vector3 worldPoint = GetMousePositionOnZPlane();
             Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
 
             if (IsNeighbor(currentCellPosition, clickedCell) &&
@@ -59,13 +74,25 @@ public class HexMovement : MonoBehaviour
                 isKnockbackMove = false;
                 TurnManager.instance.isPlayerTurn = false;
 
-                // YENİ EKLENEN SATIR BURASI: Sen tıkladığın an tüm düşmanların okları yavaşça kaybolur!
                 TurnManager.instance.HideAllEnemyIntents();
-
                 ClearHighlights();
                 MoveCharacter(clickedCell);
             }
         }
+    }
+
+    // YENİ: Perspektif Kamera için milimetrik farenin dünyadaki yerini hesaplayan o mükemmel fonksiyon
+    private Vector3 GetMousePositionOnZPlane()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Plane zPlane = new Plane(Vector3.forward, Vector3.zero); // Z=0 düzeyinde bir zemin
+
+        if (zPlane.Raycast(ray, out float distance))
+        {
+            return ray.GetPoint(distance);
+        }
+
+        return Vector3.zero; // Hata olursa merkeze döner
     }
 
     private void HandleMovement()
@@ -83,11 +110,16 @@ public class HexMovement : MonoBehaviour
                 transform.position = targetWorldPosition;
                 isMoving = false;
 
-                Vector3Int newCell = groundMap.WorldToCell(transform.position);
+                Vector3 checkPos = transform.position;
+                checkPos.y -= playerVisualOffsetY;
+
+                Vector3Int newCell = groundMap.WorldToCell(checkPos);
                 if (newCell != currentCellPosition)
                 {
                     currentCellPosition = newCell;
                 }
+
+                FaceCombatTarget();
 
                 if (!isKnockbackMove)
                 {
@@ -102,8 +134,39 @@ public class HexMovement : MonoBehaviour
     private void MoveCharacter(Vector3Int targetCell)
     {
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
+        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
+
+        if (visualRenderer != null)
+        {
+            float dx = targetWorldPosition.x - transform.position.x;
+            if (Mathf.Abs(dx) > 0.01f)
+            {
+                visualRenderer.flipX = (dx < 0);
+            }
+        }
+
         isMoving = true;
+    }
+
+    private void FaceCombatTarget()
+    {
+        Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
+        foreach (var off in offsets)
+        {
+            Vector3Int neighbor = currentCellPosition + off;
+            if (TurnManager.instance.IsEnemyAtCell(neighbor))
+            {
+                Vector3 enemyPos = groundMap.GetCellCenterWorld(neighbor);
+                float dx = enemyPos.x - transform.position.x;
+
+                if (Mathf.Abs(dx) > 0.01f && visualRenderer != null)
+                {
+                    visualRenderer.flipX = (dx < 0);
+                }
+                break;
+            }
+        }
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)
@@ -127,8 +190,11 @@ public class HexMovement : MonoBehaviour
 
     public void UpdateHighlights()
     {
+        if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
+
         highlightMap.ClearAllTiles();
-        HighlightCell(currentCellPosition, CURRENT_POS_COLOR);
+        activeHighlightCells.Clear();
+
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
 
         foreach (var off in offsets)
@@ -143,27 +209,77 @@ public class HexMovement : MonoBehaviour
                     isHazard = LevelGenerator.instance.hazardCells.Contains(neighbor);
                 }
 
-                // YENİ: Eğer diken değilse VE o karede düşman YOKSA sarıya boya!
                 if (!isHazard && !TurnManager.instance.IsEnemyAtCell(neighbor))
                 {
-                    HighlightCell(neighbor, MOVEABLE_COLOR);
+                    activeHighlightCells.Add(neighbor);
                 }
-                // BONUS FİKİR: Eğer istersen else if (TurnManager.instance.IsEnemyAtCell(neighbor)) diyip 
-                // düşmanın olduğu kareyi KIRMIZI (Saldırı menzili) yapabiliriz?
             }
+        }
+
+        if (activeHighlightCells.Count > 0)
+        {
+            highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(true, new List<Vector3Int>(activeHighlightCells)));
         }
     }
 
     public void ClearHighlights()
     {
-        highlightMap.ClearAllTiles();
+        if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
+
+        if (activeHighlightCells.Count > 0)
+        {
+            highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(false, new List<Vector3Int>(activeHighlightCells)));
+        }
+
+        activeHighlightCells.Clear();
     }
 
-    private void HighlightCell(Vector3Int cell, Color color)
+    private IEnumerator FadeHighlightsCoroutine(bool fadeIn, List<Vector3Int> cellsToAnimate)
     {
-        highlightMap.SetTile(cell, highlightTile);
-        highlightMap.SetTileFlags(cell, TileFlags.None);
-        highlightMap.SetColor(cell, color);
+        float duration = 0.2f;
+        float elapsed = 0f;
+
+        // ==========================================
+        // DÜZELTME: Maksimum parlaklığı 1f yerine 0.5f (%50 Opacity) yaptık!
+        // ==========================================
+        float maxAlpha = 0.5f;
+        float startAlpha = fadeIn ? 0f : maxAlpha;
+        float endAlpha = fadeIn ? maxAlpha : 0f;
+
+        if (fadeIn)
+        {
+            foreach (var cell in cellsToAnimate)
+            {
+                highlightMap.SetTile(cell, highlightTile);
+                highlightMap.SetTileFlags(cell, TileFlags.None);
+                highlightMap.SetColor(cell, new Color(1f, 1f, 1f, 0f));
+                highlightMap.RefreshTile(cell);
+            }
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float currentAlpha = Mathf.Lerp(startAlpha, endAlpha, elapsed / duration);
+            Color currentColor = new Color(1f, 1f, 1f, currentAlpha);
+
+            foreach (var cell in cellsToAnimate)
+            {
+                if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, currentColor);
+            }
+            yield return null;
+        }
+
+        Color finalColor = new Color(1f, 1f, 1f, endAlpha);
+        foreach (var cell in cellsToAnimate)
+        {
+            if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, finalColor);
+        }
+
+        if (!fadeIn)
+        {
+            foreach (var cell in cellsToAnimate) highlightMap.SetTile(cell, null);
+        }
     }
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;

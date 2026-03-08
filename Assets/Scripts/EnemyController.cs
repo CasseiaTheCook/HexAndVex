@@ -2,34 +2,50 @@
 using UnityEngine.Tilemaps;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 public class EnemyAI : MonoBehaviour
 {
     public Tilemap groundMap;
     public HealthScript health;
+    public SpriteRenderer visualRenderer;
+
+    [Header("Düşman Tipi ve Saldırı Ayarları")]
+    public EnemyBehavior enemyBehavior = EnemyBehavior.Melee;
+    public int aoeAttackRange = 3;
+    public int aoeCooldown = 2;
+    private int currentCooldown = 0;
+    private bool isFirstTurn = true;
+
+    public enum EnemyBehavior { Melee, TelegraphAoE, Totem, Boss }
+
+    [Header("AoE Uyarı Ayarları")]
+    public Tilemap warningMap;
+    public TileBase warningTile;
 
     [Header("UI Settings")]
     public GameObject intentArrow;
-    public GameObject stunEffectObj; // Sersemleme (yıldız) görseli
+    public GameObject stunEffectObj;
 
-    // Ok yan/ters bakıyorsa bunu 90, -90 veya 180 yapıp hizala
     public float arrowAngleOffset = 0f;
-
-    // Okların Fade In / Fade Out animasyonları için
     private SpriteRenderer arrowRenderer;
     private Coroutine arrowFadeCoroutine;
+    private Coroutine telegraphCoroutine;
 
     private Vector3Int cell;
     private Vector3 targetWorldPos;
     private bool isMoving = false;
-    public bool isBumping = false; // Duvara çarpma animasyonu devrede mi?
+    public bool isBumping = false;
+    public bool isFading = false;
+
     private const float ENEMY_MOVE_SPEED = 5f;
 
     public Vector3Int lockedTargetCell;
     public bool hasLockedTarget = false;
-
-    // YENİ: Düşmanın kaç tur şokta kalacağını tutan hafıza
     public int skipTurns = 0;
+
+    public bool isChargingAttack = false;
+    public List<Vector3Int> warningCells = new List<Vector3Int>();
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -40,12 +56,19 @@ public class EnemyAI : MonoBehaviour
         {
             GameObject mapObj = GameObject.Find("GroundMap");
             if (mapObj != null) groundMap = mapObj.GetComponent<Tilemap>();
-            else Debug.LogError("HATA: Sahnede 'GroundMap' isminde bir obje bulunamadı!");
+        }
+
+        if (warningMap == null)
+        {
+            GameObject warnObj = GameObject.Find("WarningMap");
+            if (warnObj != null) warningMap = warnObj.GetComponent<Tilemap>();
         }
     }
 
     void Start()
     {
+        if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
+
         cell = groundMap.WorldToCell(transform.position);
 
         if (TurnManager.instance != null) TurnManager.instance.RegisterEnemy(this);
@@ -53,38 +76,67 @@ public class EnemyAI : MonoBehaviour
 
         SetStunVisual(false);
 
-        // Başlangıçta okun görünmezliğini (Alpha = 0) ayarla
         if (intentArrow != null)
         {
             arrowRenderer = intentArrow.GetComponentInChildren<SpriteRenderer>();
             if (arrowRenderer != null)
             {
-                Color c = arrowRenderer.color;
-                c.a = 0f;
-                arrowRenderer.color = c;
+                Color c = arrowRenderer.color; c.a = 0f; arrowRenderer.color = c;
             }
             intentArrow.SetActive(false);
         }
+
+        if (health != null) health.OnDeath += HandleDeath;
+    }
+
+    private void HandleDeath()
+    {
+        if (isChargingAttack)
+        {
+            // DÜZELTME: Adam ölünce de Highlight TAK diye silinmesin, YUMUŞAKÇA (Fade) silinsin (false, false yaptık)
+            SetTelegraphVisuals(false, false);
+            isChargingAttack = false;
+            warningCells.Clear();
+        }
+
+        if (enemyBehavior == EnemyBehavior.Totem && SpawnerBossAI.instance != null)
+        {
+            SpawnerBossAI.instance.OnTotemDestroyed();
+        }
+        else if (enemyBehavior == EnemyBehavior.Boss && SpawnerBossAI.instance != null)
+        {
+            SpawnerBossAI.instance.OnBossDied();
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (health != null) health.OnDeath -= HandleDeath;
     }
 
     void Update()
     {
         HandleMovement();
 
-        // Düşman hayatta olduğu sürece şok durumunu her kare kontrol et
-        if (health != null && health.currentHP > 0)
+        if (health != null && health.currentHP > 0 && !isFading)
         {
-            // Adam şokta mı? (skipTurns 0'dan büyük mü?)
             bool isStunned = skipTurns > 0;
-
-            // 1. Yıldızları aç/kapat
             if (stunEffectObj != null)
             {
                 if (stunEffectObj.activeSelf != isStunned) stunEffectObj.SetActive(isStunned);
             }
-
-            // 2. KANKA SENİN İSTEDİĞİN YER: Şokta olduğu SÜRECE saydamlaştır!
             health.SetStunnedAlpha(isStunned);
+
+            // =========================================================
+            // DÜZELTME: EĞER DÜŞMAN VURULURSA (STUN) SALDIRIYI ANINDA İPTAL ET
+            // =========================================================
+            if (isStunned && isChargingAttack)
+            {
+                isChargingAttack = false;
+                SetTelegraphVisuals(false, false); // Kırmızı alanları usulca (Fade Out) eriterek siler!
+                warningCells.Clear();
+                Debug.Log($"🛑 {gameObject.name} vurulduğu için saldırısı iptal oldu!");
+            }
         }
     }
 
@@ -101,50 +153,49 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    // --- SERSEMLEME GÖRSELİ ---
+    public void TeleportTo(Vector3Int targetCell)
+    {
+        cell = targetCell;
+        targetWorldPos = groundMap.GetCellCenterWorld(cell);
+        targetWorldPos.z = 0;
+        transform.position = targetWorldPos;
+    }
+
     public void SetStunVisual(bool state)
     {
         if (stunEffectObj != null) stunEffectObj.SetActive(state);
     }
 
-    // --- DUVARA ÇARPMA VE ESNEME (BUMP) ANİMASYONU ---
     public void StartWallBump(Vector3 direction)
     {
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
         StartCoroutine(WallBumpCoroutine(direction));
     }
 
     private IEnumerator WallBumpCoroutine(Vector3 direction)
     {
-        isBumping = true;
-        isMoving = true;
-
-        Vector3 originalPos = groundMap.GetCellCenterWorld(cell);
-        originalPos.z = 0;
-
+        isBumping = true; isMoving = true;
+        Vector3 originalPos = groundMap.GetCellCenterWorld(cell); originalPos.z = 0;
         Vector3 bumpPos = originalPos + (direction * 0.10f);
-        float hitSpeed = 4f;
-        float returnSpeed = 1f;
 
         while (Vector3.Distance(transform.position, bumpPos) > 0.01f)
         {
-            transform.position = Vector3.MoveTowards(transform.position, bumpPos, hitSpeed * Time.deltaTime);
+            transform.position = Vector3.MoveTowards(transform.position, bumpPos, 4f * Time.deltaTime);
             yield return null;
         }
 
-        yield return new WaitForSeconds(0.05f); // Tokluk hissi veren Hitstop
+        yield return new WaitForSeconds(0.05f);
 
         while (Vector3.Distance(transform.position, originalPos) > 0.01f)
         {
-            transform.position = Vector3.MoveTowards(transform.position, originalPos, returnSpeed * Time.deltaTime);
+            transform.position = Vector3.MoveTowards(transform.position, originalPos, 1f * Time.deltaTime);
             yield return null;
         }
 
         transform.position = originalPos;
-        isBumping = false;
-        isMoving = false;
+        isBumping = false; isMoving = false;
     }
 
-    // --- YUMUŞAK OK ANİMASYONU (FADE IN / FADE OUT) ---
     public void SetArrowVisibility(bool show)
     {
         if (intentArrow == null || arrowRenderer == null) return;
@@ -160,51 +211,88 @@ public class EnemyAI : MonoBehaviour
 
         float targetAlpha = show ? 1f : 0f;
         float startAlpha = arrowRenderer.color.a;
-        float duration = 0.2f; // Ne kadar sürede eriyip belireceği
-        float elapsed = 0f;
+        float elapsed = 0f; Color c = arrowRenderer.color;
 
-        Color c = arrowRenderer.color;
-
-        while (elapsed < duration)
+        while (elapsed < 0.2f)
         {
             elapsed += Time.deltaTime;
-            c.a = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+            c.a = Mathf.Lerp(startAlpha, targetAlpha, elapsed / 0.2f);
             arrowRenderer.color = c;
             yield return null;
         }
-
-        c.a = targetAlpha;
-        arrowRenderer.color = c;
-
+        c.a = targetAlpha; arrowRenderer.color = c;
         if (!show) intentArrow.SetActive(false);
     }
 
-    // --- OK GÖSTERME VE KİLİTLENME ---
     public void LockNextMove(Vector3Int playerCell, bool isStunned)
     {
-        if (intentArrow == null) return;
+        if (isChargingAttack) SetTelegraphVisuals(false, false);
 
-        if (isStunned || health.currentHP <= 0 || IsNeighbor(cell, playerCell))
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
+
+        if (isStunned || health.currentHP <= 0)
         {
-            hasLockedTarget = false;
-            SetArrowVisibility(false);
-            return;
+            hasLockedTarget = false; SetArrowVisibility(false); isChargingAttack = false; return;
+        }
+
+        if (currentCooldown > 0) currentCooldown--;
+
+        Vector3 playerPos = groundMap.GetCellCenterWorld(playerCell);
+        float dxToPlayer = playerPos.x - transform.position.x;
+        if (Mathf.Abs(dxToPlayer) > 0.01f && visualRenderer != null)
+        {
+            visualRenderer.flipX = (dxToPlayer < 0);
+        }
+
+        if (enemyBehavior == EnemyBehavior.TelegraphAoE)
+        {
+            if (!isFirstTurn && currentCooldown <= 0 && Distance(cell, playerCell) <= aoeAttackRange)
+            {
+                isChargingAttack = true;
+                hasLockedTarget = false;
+                SetArrowVisibility(false);
+
+                warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
+
+                // === İŞTE DEĞİŞİKLİK BURADA ===
+                // ESKİ HALİ: SetTelegraphVisuals(true, false); (Bunu siliyorsun!)
+
+                // YENİ HALİ (Yağ gibi süzülerek çizen kodumuz):
+                if (TurnManager.instance != null)
+                {
+                    foreach (var wCell in warningCells)
+                    {
+                        TurnManager.instance.DrawWarningTile(wCell);
+                    }
+                }
+                // ==============================
+
+                return;
+            }
+            else
+            {
+                isChargingAttack = false;
+            }
+        }
+
+        if (IsNeighbor(cell, playerCell))
+        {
+            hasLockedTarget = false; SetArrowVisibility(false); return;
         }
 
         lockedTargetCell = CalculateNextMove(playerCell);
 
+
+
         if (lockedTargetCell != cell)
         {
             hasLockedTarget = true;
-
             Vector3 currentWorldPos = groundMap.GetCellCenterWorld(cell);
             Vector3 nextWorldPos = groundMap.GetCellCenterWorld(lockedTargetCell);
             currentWorldPos.z = 0; nextWorldPos.z = 0;
 
             intentArrow.transform.position = currentWorldPos;
-
             Vector3 direction = nextWorldPos - currentWorldPos;
-
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
             intentArrow.transform.rotation = Quaternion.AngleAxis(angle + arrowAngleOffset, Vector3.forward);
 
@@ -212,21 +300,29 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
-            hasLockedTarget = false;
-            SetArrowVisibility(false);
+            hasLockedTarget = false; SetArrowVisibility(false);
         }
     }
 
     public void ExecuteLockedMove()
     {
-        // KRİTİK: Eğer ölmüşse veya şoktaysa hareket E-DE-MEZ!
-        if (isMoving || health.currentHP <= 0 || skipTurns > 0)
+        isFirstTurn = false;
+
+        if (enemyBehavior == EnemyBehavior.Totem) return;
+
+        if (enemyBehavior == EnemyBehavior.Boss)
         {
-            if (skipTurns > 0) Debug.Log($"{gameObject.name} sarsıldığı için bu tur kilitli!");
-            hasLockedTarget = false;
-            SetArrowVisibility(false);
+            SpawnerBossAI bossAI = GetComponent<SpawnerBossAI>();
+            if (bossAI != null) StartCoroutine(bossAI.ExecuteBossTurn());
             return;
         }
+
+        if (isMoving || health.currentHP <= 0 || skipTurns > 0)
+        {
+            hasLockedTarget = false; SetArrowVisibility(false); return;
+        }
+
+        if (isChargingAttack) return;
 
         if (hasLockedTarget)
         {
@@ -237,51 +333,321 @@ public class EnemyAI : MonoBehaviour
                 cell = lockedTargetCell;
                 targetWorldPos = groundMap.GetCellCenterWorld(cell);
                 targetWorldPos.z = 0;
+
+                float dx = targetWorldPos.x - transform.position.x;
+                if (Mathf.Abs(dx) > 0.01f && visualRenderer != null)
+                {
+                    visualRenderer.flipX = (dx < 0);
+                }
+
                 isMoving = true;
             }
         }
 
         hasLockedTarget = false;
-        SetArrowVisibility(false); // Hareket başlarken oku usulca gizler
+        SetArrowVisibility(false);
     }
 
-    // --- AKILLI YOL BULMA (BFS) ---
+    public IEnumerator FadeSpawnCoroutine()
+    {
+        isFading = true;
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+        foreach (var sr in allRenderers) { Color c = sr.color; c.a = 0f; sr.color = c; }
+
+        float duration = 0.5f; float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(0f, 1f, elapsed / duration);
+            foreach (var sr in allRenderers) { Color c = sr.color; c.a = alpha; sr.color = c; }
+            yield return null;
+        }
+
+        foreach (var sr in allRenderers) { Color c = sr.color; c.a = 1f; sr.color = c; }
+        isFading = false;
+    }
+
+    public IEnumerator FadeOutWithoutDestroy()
+    {
+        isFading = true;
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+        float duration = 0.3f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(1f, 0f, elapsed / duration);
+            foreach (var sr in allRenderers) { Color c = sr.color; c.a = alpha; sr.color = c; }
+            yield return null;
+        }
+        isFading = false;
+    }
+
+    public IEnumerator FadeDieCoroutine()
+    {
+        isFading = true;
+
+        // YENİ: Totem yüzünden ölürlerse saldırılarını anında iptal edip alanı temizle
+        if (isChargingAttack)
+        {
+            isChargingAttack = false;
+            SetTelegraphVisuals(false, false); // Kırmızı alanları usulca siler
+            warningCells.Clear();
+        }
+
+        health.currentHP = 0;
+        skipTurns = 99;
+        SetArrowVisibility(false);
+        hasLockedTarget = false;
+
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+        float duration = 0.4f; float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(1f, 0f, elapsed / duration);
+            foreach (var sr in allRenderers) { Color c = sr.color; c.a = alpha; sr.color = c; }
+            yield return null;
+        }
+
+        if (TurnManager.instance != null) TurnManager.instance.enemies.Remove(this);
+        Destroy(gameObject);
+    }
+
+    private List<Vector3Int> GetLineOfCells(Vector3Int startCell, Vector3Int targetCell, int length)
+    {
+        List<Vector3Int> line = new List<Vector3Int>();
+        int bestDirIndex = 0;
+        float minDist = float.MaxValue;
+        Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+
+        for (int i = 0; i < 6; i++)
+        {
+            float d = Distance(startCell + startOffsets[i], targetCell);
+            if (d < minDist)
+            {
+                minDist = d;
+                bestDirIndex = i;
+            }
+        }
+
+        Vector3Int currentStep = startCell;
+        for (int i = 0; i < length; i++)
+        {
+            Vector3Int[] currOffsets = (currentStep.y % 2 != 0) ? evenOffsets : oddOffsets;
+            currentStep += currOffsets[bestDirIndex];
+
+            if (groundMap.HasTile(currentStep)) line.Add(currentStep);
+        }
+        return line;
+    }
+
+    private bool IsCellTargetedByOtherEnemy(Vector3Int targetCell)
+    {
+        if (SpawnerBossAI.instance != null && SpawnerBossAI.instance.IsCellTargetedByBoss(targetCell)) return true;
+
+        if (TurnManager.instance == null) return false;
+        foreach (var e in TurnManager.instance.enemies)
+        {
+            if (e != null && e != this && e.isChargingAttack && e.warningCells.Contains(targetCell)) return true;
+        }
+        return false;
+    }
+
+    private void SetTelegraphVisuals(bool show, bool instantClear)
+    {
+        if (warningMap == null || warningTile == null) return;
+        if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
+
+        List<Vector3Int> cellsToAnimate = new List<Vector3Int>(warningCells);
+
+        if (instantClear && !show)
+        {
+            foreach (var c in cellsToAnimate)
+            {
+                if (!IsCellTargetedByOtherEnemy(c)) warningMap.SetTile(c, null);
+                else warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f));
+            }
+            return;
+        }
+        telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(show, cellsToAnimate));
+    }
+
+    private IEnumerator AnimateTelegraphCoroutine(bool show, List<Vector3Int> cells)
+    {
+        float duration = show ? 0.35f : 0.2f;
+        float elapsed = 0f;
+
+        Color invisibleColor = new Color(1f, 0.2f, 0.2f, 0f);
+        Color visibleColor = new Color(1f, 0.2f, 0.2f, 0.65f);
+
+        Color startColor = show ? invisibleColor : visibleColor;
+        Color endColor = show ? visibleColor : invisibleColor;
+
+        if (show)
+        {
+            foreach (var c in cells)
+            {
+                warningMap.SetTile(c, warningTile);
+                warningMap.SetTileFlags(c, TileFlags.None);
+                warningMap.SetColor(c, startColor);
+            }
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            Color current = Color.Lerp(startColor, endColor, elapsed / duration);
+            foreach (var c in cells)
+            {
+                if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
+            }
+            yield return null;
+        }
+
+        foreach (var c in cells) if (warningMap.HasTile(c)) warningMap.SetColor(c, endColor);
+
+        if (!show)
+        {
+            foreach (var c in cells)
+            {
+                if (!IsCellTargetedByOtherEnemy(c)) warningMap.SetTile(c, null);
+                else warningMap.SetColor(c, visibleColor);
+            }
+        }
+    }
+
+    public IEnumerator ExecuteAoEAttackCoroutine(HexMovement player)
+    {
+        if (!isChargingAttack) yield break;
+
+        // =======================================================
+        // YENİ VE HAŞİN HASAR RENK ANİMASYONU
+        // =======================================================
+        if (warningMap != null && warningCells.Count > 0)
+        {
+            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı (Kritik hissi)
+            Color intenseRed = new Color(1f, 0f, 0f, 1f); // Tam kırmızı, tam opak
+
+            foreach (var c in warningCells)
+            {
+                if (warningMap.HasTile(c))
+                {
+                    warningMap.SetColor(c, intenseRed);
+                }
+            }
+
+            // Bu sert kırmızının ekranda "çakması" için çok kısa bir bekleme (0.1 sn)
+            yield return new WaitForSeconds(0.1f);
+
+            // 2. AŞAMA: Yumuşak Erime (Fade-Out)
+            float fadeDur = 0.4f; // Yavaşça kaybolma süresi (Tokatın izi)
+            float elapsed = 0f;
+            Color startFadeColor = intenseRed;
+            Color endFadeColor = new Color(1f, 0f, 0f, 0f); // Kırmızı ama tamamen saydam
+
+            while (elapsed < fadeDur)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / fadeDur;
+
+                // Matematiksel yumuşatma ile "yağ gibi" erime
+                t = t * t * (3f - 2f * t);
+
+                Color current = Color.Lerp(startFadeColor, endFadeColor, t);
+
+                foreach (var c in warningCells)
+                {
+                    if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
+                }
+                yield return null;
+            }
+        }
+        // =======================================================
+
+        // ... (Bundan sonrası senin eski hasar uygulama ve geri tepme kodların, dokunmuyoruz) ...
+
+        if (warningCells.Contains(player.GetCurrentCellPosition()))
+        {
+            bool dodged = false;
+            if (RunManager.instance != null)
+            {
+                dodged = Random.value < RunManager.instance.dodgeChance;
+            }
+
+            // HASAR KISMI
+            if (dodged)
+            {
+                // Dodge efekti (TurnManager'daki prefabı kullanıyoruz)
+                if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
+                {
+                    Instantiate(TurnManager.instance.dodgeEffectPrefab, player.transform.position, Quaternion.identity);
+                }
+            }
+            else if (RunManager.instance.hasHolyAegis)
+            {
+                RunManager.instance.hasHolyAegis = false;
+                // Kalkan kırılma efekti zaten HolyAegis perk kodunda tetikleniyor
+            }
+            else
+            {
+                player.health.TakeDamage(2);
+            }
+
+            // KNOCKBACK KISMI (Her halükarda uçar)
+            Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
+            player.StartKnockbackMovement(pushTarget);
+            yield return new WaitUntil(() => !player.IsMoving());
+        }
+
+        // Saldırı bitti, her şeyi temizle
+        // ESKİ HALİ: SetTelegraphVisuals(false, false); (Bunu silebilirsin çünkü zaten yukarıda erittik)
+
+        // Sadece karoları haritadan temizlemek için:
+        foreach (var c in warningCells)
+        {
+            if (warningMap.HasTile(c) && !IsCellTargetedByOtherEnemy(c))
+            {
+                warningMap.SetTile(c, null);
+            }
+        }
+
+        isChargingAttack = false;
+        warningCells.Clear();
+        currentCooldown = aoeCooldown;
+        yield return new WaitForSeconds(0.2f);
+    }
+
     public Vector3Int CalculateNextMove(Vector3Int playerCell)
     {
         Queue<Vector3Int> queue = new Queue<Vector3Int>();
         Dictionary<Vector3Int, Vector3Int> cameFrom = new Dictionary<Vector3Int, Vector3Int>();
 
-        queue.Enqueue(cell);
-        cameFrom[cell] = cell;
-
-        Vector3Int targetNeighbor = playerCell;
-        bool foundPath = false;
+        queue.Enqueue(cell); cameFrom[cell] = cell;
+        Vector3Int targetNeighbor = playerCell; bool foundPath = false;
 
         while (queue.Count > 0)
         {
             Vector3Int current = queue.Dequeue();
-
-            if (IsNeighbor(current, playerCell))
-            {
-                targetNeighbor = current;
-                foundPath = true;
-                break;
-            }
+            if (IsNeighbor(current, playerCell)) { targetNeighbor = current; foundPath = true; break; }
 
             Vector3Int[] offsets = (current.y % 2 != 0) ? evenOffsets : oddOffsets;
-
             foreach (var off in offsets)
             {
                 Vector3Int next = current + off;
-
                 if (!cameFrom.ContainsKey(next))
                 {
                     if (!groundMap.HasTile(next)) continue;
                     if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(next)) continue;
                     if (TurnManager.instance.IsEnemyAtCell(next) && next != cell) continue;
 
-                    cameFrom[next] = current;
-                    queue.Enqueue(next);
+                    cameFrom[next] = current; queue.Enqueue(next);
                 }
             }
         }
@@ -289,28 +655,24 @@ public class EnemyAI : MonoBehaviour
         if (foundPath)
         {
             Vector3Int step = targetNeighbor;
-            while (cameFrom[step] != cell)
-            {
-                step = cameFrom[step];
-            }
+            while (cameFrom[step] != cell) step = cameFrom[step];
             return step;
         }
-
         return cell;
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)
     {
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
+
         if (groundMap.HasTile(targetCell))
         {
-            cell = targetCell;
-            targetWorldPos = groundMap.GetCellCenterWorld(cell);
-            targetWorldPos.z = 0;
-            isMoving = true;
+            cell = targetCell; targetWorldPos = groundMap.GetCellCenterWorld(cell);
+            targetWorldPos.z = 0; isMoving = true;
         }
     }
 
-    private float Distance(Vector3Int a, Vector3Int b)
+    public float Distance(Vector3Int a, Vector3Int b)
     {
         Vector3Int ac = OffsetToCube(a); Vector3Int bc = OffsetToCube(b);
         return (Mathf.Abs(ac.x - bc.x) + Mathf.Abs(ac.y - bc.y) + Mathf.Abs(ac.z - bc.z)) * 0.5f;
@@ -331,4 +693,5 @@ public class EnemyAI : MonoBehaviour
         foreach (var off in offsets) if (cell1 + off == cell2) return true;
         return false;
     }
+
 }

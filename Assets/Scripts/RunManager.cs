@@ -61,11 +61,23 @@ public class RunManager : MonoBehaviour
     // Called when the player selects a perk from the Level Up screen
     public void AddPerk(GameObject perkPrefab)
     {
-        // Instantiate the perk as a UI element at the top of the screen
-        GameObject newPerkObj = Instantiate(perkPrefab, perkUIContainer);
-        BasePerk newPerk = newPerkObj.GetComponent<BasePerk>();
+        BasePerk prefabScript = perkPrefab.GetComponent<BasePerk>();
 
-        activePerks.Add(newPerk);
-        newPerk.OnAcquire(); // Trigger one-time stat boosts immediately
+        // Oyuncunun elinde bu perk tipinden (Örn: SwiftActionPerk) zaten var mı kontrol et
+        BasePerk existingPerk = activePerks.Find(p => p.GetType() == prefabScript.GetType());
+
+        if (existingPerk != null)
+        {
+            // ZATEN VARSA: Yeni obje yaratma, sadece olanı YÜKSELT!
+            existingPerk.Upgrade();
+        }
+        else
+        {
+            // İLK DEFA ALINIYORSA: Obje olarak yarat ve listeye ekle
+            GameObject newPerkObj = Instantiate(perkPrefab, transform);
+            BasePerk newPerk = newPerkObj.GetComponent<BasePerk>();
+            activePerks.Add(newPerk);
+            newPerk.OnAcquire();
+        }
     }
 }

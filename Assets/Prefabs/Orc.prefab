@@ -246,10 +246,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   groundMap: {fileID: 0}
   health: {fileID: 4205142481590582313}
+  enemyBehavior: 0
+  aoeAttackRange: 3
+  warningMap: {fileID: 0}
+  warningTile: {fileID: 11400000, guid: 25c4e2f3083975546a162f5d78863fcd, type: 2}
   intentArrow: {fileID: 3621328375706932076}
+  stunEffectObj: {fileID: 0}
   arrowAngleOffset: -90
+  isBumping: 0
   lockedTargetCell: {x: 0, y: 0, z: 0}
   hasLockedTarget: 0
+  skipTurns: 0
+  isChargingAttack: 0
+  warningCells: []
 --- !u!114 &4205142481590582313
 MonoBehaviour:
   m_ObjectHideFlags: 0
