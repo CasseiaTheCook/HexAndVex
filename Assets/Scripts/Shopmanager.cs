@@ -4,6 +4,16 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 
+public enum HotbarItemType
+{
+    None,
+    HealthPotion,
+    StrongPotion,
+    GoldBag,
+    EnergyDrink,
+    BattleSpell
+}
+
 public class Shopmanager : MonoBehaviour
 {
     public static Shopmanager instance;
@@ -44,8 +54,8 @@ public class Shopmanager : MonoBehaviour
     public TMP_Text rerollPriceText;
 
     [Header("Reroll Ayarlari")]
-    public int rerollBaseCost = 2;
-    public int rerollCostIncrease = 1;
+    public float rerollBaseCost = 2f;
+    public float rerollMultiplier = 1.2f;
 
     // -------------------------------------------------------
     // Runtime state
@@ -82,19 +92,19 @@ public class Shopmanager : MonoBehaviour
 
     void Start()
     {
-        currentRerollCost = rerollBaseCost;
+        currentRerollCost = Mathf.RoundToInt(rerollBaseCost);
 
         // Sadece HLG ayarlarini kod uzerinden garantile, pozisyonu editor'a birak
         if (shopSlotContainer != null)
         {
             var hlg = shopSlotContainer.GetComponent<HorizontalLayoutGroup>();
             if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 8;
-            hlg.padding = new RectOffset(8, 8, 8, 8);
+            hlg.spacing = 4;
+            hlg.padding = new RectOffset(4, 4, 4, 4);
             hlg.childAlignment = TextAnchor.UpperLeft;
             hlg.childControlWidth  = true;
             hlg.childControlHeight = true;
-            hlg.childForceExpandWidth  = false;
+            hlg.childForceExpandWidth  = true;
             hlg.childForceExpandHeight = true;
         }
 
@@ -102,6 +112,11 @@ public class Shopmanager : MonoBehaviour
         {
             rerollButton.onClick.RemoveAllListeners();
             rerollButton.onClick.AddListener(TryReroll);
+            Debug.Log("Reroll butonu baglandi.");
+        }
+        else
+        {
+            Debug.LogWarning("Shopmanager: rerollButton atanmamis!");
         }
 
         GenerateShopItems();
@@ -113,7 +128,7 @@ public class Shopmanager : MonoBehaviour
     public void OnDungeonCleared()
     {
         rerollCount = 0;
-        currentRerollCost = rerollBaseCost;
+        currentRerollCost = Mathf.RoundToInt(rerollBaseCost);
         GenerateShopItems();
 
         if (LevelUpManager.instance != null)
@@ -130,6 +145,7 @@ public class Shopmanager : MonoBehaviour
     // -------------------------------------------------------
     public void TryReroll()
     {
+        Debug.Log($"TryReroll cagrildi. gold={RunManager.instance?.currentGold}, cost={currentRerollCost}");
         if (RunManager.instance == null) return;
 
         if (RunManager.instance.currentGold < currentRerollCost)
@@ -140,7 +156,7 @@ public class Shopmanager : MonoBehaviour
 
         RunManager.instance.currentGold -= currentRerollCost;
         rerollCount++;
-        currentRerollCost = rerollBaseCost + rerollCount * rerollCostIncrease;
+        currentRerollCost = Mathf.RoundToInt(rerollBaseCost * Mathf.Pow(rerollMultiplier, rerollCount));
 
         GenerateShopItems();
         RefreshCoinDisplay();
@@ -150,7 +166,7 @@ public class Shopmanager : MonoBehaviour
     // -------------------------------------------------------
     // Slot uretimi — tum slotlari yok eder, yenilerini spawn eder
     // -------------------------------------------------------
-    private void GenerateShopItems()
+    public void GenerateShopItems()
     {
         // Eski slotlari temizle
         foreach (var slot in spawnedSlots)
@@ -178,19 +194,7 @@ public class Shopmanager : MonoBehaviour
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
 
-            // CanvasScaler scale'i bozuyor — onu sil.
-            // Canvas ve GraphicRaycaster'i BIRAK (nested canvas olarak calissin).
-            foreach (var c in slotGO.GetComponents<CanvasScaler>()) DestroyImmediate(c);
-            // Nested canvas override sorting olmadan calissin
-            var slotCanvas = slotGO.GetComponent<Canvas>();
-            if (slotCanvas != null) slotCanvas.overrideSorting = false;
             slotGO.transform.localScale = Vector3.one;
-
-            // Her slot icin sabit tercih genisligi ata
-            var le = slotGO.GetComponent<LayoutElement>();
-            if (le == null) le = slotGO.AddComponent<LayoutElement>();
-            le.preferredWidth  = 200f;
-            le.preferredHeight = 114f;
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
@@ -260,10 +264,16 @@ public class Shopmanager : MonoBehaviour
         if (slot == null) return;
 
         if (slot.nameText != null)
+        {
             slot.nameText.text = itemName + "\n<size=70%>" + desc + "</size>";
+            slot.nameText.raycastTarget = false;
+        }
 
         if (slot.priceText != null)
+        {
             slot.priceText.text = price + " Coin";
+            slot.priceText.raycastTarget = false;
+        }
 
         if (slot.soldOutOverlay != null)
             slot.soldOutOverlay.SetActive(false);
@@ -299,21 +309,11 @@ public class Shopmanager : MonoBehaviour
             return;
         }
 
-        // Item ise hotbar dolu mu kontrol et
-        if (slotTypes[index] == SlotType.Item
-            && HotbarManager.instance != null
-            && !HotbarManager.instance.CanAddItem())
-        {
-            Debug.Log("Hotbar dolu, item eklenemiyor!");
-            return;
-        }
-
         RunManager.instance.currentGold -= price;
 
         if (slotTypes[index] == SlotType.Item)
         {
-            if (HotbarManager.instance != null)
-                HotbarManager.instance.AddItem(currentItems[index].itemType);
+            ApplyItemEffect(currentItems[index].itemType);
         }
         else
         {
@@ -340,13 +340,48 @@ public class Shopmanager : MonoBehaviour
     // -------------------------------------------------------
     // UI yardimcilari
     // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Item efektlerini aninda uygula
+    // -------------------------------------------------------
+    private void ApplyItemEffect(HotbarItemType type)
+    {
+        switch (type)
+        {
+            case HotbarItemType.HealthPotion:
+                if (TurnManager.instance?.player?.health != null)
+                    TurnManager.instance.player.health.Heal(1);
+                if (RunManager.instance != null)
+                    RunManager.instance.playerCurrentHealth = Mathf.Min(
+                        RunManager.instance.playerCurrentHealth + 1, RunManager.instance.playerMaxHealth);
+                break;
+            case HotbarItemType.StrongPotion:
+                if (TurnManager.instance?.player?.health != null)
+                    TurnManager.instance.player.health.Heal(2);
+                if (RunManager.instance != null)
+                    RunManager.instance.playerCurrentHealth = Mathf.Min(
+                        RunManager.instance.playerCurrentHealth + 2, RunManager.instance.playerMaxHealth);
+                break;
+            case HotbarItemType.GoldBag:
+                RunManager.instance.currentGold += 6;
+                TurnManager.instance?.UpdateCoinUI();
+                break;
+            case HotbarItemType.EnergyDrink:
+                RunManager.instance.remainingMoves += 1;
+                break;
+            case HotbarItemType.BattleSpell:
+                RunManager.instance.criticalChance += 0.15f;
+                break;
+        }
+        Debug.Log($"Item kullanildi: {type}");
+    }
+
     public void RefreshCoinDisplay()
     {
         if (coinDisplayText != null && RunManager.instance != null)
-            coinDisplayText.text = "Coin: " + RunManager.instance.currentGold;
+            coinDisplayText.text = "Coins: " + RunManager.instance.currentGold;
     }
 
-    private void RefreshAffordability()
+    public void RefreshAffordability()
     {
         if (RunManager.instance == null) return;
         for (int i = 0; i < spawnedSlots.Count; i++)

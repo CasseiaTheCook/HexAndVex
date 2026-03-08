@@ -77,6 +77,8 @@ public class TurnManager : MonoBehaviour
     {
         if (coinText != null && RunManager.instance != null)
             coinText.text = "Coins: " + RunManager.instance.currentGold;
+        if (Shopmanager.instance != null)
+            Shopmanager.instance.RefreshAffordability();
     }
 
     public void RegisterEnemy(EnemyAI enemy)
