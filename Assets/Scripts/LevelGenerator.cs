@@ -55,8 +55,15 @@ public class LevelGenerator : MonoBehaviour
 
     void Start()
     {
-        GenerateNextLevel();
-    }
+        // ESKİ HALİ:
+        // LevelGenerator.instance.GenerateNextLevel();
+
+        // YENİ HALİ (Yağ gibi geçişli):
+        ScreenFader.instance.FadeAndLoad(() =>
+        {
+            LevelGenerator.instance.GenerateNextLevel(); // Senin bölüm yükleme kodun neyse onu buraya yazıyorsun
+        });
+    } //amk pornosu
 
     public void GenerateNextLevel()
     {

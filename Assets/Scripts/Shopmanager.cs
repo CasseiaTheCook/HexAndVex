@@ -54,7 +54,7 @@ public class Shopmanager : MonoBehaviour
     public TMP_Text rerollPriceText;
 
     [Header("Reroll Ayarlari")]
-    public float rerollBaseCost = 2f;
+    public float rerollBaseCost = 10f;
     public float rerollMultiplier = 1.2f;
 
     // -------------------------------------------------------
@@ -75,11 +75,11 @@ public class Shopmanager : MonoBehaviour
     // -------------------------------------------------------
     private List<ShopItemData> BuildItemPool() => new List<ShopItemData>
     {
-        new ShopItemData("Sağlık İksiri",   "1 can yenile",                     3, HotbarItemType.HealthPotion),
-        new ShopItemData("Güçlü İksir",     "2 can yenile",                     5, HotbarItemType.StrongPotion),
-        new ShopItemData("Altın Cüzdan",    "+6 coin kazan",                    2, HotbarItemType.GoldBag),
-        new ShopItemData("Enerji İçeceği",  "Bu savaşta 1 ekstra hamle",        4, HotbarItemType.EnergyDrink),
-        new ShopItemData("Savaş Büyüsü",    "Kritik şans kalıcı +%15",          6, HotbarItemType.BattleSpell)
+        new ShopItemData("Sağlık İksiri",   "1 can yenile",                     8, HotbarItemType.HealthPotion),
+        new ShopItemData("Güçlü İksir",     "2 can yenile",                     10, HotbarItemType.StrongPotion),
+        new ShopItemData("Altın Cüzdan",    "+6 coin kazan",                    3, HotbarItemType.GoldBag),
+        new ShopItemData("Enerji İçeceği",  "Bu savaşta 1 ekstra hamle",        10, HotbarItemType.EnergyDrink),
+        new ShopItemData("Savaş Büyüsü",    "Kritik şans kalıcı +%15",          25, HotbarItemType.BattleSpell)
     };
 
     // -------------------------------------------------------
@@ -378,7 +378,7 @@ public class Shopmanager : MonoBehaviour
     public void RefreshCoinDisplay()
     {
         if (coinDisplayText != null && RunManager.instance != null)
-            coinDisplayText.text = "Coins: " + RunManager.instance.currentGold;
+            coinDisplayText.text =  RunManager.instance.currentGold.ToString();
     }
 
     public void RefreshAffordability()

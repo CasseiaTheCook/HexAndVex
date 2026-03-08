@@ -92,7 +92,10 @@ public class SpawnerBossAI : MonoBehaviour
 
         TriggerHitSpawn();
 
-        yield return StartCoroutine(myEnemyAI.FadeOutWithoutDestroy());
+        // ==========================================
+        // YENİ: BOSS'A ÖZEL KUSURSUZ FADE-OUT (YOK OLMA)
+        // ==========================================
+        yield return StartCoroutine(BossTeleportFade(1f, 0f, 0.25f));
 
         List<Vector3Int> farCells = new List<Vector3Int>();
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
@@ -128,9 +131,46 @@ public class SpawnerBossAI : MonoBehaviour
             myEnemyAI.TeleportTo(randomCell);
         }
 
-        yield return StartCoroutine(myEnemyAI.FadeSpawnCoroutine());
+        // ==========================================
+        // YENİ: BOSS'A ÖZEL KUSURSUZ FADE-IN (BELİRME)
+        // ==========================================
+        yield return StartCoroutine(BossTeleportFade(0f, 1f, 0.25f));
 
         isTransitioning = false; 
+    }
+
+    // YENİ: Boss'un saydamlığını yöneten ana animasyon
+    private IEnumerator BossTeleportFade(float startAlpha, float endAlpha, float duration)
+    {
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
+        if (sr == null) yield break;
+
+        Color c = sr.color;
+        float elapsed = 0f;
+
+        // Işınlanırken boss'un boyutu da hafif esnesin (Süzülme hissi verir)
+        Vector3 normalScale = Vector3.one;
+        Vector3 stretchedScale = new Vector3(0.5f, 1.5f, 1f); 
+        Vector3 startScale = startAlpha > endAlpha ? normalScale : stretchedScale;
+        Vector3 endScale = startAlpha > endAlpha ? stretchedScale : normalScale;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            
+            c.a = Mathf.Lerp(startAlpha, endAlpha, t);
+            sr.color = c;
+            
+            transform.localScale = Vector3.Lerp(startScale, endScale, t);
+            
+            yield return null;
+        }
+
+        c.a = endAlpha;
+        sr.color = c;
+        transform.localScale = normalScale;
     }
 
     public IEnumerator ExecuteBossTurn()
@@ -151,9 +191,6 @@ public class SpawnerBossAI : MonoBehaviour
             yield return StartCoroutine(ExecuteCheckerboardAoE());
             aoeCycleStep = 0;
         }
-
-        // DÜZELTME: "isShielded" içindeki otomatik çağırma kodunu SİLDİM! 
-        // Artık kalkanlıyken asla kendi turunda düşman çağırmaz, sadece Totem kırılınca çağırır.
     }
 
     private void TriggerHitSpawn()
@@ -188,64 +225,13 @@ public class SpawnerBossAI : MonoBehaviour
             }
         }
 
-        // === İŞTE DEĞİŞİKLİK BURADA ===
         if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
         
-        // ESKİ HALİ: telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(true, new List<Vector3Int>(aoeWarningCells))); (Bunu SİL)
-
-        // YENİ HALİ (Yağ gibi süzülerek çizen kodumuz):
         if (TurnManager.instance != null)
         {
             foreach (var wCell in aoeWarningCells)
             {
                 TurnManager.instance.DrawWarningTile(wCell);
-            }
-        }
-
-        //if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
-        //telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(true, new List<Vector3Int>(aoeWarningCells)));
-    }
-
-    private IEnumerator AnimateTelegraphCoroutine(bool show, List<Vector3Int> cellsToAnimate)
-    {
-        float duration = show ? 0.35f : 0.2f; 
-        float elapsed = 0f;
-
-        Color invisibleColor = new Color(1f, 0.2f, 0.2f, 0f);
-        Color visibleColor = new Color(1f, 0.2f, 0.2f, 0.65f); 
-
-        Color startColor = show ? invisibleColor : visibleColor;
-        Color endColor = show ? visibleColor : invisibleColor;
-
-        if (show)
-        {
-            foreach (var c in cellsToAnimate)
-            {
-                warningMap.SetTile(c, warningTile);
-                warningMap.SetTileFlags(c, TileFlags.None);
-                warningMap.SetColor(c, startColor);
-            }
-        }
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            Color current = Color.Lerp(startColor, endColor, elapsed / duration);
-            foreach (var c in cellsToAnimate)
-            {
-                if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
-            }
-            yield return null;
-        }
-
-        foreach (var c in cellsToAnimate) if (warningMap.HasTile(c)) warningMap.SetColor(c, endColor);
-
-        if (!show)
-        {
-            foreach (var c in cellsToAnimate)
-            {
-                if (!IsCellTargetedByNormalEnemy(c)) warningMap.SetTile(c, null);
-                else warningMap.SetColor(c, visibleColor);
             }
         }
     }
@@ -256,12 +242,8 @@ public class SpawnerBossAI : MonoBehaviour
         aoeWarningCells.Clear();
         isAoEWarningActive = false;
 
-        // =======================================================
-        // YENİ VE HAŞİN BOSS HASAR RENK ANİMASYONU
-        // =======================================================
         if (warningMap != null && cellsToExplode.Count > 0)
         {
-            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı
             Color intenseRed = new Color(1f, 0f, 0f, 1f); 
             
             foreach (var c in cellsToExplode)
@@ -272,10 +254,9 @@ public class SpawnerBossAI : MonoBehaviour
                 }
             }
 
-            yield return new WaitForSeconds(0.1f); // Çakma süresi
+            yield return new WaitForSeconds(0.1f); 
 
-            // 2. AŞAMA: Yumuşak Erime (Fade-Out)
-            float fadeDur = 0.5f; // Boss saldırısı daha büyük, izi de biraz daha uzun kalsın (0.5 sn)
+            float fadeDur = 0.5f; 
             float elapsed = 0f;
             Color startFadeColor = intenseRed;
             Color endFadeColor = new Color(1f, 0f, 0f, 0f); 
@@ -284,7 +265,7 @@ public class SpawnerBossAI : MonoBehaviour
             {
                 elapsed += Time.deltaTime;
                 float t = elapsed / fadeDur;
-                t = t * t * (3f - 2f * t); // SmoothStep
+                t = t * t * (3f - 2f * t); 
                 
                 Color current = Color.Lerp(startFadeColor, endFadeColor, t);
                 
@@ -295,18 +276,13 @@ public class SpawnerBossAI : MonoBehaviour
                 yield return null;
             }
         }
-        // =======================================================
 
-        // ... (Hasar uygulama kodun) ...
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         if (cellsToExplode.Contains(playerCell))
         {
             TurnManager.instance.player.health.TakeDamage(2);
         }
 
-        // ESKİ HALİ: SetTelegraphVisuals(false, cellsToExplode); (Bunu SİL)
-        
-        // Sadece karoları haritadan temizlemek için:
         foreach (var c in cellsToExplode)
         {
             if (warningMap.HasTile(c) && !IsCellTargetedByNormalEnemy(c))
@@ -399,9 +375,13 @@ public class SpawnerBossAI : MonoBehaviour
         if (activeTotems <= 0)
         {
             isShielded = false;
-            if (shieldVisual != null) shieldVisual.SetActive(false);
             Debug.Log("🛡️ BOSS KALKANI DÜŞTÜ! SALDIR!");
             
+            // ==========================================
+            // YENİ: KALKAN PATLAMA EFEKTİNİ BAŞLAT!
+            // ==========================================
+            StartCoroutine(ShatterShieldVisual());
+
             previousHP = myEnemyAI.health.currentHP;
         }
         else
@@ -410,6 +390,56 @@ public class SpawnerBossAI : MonoBehaviour
         }
 
         isTransitioning = false; 
+    }
+
+    // ==========================================
+    // YENİ: KALKANIN CAM GİBİ DAĞILMA (SHATTER) ANİMASYONU
+    // ==========================================
+    private IEnumerator ShatterShieldVisual()
+    {
+        if (shieldVisual == null) yield break;
+
+        // TurnManager'daki nükleer patlama prefabını boss'un üstünde patlat!
+        if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
+        {
+            Instantiate(TurnManager.instance.explosionPrefab, transform.position, Quaternion.identity);
+        }
+
+        SpriteRenderer shieldSr = shieldVisual.GetComponent<SpriteRenderer>();
+        Vector3 startScale = shieldVisual.transform.localScale;
+        Vector3 targetScale = startScale * 2.5f; // Kalkan patlayarak büyüsün
+
+        float duration = 0.3f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+
+            // Büyüme
+            shieldVisual.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
+            
+            // Saydamlaşarak yok olma
+            if (shieldSr != null)
+            {
+                Color c = shieldSr.color;
+                c.a = Mathf.Lerp(1f, 0f, t);
+                shieldSr.color = c;
+            }
+            yield return null;
+        }
+
+        shieldVisual.SetActive(false);
+        
+        // Obje kapanınca arkada ayarları eski haline getir ki diğer boss'larda bozuk çıkmasın
+        shieldVisual.transform.localScale = startScale; 
+        if (shieldSr != null)
+        {
+            Color c = shieldSr.color;
+            c.a = 1f;
+            shieldSr.color = c;
+        }
     }
 
     public void OnBossDied()
