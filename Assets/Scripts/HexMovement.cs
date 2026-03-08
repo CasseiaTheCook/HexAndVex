@@ -1,20 +1,22 @@
 ﻿using UnityEngine;
 using UnityEngine.Tilemaps;
+using System.Collections;
+using System.Collections.Generic;
 
 public class HexMovement : MonoBehaviour
 {
     public Tilemap groundMap;
     public Tilemap highlightMap;
     
-    // Unity'nin kendi animasyonlu tile yapısı için (Eğer hata verirse AnimatedTile yerine TileBase yapabilirsin)
     public UnityEngine.Tilemaps.AnimatedTile highlightTile; 
     
     public HealthScript health;
 
     [Header("Görsel Ayarlar")]
-    // YENİ: Karakterin zemine gömük durmaması için yukarı doğru kaydırma miktarı
-    // Inspector'dan bu sayıyla oynayıp karakterin tam zemine basmasını sağlayabilirsin.
     public float playerVisualOffsetY = 0.25f; 
+    
+    // YENİ: Karakterin görselini döndürmek için
+    public SpriteRenderer visualRenderer; 
 
     private const float MOVEMENT_SPEED = 8f;
 
@@ -22,6 +24,9 @@ public class HexMovement : MonoBehaviour
     private Vector3 targetWorldPosition;
     private bool isMoving = false;
     private bool isKnockbackMove = false;
+
+    private List<Vector3Int> activeHighlightCells = new List<Vector3Int>();
+    private Coroutine highlightFadeCoroutine;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -31,11 +36,13 @@ public class HexMovement : MonoBehaviour
         if (groundMap == null) groundMap = GameObject.Find("GroundMap").GetComponent<Tilemap>();
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
+        
+        // Eğer SpriteRenderer atanmamışsa kendisi bulsun
+        if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
 
-        // Başlangıç pozisyonunu ayarla
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
-        targetWorldPosition.y += playerVisualOffsetY; // Karakteri hafif havaya kaldır
+        targetWorldPosition.y += playerVisualOffsetY; 
         targetWorldPosition.z = 0;
         transform.position = targetWorldPosition;
         
@@ -69,7 +76,6 @@ public class HexMovement : MonoBehaviour
                 TurnManager.instance.isPlayerTurn = false;
 
                 TurnManager.instance.HideAllEnemyIntents();
-
                 ClearHighlights();
                 MoveCharacter(clickedCell);
             }
@@ -91,7 +97,6 @@ public class HexMovement : MonoBehaviour
                 transform.position = targetWorldPosition;
                 isMoving = false;
 
-                // Koordinat bulurken offset'i çıkarıyoruz ki altımızdaki doğru hücreyi saptayalım
                 Vector3 checkPos = transform.position;
                 checkPos.y -= playerVisualOffsetY;
                 
@@ -100,6 +105,9 @@ public class HexMovement : MonoBehaviour
                 {
                     currentCellPosition = newCell;
                 }
+
+                // YENİ: Hedefe vardığında etrafında düşman varsa yüzünü ona dön!
+                FaceCombatTarget();
 
                 if (!isKnockbackMove)
                 {
@@ -114,12 +122,41 @@ public class HexMovement : MonoBehaviour
     private void MoveCharacter(Vector3Int targetCell)
     {
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
-        
-        // YENİ: Karakter hedefe giderken zeminin merkezine değil, biraz üstüne gider
         targetWorldPosition.y += playerVisualOffsetY; 
         targetWorldPosition.z = 0;
         
+        // YENİ: Yürümeye başladığı an gideceği yöne baksın
+        if (visualRenderer != null)
+        {
+            float dx = targetWorldPosition.x - transform.position.x;
+            if (Mathf.Abs(dx) > 0.01f) // Sağa veya sola gidiyorsa (Dümdüz yukarı/aşağı değilse)
+            {
+                visualRenderer.flipX = (dx < 0); // X eksi ise sola bak (flip)
+            }
+        }
+        
         isMoving = true;
+    }
+
+    // YENİ: Savaş için yüzünü düşmana dönme fonksiyonu
+    private void FaceCombatTarget()
+    {
+        Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
+        foreach (var off in offsets)
+        {
+            Vector3Int neighbor = currentCellPosition + off;
+            if (TurnManager.instance.IsEnemyAtCell(neighbor))
+            {
+                Vector3 enemyPos = groundMap.GetCellCenterWorld(neighbor);
+                float dx = enemyPos.x - transform.position.x;
+                
+                if (Mathf.Abs(dx) > 0.01f && visualRenderer != null)
+                {
+                    visualRenderer.flipX = (dx < 0);
+                }
+                break; // İlk bulduğu düşmana dönmesi yeterli
+            }
+        }
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)
@@ -143,9 +180,10 @@ public class HexMovement : MonoBehaviour
 
     public void UpdateHighlights()
     {
-        ClearHighlights();
+        if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
         
-        // DİKKAT: Artık bulunduğumuz kareyi (currentCellPosition) boyamıyoruz!
+        highlightMap.ClearAllTiles();
+        activeHighlightCells.Clear();
         
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
 
@@ -163,24 +201,71 @@ public class HexMovement : MonoBehaviour
 
                 if (!isHazard && !TurnManager.instance.IsEnemyAtCell(neighbor))
                 {
-                    HighlightCell(neighbor); // Artık renk parametresi yollamıyoruz!
+                    activeHighlightCells.Add(neighbor);
                 }
             }
+        }
+
+        if (activeHighlightCells.Count > 0)
+        {
+            highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(true, new List<Vector3Int>(activeHighlightCells)));
         }
     }
 
     public void ClearHighlights()
     {
-        highlightMap.ClearAllTiles();
+        if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
+        
+        if (activeHighlightCells.Count > 0)
+        {
+            highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(false, new List<Vector3Int>(activeHighlightCells)));
+        }
+        
+        activeHighlightCells.Clear();
     }
 
-    // ==========================================
-    // RENK BOYAMASI İPTAL EDİLDİ (Orijinal haliyle çizilir)
-    // ==========================================
-    private void HighlightCell(Vector3Int cell)
+    private IEnumerator FadeHighlightsCoroutine(bool fadeIn, List<Vector3Int> cellsToAnimate)
     {
-        // Sadece tile'ı koyuyoruz, renk (tint) ayarıyla oynamıyoruz.
-        highlightMap.SetTile(cell, highlightTile);
+        float duration = 0.2f; 
+        float elapsed = 0f;
+
+        float startAlpha = fadeIn ? 0f : 1f;
+        float endAlpha = fadeIn ? 1f : 0f;
+
+        if (fadeIn)
+        {
+            foreach (var cell in cellsToAnimate)
+            {
+                highlightMap.SetTile(cell, highlightTile);
+                highlightMap.SetTileFlags(cell, TileFlags.None);
+                highlightMap.SetColor(cell, new Color(1f, 1f, 1f, 0f));
+                highlightMap.RefreshTile(cell);
+            }
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float currentAlpha = Mathf.Lerp(startAlpha, endAlpha, elapsed / duration);
+            Color currentColor = new Color(1f, 1f, 1f, currentAlpha);
+
+            foreach (var cell in cellsToAnimate)
+            {
+                if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, currentColor);
+            }
+            yield return null;
+        }
+
+        Color finalColor = new Color(1f, 1f, 1f, endAlpha);
+        foreach (var cell in cellsToAnimate)
+        {
+            if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, finalColor);
+        }
+
+        if (!fadeIn)
+        {
+            foreach (var cell in cellsToAnimate) highlightMap.SetTile(cell, null);
+        }
     }
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;

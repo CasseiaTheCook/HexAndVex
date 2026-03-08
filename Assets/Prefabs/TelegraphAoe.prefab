@@ -150,7 +150,7 @@ GameObject:
   - component: {fileID: 2824485968955028456}
   - component: {fileID: 4205142481590582313}
   m_Layer: 0
-  m_Name: Orc
+  m_Name: TelegraphAoe
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -223,7 +223,7 @@ SpriteRenderer:
   m_SortingOrder: 2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -923902760, guid: e68de5a49a86ab445ab1bca233580ce4, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.00965023, g: 0, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -246,7 +246,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   groundMap: {fileID: 0}
   health: {fileID: 4205142481590582313}
-  enemyBehavior: 0
+  enemyBehavior: 1
   aoeAttackRange: 3
   warningMap: {fileID: 0}
   warningTile: {fileID: 11400000, guid: 25c4e2f3083975546a162f5d78863fcd, type: 2}
