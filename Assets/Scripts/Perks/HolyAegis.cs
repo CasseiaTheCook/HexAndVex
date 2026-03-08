@@ -4,7 +4,7 @@ using System.Collections;
 public class HolyAegisPerk : BasePerk
 {
     [Header("Obje Ayarları")]
-    public GameObject shieldPrefab; // Kalkan objen (animasyonlu hali)
+    public GameObject shieldPrefab; // Kalkan objen
     private GameObject currentShieldInstance;
 
     public override void OnAcquire()
@@ -25,12 +25,21 @@ public class HolyAegisPerk : BasePerk
     {
         if (currentShieldInstance != null) Destroy(currentShieldInstance);
         
-        // DÜZELTME: Kalkanı UI'a değil, OYUNCUNUN üstüne ekliyoruz!
+        // Kalkanı OYUNCUNUN üstüne ekliyoruz
         if (TurnManager.instance != null && TurnManager.instance.player != null)
         {
             Transform playerTransform = TurnManager.instance.player.transform;
             currentShieldInstance = Instantiate(shieldPrefab, playerTransform.position, Quaternion.identity, playerTransform);
             currentShieldInstance.transform.localPosition = Vector3.zero; // Karakterin tam ortasına oturt
+            
+            // Kalkan ilk doğduğunda görünürlüğünü normale çek (eğer önceden saydam kaldıysa diye)
+            SpriteRenderer[] renderers = currentShieldInstance.GetComponentsInChildren<SpriteRenderer>();
+            foreach (var sr in renderers)
+            {
+                Color c = sr.color;
+                c.a = 0.5f; // Normalde kalkanın saydamlığı (istersen 1f yapabilirsin)
+                sr.color = c;
+            }
         }
     }
 
@@ -44,24 +53,35 @@ public class HolyAegisPerk : BasePerk
 
     private IEnumerator AnimateShieldBreak()
     {
-        // Kalkan patlarken objeyi yok etmeden önce animasyonu oynat
-        Animator anim = currentShieldInstance.GetComponent<Animator>();
-        if (anim != null)
+        // Kalkan objesinin içindeki tüm resimleri (Sprite) bul
+        SpriteRenderer[] renderers = currentShieldInstance.GetComponentsInChildren<SpriteRenderer>();
+        
+        Vector3 startScale = currentShieldInstance.transform.localScale;
+        Vector3 endScale = startScale * 2.5f; // Kalkan kırılırken 2.5 katına çıkarak patlasın
+        
+        float duration = 0.3f; // Patlama süresi (0.3 saniye, çok tatlı bir hız)
+        float elapsed = 0f;
+
+        while (elapsed < duration)
         {
-            anim.SetTrigger("Break"); 
-            yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length);
-        }
-        else
-        {
-            // Animator yoksa basit ölçeklenme patlaması
-            float elapsed = 0f;
-            while (elapsed < 0.2f)
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            
+            // 1. Kalkanı büyüt
+            currentShieldInstance.transform.localScale = Vector3.Lerp(startScale, endScale, t);
+            
+            // 2. Kalkanı aynı anda yavaşça saydamlaştır (Fade Out)
+            foreach (var sr in renderers)
             {
-                currentShieldInstance.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 1.5f, elapsed / 0.2f);
-                yield return null;
+                Color c = sr.color;
+                c.a = Mathf.Lerp(0.5f, 0f, t); // 0.5 alpha'dan 0'a doğru erit
+                sr.color = c;
             }
+            
+            yield return null;
         }
         
+        // Animasyon bitince kalkanı tamamen sil
         Destroy(currentShieldInstance);
         currentShieldInstance = null;
     }
