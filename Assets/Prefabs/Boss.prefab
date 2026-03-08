@@ -201,7 +201,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 49b0ff9c05cb759bc8723e972c94a3e3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -279,6 +279,7 @@ MonoBehaviour:
   maxHP: 3
   currentHP: 0
   hptext: {fileID: 3984692308681975835}
+  damageTextPrefab: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
 --- !u!114 &7680526482516364707
 MonoBehaviour:
   m_ObjectHideFlags: 0
