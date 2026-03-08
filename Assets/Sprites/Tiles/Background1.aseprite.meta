@@ -129,7 +129,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: Background1
     originalName: 
-    pivot: {x: 0.5, y: 0}
+    pivot: {x: 0.502, y: -0.0016}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -167,8 +167,8 @@ ScriptedImporter:
       frameIndex: 0
       additiveSortOrder: 0
       cellRect:
-        x: 0
-        y: 0
+        x: -10
+        y: 8
         width: 5000
         height: 5000
       spriteId: 6e73ec6b281a75048b6205ae81a19010

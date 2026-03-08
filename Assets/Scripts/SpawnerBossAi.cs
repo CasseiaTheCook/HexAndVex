@@ -27,6 +27,8 @@ public class SpawnerBossAI : MonoBehaviour
 
     private Tilemap groundMap;
     private Tilemap bossWarningMap; 
+    
+    [Header("BOSS'A ÖZEL UYARI KAROSU (BUNU ATAMALISIN!)")]
     public TileBase warningTile; 
     
     private EnemyAI myEnemyAI;
@@ -39,11 +41,25 @@ public class SpawnerBossAI : MonoBehaviour
         groundMap = LevelGenerator.instance.groundMap;
 
         GameObject warnObj = GameObject.Find("BossWarningMap");
-        if (warnObj != null) bossWarningMap = warnObj.GetComponent<Tilemap>();
+        if (warnObj != null) 
+        {
+            bossWarningMap = warnObj.GetComponent<Tilemap>();
+        }
+        else
+        {
+            Debug.LogError("🚨 KANKA DİKKAT: 'BossWarningMap' bulunamadı! Yedek olarak normal WarningMap kullanılıyor.");
+            if (TurnManager.instance != null) bossWarningMap = TurnManager.instance.warningMap;
+        }
 
+        // ==========================================
+        // DÜZELTME: BOSS KENDİ ÖZEL TILE'INI KULLANIR!
+        // ZORLA BAŞKA BİR ŞEYE ÇEVİRME KODUNU SİLDİK.
+        // ==========================================
         if (warningTile == null)
         {
-            warningTile = LevelGenerator.instance.groundTile; 
+            Debug.LogError("🚨 KANKA DİKKAT: Boss'un 'Warning Tile' boş kalmış! Lütfen Inspector'dan boss'un özel uyarı karosunu ata.");
+            // Yine de oyun çökmesin diye yedek
+            if (TurnManager.instance != null) warningTile = TurnManager.instance.warningTile; 
         }
 
         activeTotems = 4;
@@ -229,8 +245,12 @@ public class SpawnerBossAI : MonoBehaviour
         bossWarningMap.SetTile(cell, warningTile);
         bossWarningMap.SetTileFlags(cell, TileFlags.None); 
 
+        // ==========================================
+        // DÜZELTME: Rengini bozmasın diye BEYAZ YAPTIK! (Sadece saydamlığı değişir)
+        // Senin kendi uyarı karon ne renkse o renk çıkar.
+        // ==========================================
         Color startColor = new Color(1f, 1f, 1f, 0f);   
-        Color endColor = new Color(1f, 1f, 1f, 0.5f);   
+        Color endColor = new Color(1f, 1f, 1f, 0.8f); // %80 Görünür   
 
         bossWarningMap.SetColor(cell, startColor);
 
@@ -257,19 +277,20 @@ public class SpawnerBossAI : MonoBehaviour
 
         if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            Color intenseRed = new Color(1f, 0f, 0f, 1f); 
+            // Patlama anında Kendi orijinal rengini %100 parlak yapar!
+            Color intenseBright = new Color(1f, 1f, 1f, 1f); 
             
             foreach (var c in cellsToExplode)
             {
-                if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseRed);
+                if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseBright);
             }
 
             yield return new WaitForSeconds(0.1f); 
 
             float fadeDur = 0.5f; 
             float elapsed = 0f;
-            Color startFadeColor = intenseRed;
-            Color endFadeColor = new Color(1f, 0f, 0f, 0f); 
+            Color startFadeColor = intenseBright;
+            Color endFadeColor = new Color(1f, 1f, 1f, 0f); 
 
             while (elapsed < fadeDur)
             {
@@ -380,16 +401,12 @@ public class SpawnerBossAI : MonoBehaviour
 
         yield return new WaitForSeconds(0.45f);
 
-        // ==========================================
-        // DÜZELTME: Son totemde de düşman çıkması garanti altına alındı!
-        // ==========================================
         if (activeTotems <= 0)
         {
             isShielded = false;
             StartCoroutine(ShatterShieldVisual());
             previousHP = myEnemyAI.health.currentHP;
             
-            // Kalkan kırıldı ama yine de orduyu üstüne salacak!
             yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
         }
         else
@@ -404,13 +421,9 @@ public class SpawnerBossAI : MonoBehaviour
     {
         if (shieldVisual == null) yield break;
 
-        // ==========================================
-        // DÜZELTME: Ekranda sonsuza kadar kalan kırmızı patlama bug'ı çözüldü!
-        // ==========================================
         if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
         {
             GameObject fx = Instantiate(TurnManager.instance.explosionPrefab, transform.position, Quaternion.identity);
-            // Onu usulca büyütüp silen yeni fonksiyonu çağırdık!
             StartCoroutine(FadeAndDestroyExplosion(fx)); 
         }
 
@@ -447,7 +460,6 @@ public class SpawnerBossAI : MonoBehaviour
         }
     }
 
-    // YENİ: Patlamayı süzülerek yok eden fonksiyon
     private IEnumerator FadeAndDestroyExplosion(GameObject fx)
     {
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
@@ -473,7 +485,7 @@ public class SpawnerBossAI : MonoBehaviour
             yield return null;
         }
         
-        Destroy(fx); // Ekranı kirletmesini engelle!
+        Destroy(fx);
     }
 
     public void OnBossDied()
