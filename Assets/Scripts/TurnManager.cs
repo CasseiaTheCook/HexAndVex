@@ -387,15 +387,41 @@ public class TurnManager : MonoBehaviour
                 perk.ModifyCombat(payload);
 
                 bool anyDieChanged = false;
+                List<int> changedIndices = new List<int>();
                 for (int i = 0; i < currentRolls.Count; i++)
                 {
                     if (currentRolls[i] != payload.diceRolls[i])
+                        changedIndices.Add(i);
+                }
+
+                if (changedIndices.Count > 0)
+                {
+                    // Değişen zarlarda "!" göster (re-roll animasyonu)
+                    foreach (int idx in changedIndices)
                     {
-                        currentRolls[i] = payload.diceRolls[i];
-                        AnimateSpecificDie(i, currentRolls[i]);
-                        anyDieChanged = true;
-                        yield return new WaitForSeconds(0.3f);
+                        if (idx < spawnedDiceUI.Count)
+                        {
+                            Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>();
+                            TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                            if (dieAnim != null) dieAnim.enabled = true;
+                            if (dieText != null) dieText.text = "!";
+                        }
                     }
+                    yield return new WaitForSeconds(0.5f);
+
+                    // Yeni değerleri göster
+                    foreach (int idx in changedIndices)
+                    {
+                        currentRolls[idx] = payload.diceRolls[idx];
+                        if (idx < spawnedDiceUI.Count)
+                        {
+                            Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>();
+                            if (dieAnim != null) dieAnim.enabled = false;
+                        }
+                        AnimateSpecificDie(idx, currentRolls[idx]);
+                    }
+                    anyDieChanged = true;
+                    yield return new WaitForSeconds(0.3f);
                 }
 
                 int afterTotal = payload.GetFinalDamage();
@@ -703,42 +729,6 @@ public class TurnManager : MonoBehaviour
         }
 
         yield return new WaitForSeconds(0.4f);
-
-        bool hasFocus = RunManager.instance.activePerks.Exists(p => p is MastersFocusPerk);
-        if (hasFocus)
-        {
-            bool stillLow = true;
-            int safety = 0;
-            while (stillLow && safety < 10)
-            {
-                stillLow = false;
-                List<int> toReroll = new List<int>();
-                for (int i = 0; i < rolls.Count; i++)
-                {
-                    if (rolls[i] < 3) { stillLow = true; toReroll.Add(i); }
-                }
-
-                if (stillLow)
-                {
-                    foreach (int idx in toReroll)
-                    {
-                        if (dieAnimators[idx] != null) dieAnimators[idx].enabled = true;
-                        dieTexts[idx].text = "!";
-                    }
-                    yield return new WaitForSeconds(0.6f);
-                    foreach (int idx in toReroll)
-                    {
-                        rolls[idx] = Random.Range(1, 7);
-                        if (dieAnimators[idx] != null) dieAnimators[idx].enabled = false;
-                        dieImages[idx].sprite = diceSprites[rolls[idx] - 1];
-                        dieTexts[idx].text = rolls[idx].ToString();
-                        StartCoroutine(TextPopAnimation(dieTexts[idx]));
-                    }
-                    yield return new WaitForSeconds(0.4f);
-                }
-                safety++;
-            }
-        }
 
         for (int i = 0; i < rolls.Count; i++)
         {

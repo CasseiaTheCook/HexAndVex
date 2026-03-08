@@ -2,6 +2,11 @@ using UnityEngine;
 
 public class MastersFocusPerk : BasePerk
 {
+    void Awake()
+    {
+        maxLevel = 1;
+    }
+
     public override void OnAcquire()
     {
         base.OnAcquire();
