@@ -66,6 +66,130 @@ public class TurnManager : MonoBehaviour
         Invoke("StartPlayerTurn", 0.5f);
     }
 
+    #if UNITY_EDITOR
+    void Update()
+    {
+        // DEBUG: F9 ile tüm TelegraphAoE düşmanlarını aynı anda saldırıya zorla (çakışma testi)
+        // DEBUG: F8 ile oyuncunun iki yanına 2 AoE düşman spawnla (çakışma senaryosu)
+        if (Input.GetKeyDown(KeyCode.F8))
+        {
+            SpawnDebugAoEEnemies();
+        }
+
+        if (Input.GetKeyDown(KeyCode.F9))
+        {
+            foreach (var e in enemies)
+            {
+                if (e != null && e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.health.currentHP > 0 && e.skipTurns <= 0)
+                {
+                    e.isChargingAttack = true;
+                    e.warningCells = e.GetComponent<EnemyAI>().warningCells;
+
+                    Vector3Int playerCell = player.GetCurrentCellPosition();
+                    var cells = GetLineOfCells_Debug(e.GetCurrentCellPosition(), playerCell, e.aoeAttackRange, e);
+
+                    e.warningCells = cells;
+                    foreach (var wCell in cells)
+                        DrawWarningTile(wCell);
+
+                    Debug.Log($"[DEBUG F9] {e.gameObject.name} saldırıya zorlandı! Warning cells: {cells.Count}");
+                }
+            }
+        }
+    }
+
+    // Debug yardımcı: EnemyAI.GetLineOfCells private olduğu için burada kopyası
+    private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
+    {
+        List<Vector3Int> line = new List<Vector3Int>();
+        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+
+        int bestDir = 0; float minDist = float.MaxValue;
+        Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOff : oddOff;
+        for (int i = 0; i < 6; i++)
+        {
+            float d = enemy.Distance(startCell + startOffsets[i], targetCell);
+            if (d < minDist) { minDist = d; bestDir = i; }
+        }
+
+        Vector3Int cur = startCell;
+        for (int i = 0; i < length; i++)
+        {
+            Vector3Int[] offs = (cur.y % 2 != 0) ? evenOff : oddOff;
+            cur += offs[bestDir];
+            if (groundMap.HasTile(cur)) line.Add(cur);
+        }
+        return line;
+    }
+    private void SpawnDebugAoEEnemies()
+    {
+        if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null)
+        {
+            Debug.LogError("[DEBUG F8] aoeEnemyPrefab bulunamadı!");
+            return;
+        }
+
+        Vector3Int playerCell = player.GetCurrentCellPosition();
+        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+
+        // Oyuncunun karşılıklı iki komşusuna spawn et (warningleri çakışsın)
+        Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
+        List<Vector3Int> spawnCells = new List<Vector3Int>();
+
+        // Birbirine zıt iki yön seç (0-3, 1-4, 2-5)
+        int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
+        foreach (var pair in pairs)
+        {
+            Vector3Int c1 = playerCell + offsets[pair[0]];
+            Vector3Int c2 = playerCell + offsets[pair[1]];
+            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2))
+            {
+                // Bir hex daha uzaklaştır ki arada oyuncu kalsın
+                Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff;
+                Vector3Int far1 = c1 + off1[pair[0]];
+                Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff;
+                Vector3Int far2 = c2 + off2[pair[1]];
+
+                if (groundMap.HasTile(far1) && groundMap.HasTile(far2) && !IsEnemyAtCell(far1) && !IsEnemyAtCell(far2))
+                {
+                    spawnCells.Add(far1);
+                    spawnCells.Add(far2);
+                    break;
+                }
+                // Yakına spawn et
+                spawnCells.Add(c1);
+                spawnCells.Add(c2);
+                break;
+            }
+        }
+
+        if (spawnCells.Count < 2)
+        {
+            Debug.LogWarning("[DEBUG F8] Uygun spawn hücresi bulunamadı!");
+            return;
+        }
+
+        foreach (var spawnCell in spawnCells)
+        {
+            Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell);
+            spawnPos.z = 0;
+            GameObject obj = Instantiate(LevelGenerator.instance.aoeEnemyPrefab, spawnPos, Quaternion.identity);
+            EnemyAI ai = obj.GetComponent<EnemyAI>();
+            ai.groundMap = groundMap;
+            ai.health.maxHP = 50;
+            ai.health.currentHP = 50;
+            ai.health.updateHealth();
+            RegisterEnemy(ai);
+            StartCoroutine(ai.FadeSpawnCoroutine());
+            Debug.Log($"[DEBUG F8] AoE düşman spawnlandı: {spawnCell}");
+        }
+
+        Debug.Log("[DEBUG F8] 2 AoE düşman karşılıklı spawnlandı. F9 ile saldırıya zorla!");
+    }
+    #endif
+
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
@@ -379,7 +503,12 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
-            perksToProcess.Sort((a, b) => a.priority.CompareTo(b.priority));
+            // Önce reroll perk'ler, sonra buff perk'ler çalışsın
+            perksToProcess.Sort((a, b) =>
+            {
+                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); // true önce
+                return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority);
+            });
 
             foreach (BasePerk perk in perksToProcess)
             {
@@ -396,29 +525,40 @@ public class TurnManager : MonoBehaviour
 
                 if (changedIndices.Count > 0)
                 {
-                    // Değişen zarlarda "!" göster (re-roll animasyonu)
-                    foreach (int idx in changedIndices)
+                    if (perk.isRerollPerk)
                     {
-                        if (idx < spawnedDiceUI.Count)
+                        // Reroll perk: "!" göster, spin animasyonu, sonra yeni değer
+                        foreach (int idx in changedIndices)
                         {
-                            Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>();
-                            TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
-                            if (dieAnim != null) dieAnim.enabled = true;
-                            if (dieText != null) dieText.text = "!";
+                            if (idx < spawnedDiceUI.Count)
+                            {
+                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>();
+                                TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                if (dieAnim != null) dieAnim.enabled = true;
+                                if (dieText != null) dieText.text = "!";
+                            }
+                        }
+                        yield return new WaitForSeconds(0.5f);
+
+                        foreach (int idx in changedIndices)
+                        {
+                            currentRolls[idx] = payload.diceRolls[idx];
+                            if (idx < spawnedDiceUI.Count)
+                            {
+                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>();
+                                if (dieAnim != null) dieAnim.enabled = false;
+                            }
+                            AnimateSpecificDie(idx, currentRolls[idx]);
                         }
                     }
-                    yield return new WaitForSeconds(0.5f);
-
-                    // Yeni değerleri göster
-                    foreach (int idx in changedIndices)
+                    else
                     {
-                        currentRolls[idx] = payload.diceRolls[idx];
-                        if (idx < spawnedDiceUI.Count)
+                        // Buff perk: direkt yeni değeri göster (animasyonsuz geçiş)
+                        foreach (int idx in changedIndices)
                         {
-                            Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>();
-                            if (dieAnim != null) dieAnim.enabled = false;
+                            currentRolls[idx] = payload.diceRolls[idx];
+                            AnimateSpecificDie(idx, currentRolls[idx]);
                         }
-                        AnimateSpecificDie(idx, currentRolls[idx]);
                     }
                     anyDieChanged = true;
                     yield return new WaitForSeconds(0.3f);

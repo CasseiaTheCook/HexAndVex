@@ -5,6 +5,7 @@ public class MastersFocusPerk : BasePerk
     void Awake()
     {
         maxLevel = 1;
+        isRerollPerk = true;
     }
 
     public override void OnAcquire()
