@@ -131,7 +131,26 @@ public class TurnManager : MonoBehaviour
 
             // 2. Diken yumuşakça parlasın (Aynı anda hasar yesin)
             StartCoroutine(FlashHazardTileCoroutine(playerCell));
-            player.health.TakeDamage(1);
+            // Hasar yeme kontrolü (EnemyAttackCoroutine veya Diken kontrolü)
+            if (RunManager.instance.hasHolyAegis)
+            {
+                // Önce kalkanı bul ve patlat!
+                foreach (var perk in RunManager.instance.activePerks)
+                {
+                    if (perk is HolyAegisPerk aegis)
+                    {
+                        aegis.BreakShield();
+                        break;
+                    }
+                }
+
+                RunManager.instance.hasHolyAegis = false;
+                Debug.Log("🛡️ Holy Aegis kırıldı!");
+            }
+            else
+            {
+                player.health.TakeDamage(1);
+            }
 
             yield return new WaitForSeconds(0.15f); // Parlamanın bitişini çok az bekle
 
@@ -278,9 +297,23 @@ public class TurnManager : MonoBehaviour
         // 1. Zarları at
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
-        for (int i = 0; i < diceCount; i++) currentRolls.Add(Random.Range(1, 7));
+
+        // --- İŞTE BURADA: PUSU PERK'ÜNÜN BİRİKTİRDİĞİ ZARLARI EKLE! ---
+        int extraDices = 0;
+        foreach (var p in RunManager.instance.activePerks)
+        {
+            // Eğer perk "CalculatedAmbush" ise biriken zarlarını al
+            if (p is CalculatedAmbushPerk ambushPerk)
+            {
+                extraDices += ambushPerk.storedExtraDices;
+                ambushPerk.storedExtraDices = 0; // Birikenleri sıfırla
+            }
+        }
+
+        for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
 
         CombatPayload payload = new CombatPayload(currentRolls);
+        // ... (Bundan sonrası senin eski kodunla devam ediyor)
 
         // ===============================================================
         // YENİ: VİZYONER KONTROL! 
@@ -568,7 +601,26 @@ public class TurnManager : MonoBehaviour
         if (!dodged)
         {
             // Oyuncu Hasar Alır
-            player.health.TakeDamage(1);
+            // Hasar yeme kontrolü (EnemyAttackCoroutine veya Diken kontrolü)
+            if (RunManager.instance.hasHolyAegis)
+            {
+                // Önce kalkanı bul ve patlat!
+                foreach (var perk in RunManager.instance.activePerks)
+                {
+                    if (perk is HolyAegisPerk aegis)
+                    {
+                        aegis.BreakShield();
+                        break;
+                    }
+                }
+
+                RunManager.instance.hasHolyAegis = false;
+                Debug.Log("🛡️ Holy Aegis kırıldı!");
+            }
+            else
+            {
+                player.health.TakeDamage(1);
+            }
 
             // Oyuncu Geri Seker (Saldıran ilk düşmanın tersine doğru)
             Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
@@ -586,7 +638,27 @@ public class TurnManager : MonoBehaviour
                 // 2. HASAR HESABI
                 int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
                 Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
-                player.health.TakeDamage(spikeDamage);
+                // --- ESKİ HALİ ---
+                // Hasar yeme kontrolü (EnemyAttackCoroutine veya Diken kontrolü)
+                if (RunManager.instance.hasHolyAegis)
+                {
+                    // Önce kalkanı bul ve patlat!
+                    foreach (var perk in RunManager.instance.activePerks)
+                    {
+                        if (perk is HolyAegisPerk aegis)
+                        {
+                            aegis.BreakShield();
+                            break;
+                        }
+                    }
+
+                    RunManager.instance.hasHolyAegis = false;
+                    Debug.Log("🛡️ Holy Aegis kırıldı!");
+                }
+                else
+                {
+                    player.health.TakeDamage(1);
+                }
 
                 // 3. PARLAMA VE SEKME TAMAMEN EŞ ZAMANLI!
                 // Zemin parlamaya başladığı salise...

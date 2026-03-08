@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Linq; // Listeleri filtrelemek için eklendi
 
 public class LevelUpManager : MonoBehaviour
 {
@@ -33,64 +34,121 @@ public class LevelUpManager : MonoBehaviour
         levelUpPanel.SetActive(true);
         currentChoices.Clear();
 
+        // YENİ: Şu an biten bölüm Boss bölümü mü? (5, 10, 15...)
+        bool isBossReward = (RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0);
+
         for (int i = 0; i < 3; i++)
         {
             GameObject randomPerk = null;
-
-            // --- BENZERSİZ SEÇİM DÖNGÜSÜ ---
-            // Seçilen perk zaten listede varsa, farklı bir tane bulana kadar tekrar dene
-            int safetyBreak = 0; // Sonsuz döngüye girmemesi için güvenlik kilidi
+            int safetyBreak = 0; 
+            
+            // Seçilen perk zaten listede varsa, farklı bir tane bulana kadar dene
             while (randomPerk == null || currentChoices.Contains(randomPerk))
             {
-                randomPerk = GetRandomPerkByRarity();
+                randomPerk = GetRandomPerkByRarity(isBossReward);
 
                 safetyBreak++;
-                if (safetyBreak > 100) break;
+                if (safetyBreak > 50) 
+                {
+                    // EĞER HAVUZDA YETERİNCE KART KALMADIYSA (Örn: Sadece 2 Legendary kaldıysa)
+                    // Oyunu dondurmamak için eldeki diğer yeteneklere yönel.
+                    randomPerk = GetAnyValidFallback();
+                    break;
+                }
             }
 
-            currentChoices.Add(randomPerk);
+            if (randomPerk != null)
+            {
+                currentChoices.Add(randomPerk);
 
-            // Butonun üzerindeki yazıyı ve görseli güncelle
-            BasePerk perkScript = randomPerk.GetComponent<BasePerk>();
-            choiceTexts[i].text = perkScript.perkName + "\n" + perkScript.description;
+                BasePerk perkScript = randomPerk.GetComponent<BasePerk>();
+                choiceTexts[i].text = perkScript.perkName + "\n" + perkScript.description;
 
-            // İkonu eklediysen burayı aktif edebilirsin
-            //if (choiceIcons[i] != null && perkScript.perkIcon != null)
-                //ChoiceIcons[i].sprite = perkScript.perkIcon;
+                //if (choiceIcons[i] != null && perkScript.perkIcon != null)
+                //    choiceIcons[i].sprite = perkScript.perkIcon;
 
-            int index = i;
-            choiceButtons[i].onClick.RemoveAllListeners();
-            choiceButtons[i].onClick.AddListener(() => SelectPerk(index));
+                int index = i;
+                choiceButtons[i].onClick.RemoveAllListeners();
+                choiceButtons[i].onClick.AddListener(() => SelectPerk(index));
+                
+                choiceButtons[i].gameObject.SetActive(true); // Butonu aç
+            }
+            else
+            {
+                // Oyundaki BÜTÜN perkleri aldıysa ve destede kart kalmadıysa butonu kapat
+                choiceButtons[i].gameObject.SetActive(false); 
+            }
         }
     }
 
-    private GameObject GetRandomPerkByRarity()
+    public GameObject GetRandomPerkByRarity(bool isBossReward)
     {
+        // 1. BOSS KONTROLÜ (Garantili Legendary)
+        if (isBossReward && legendaryPerks.Count > 0)
+        {
+            return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
+        }
+
+        // 2. NORMAL ZAR (%60 Common, %30 Rare, %10 Epic)
         float roll = Random.Range(0f, 100f);
 
-        // Balatro tarzı ağırlıklı şans (Common %60, Rare %25, Epic %10, Legendary %5)
-        if (roll < 5f && legendaryPerks.Count > 0) return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
-        if (roll < 15f && epicPerks.Count > 0) return epicPerks[Random.Range(0, epicPerks.Count)];
-        if (roll < 40f && rarePerks.Count > 0) return rarePerks[Random.Range(0, rarePerks.Count)];
+        if (roll < 10f && epicPerks.Count > 0) 
+        {
+            return epicPerks[Random.Range(0, epicPerks.Count)]; // %10 İhtimal (0-10 arası)
+        }
+        else if (roll < 40f && rarePerks.Count > 0) 
+        {
+            return rarePerks[Random.Range(0, rarePerks.Count)]; // %30 İhtimal (10-40 arası)
+        }
+        else if (commonPerks.Count > 0)
+        {
+            return commonPerks[Random.Range(0, commonPerks.Count)]; // %60 İhtimal (40-100 arası)
+        }
+
+        return null;
+    }
+
+    // YEDEK PLAN: Eğer istenen nadirlikte kart bittiyse (veya Boss'ta yeterli Legendary kalmadıysa) 
+    // elde olan, henüz ekranda olmayan ilk kartı ver.
+    private GameObject GetAnyValidFallback()
+    {
+        List<GameObject> allAvailable = new List<GameObject>();
         
-        return commonPerks[Random.Range(0, commonPerks.Count)];
+        allAvailable.AddRange(epicPerks.Where(p => !currentChoices.Contains(p)));
+        allAvailable.AddRange(rarePerks.Where(p => !currentChoices.Contains(p)));
+        allAvailable.AddRange(commonPerks.Where(p => !currentChoices.Contains(p)));
+        // Legendaryleri normal havuza bilerek katmadım, o sadece Boss'ta çıksın diye. İstersen ekleyebilirsin.
+
+        if (allAvailable.Count > 0)
+        {
+            return allAvailable[Random.Range(0, allAvailable.Count)];
+        }
+        return null;
     }
 
     public void SelectPerk(int index)
     {
-        // Yeni perk eklenmeden ÖNCE mevcut perkleri kaydet
+        GameObject chosenPerk = currentChoices[index];
+
+        // =======================================================
+        // YENİ: KARTI DESTEDEN YIRTIP ATMA SİSTEMİ (TEK SEFERLİK)
+        // Seçilen kart ait olduğu listeden kalıcı olarak silinir.
+        // =======================================================
+        if (commonPerks.Contains(chosenPerk)) commonPerks.Remove(chosenPerk);
+        if (rarePerks.Contains(chosenPerk)) rarePerks.Remove(chosenPerk);
+        if (epicPerks.Contains(chosenPerk)) epicPerks.Remove(chosenPerk);
+        if (legendaryPerks.Contains(chosenPerk)) legendaryPerks.Remove(chosenPerk);
+
         List<BasePerk> existingPerks = new List<BasePerk>(RunManager.instance.activePerks);
 
-        RunManager.instance.AddPerk(currentChoices[index]);
+        RunManager.instance.AddPerk(chosenPerk);
         levelUpPanel.SetActive(false);
 
-        // --- YENİ SİSTEM: Sahne yükleme, sadece haritayı sıfırla ---
-        RunManager.instance.currentLevel++; // Oda sayısını artır
+        RunManager.instance.currentLevel++; 
 
-        // Sadece zaten var olan perklerde OnLevelStart'ı tetikle (yeni eklenen hariç, o OnAcquire'da zaten çalıştı)
         foreach (var perk in existingPerks)
             if (perk != null) perk.OnLevelStart();
 
-        LevelGenerator.instance.GenerateNextLevel(); // Yeni haritayı ve düşmanları çiz!
+        LevelGenerator.instance.GenerateNextLevel(); 
     }
 }

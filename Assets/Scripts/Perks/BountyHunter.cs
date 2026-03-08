@@ -1,3 +1,6 @@
+using UnityEngine; // Unity motoru için
+using System;      // Temel fonksiyonlar için
+using System.Collections.Generic; // Listeler için
 public class BountyHunterPerk : BasePerk
 {
     public override void OnAcquire()

@@ -60,6 +60,11 @@ public class LevelGenerator : MonoBehaviour
 
     public void GenerateNextLevel()
     {
+        foreach (var perk in RunManager.instance.activePerks)
+        {
+            if (perk != null) perk.OnLevelStart();
+        }
+
         if (RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0)
         {
             GenerateBossArena();
