@@ -4,7 +4,7 @@ public class SharpenedBladesPerk : BasePerk
     {
         for (int i = 0; i < payload.diceRolls.Count; i++)
         {
-            payload.diceRolls[i] += 2;
+            payload.diceRolls[i] += 1;
         }
         TriggerVisualPop();
     }

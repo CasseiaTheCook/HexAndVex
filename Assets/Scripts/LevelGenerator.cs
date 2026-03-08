@@ -9,31 +9,36 @@ public class LevelGenerator : MonoBehaviour
 
     [Header("Tilemaps")]
     public Tilemap groundMap;
-    public Tilemap backgroundMap; 
+    public Tilemap backgroundMap;
 
     [Header("Tiles (Üst Zemin)")]
     public TileBase groundTile;
-    public TileBase hazardTile; 
-    
+    public TileBase hazardTile;
+
     [Header("Tiles (Arka Plan Sütun)")]
-    public TileBase columnTile; 
+    public TileBase columnTile;
 
     [Header("Prefabs & Settings")]
     public GameObject playerPrefab;
-    
-    public GameObject meleeEnemyPrefab; 
-    public GameObject aoeEnemyPrefab;   
+    public GameObject meleeEnemyPrefab;
+    public GameObject aoeEnemyPrefab;
 
-    public float enemyHealth = 10;
+    [Header("Boss Arenası Prefableri")]
+    public GameObject bossPrefab;
+    public GameObject totemPrefab;
+
+    // enemyHealth'i kilitli bir float yapmak yerine, get ile levela göre otomatik hesaplatan bir property yaptık!
+    public float CurrentEnemyHealth
+    {
+        get { return 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel); }
+    }
+
     public int baseMapRadius = 3;
-
-    // YENİ: AoE düşmanlar hangi leveldan sonra çıkmaya başlasın?
     public int aoeStartLevel = 3;
 
     private List<Vector3Int> validCells = new List<Vector3Int>();
     public HashSet<Vector3Int> hazardCells = new HashSet<Vector3Int>();
 
-    // --- HEX OFFSETLERİ ---
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
@@ -55,10 +60,20 @@ public class LevelGenerator : MonoBehaviour
 
     public void GenerateNextLevel()
     {
-        // 1. ESKİ HARİTAYI TEMİZLE
+        foreach (var perk in RunManager.instance.activePerks)
+        {
+            if (perk != null) perk.OnLevelStart();
+        }
+
+        if (RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0)
+        {
+            GenerateBossArena();
+            return;
+        }
+
         groundMap.ClearAllTiles();
-        if (backgroundMap != null) backgroundMap.ClearAllTiles(); 
-        
+        if (backgroundMap != null) backgroundMap.ClearAllTiles();
+
         validCells.Clear();
         hazardCells.Clear();
 
@@ -68,7 +83,6 @@ public class LevelGenerator : MonoBehaviour
         }
         TurnManager.instance.enemies.Clear();
 
-        // 2. YENİ HARİTA ÇİZ
         int currentRadius = baseMapRadius + (RunManager.instance.currentLevel / 6);
 
         for (int x = -currentRadius; x <= currentRadius; x++)
@@ -100,20 +114,17 @@ public class LevelGenerator : MonoBehaviour
         EnsureSafeConnectivity();
         GenerateColumns();
 
-        // --- 3. OYUNCUYU YERLEŞTİR ---
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
-        
+
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
-        
+
         TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        // --- 4. DÜŞMANLARI ÇEVRELEYEREK SPAWN ET ---
         int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
-        enemyHealth *= 1.1f;
-        
+
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
         Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerStartCell);
 
@@ -122,23 +133,23 @@ public class LevelGenerator : MonoBehaviour
             if (validCells.Count == 0) break;
 
             List<Vector3Int> candidates = new List<Vector3Int>();
-            float currentSafeDist = 2.5f; 
+            float currentSafeDist = 2.5f;
             float currentEnemyDist = 2.5f;
 
             while (candidates.Count == 0 && currentSafeDist >= 0f)
             {
-                candidates = validCells.FindAll(cell => 
+                candidates = validCells.FindAll(cell =>
                     !hazardCells.Contains(cell) &&
                     Vector3.Distance(groundMap.GetCellCenterWorld(cell), playerWorldPos) >= currentSafeDist
                 );
 
-                candidates.RemoveAll(cell => 
+                candidates.RemoveAll(cell =>
                     spawnedEnemyCells.Any(spawned => Vector3.Distance(groundMap.GetCellCenterWorld(cell), groundMap.GetCellCenterWorld(spawned)) < currentEnemyDist)
                 );
 
                 if (candidates.Count == 0)
                 {
-                    currentSafeDist -= 0.5f; 
+                    currentSafeDist -= 0.5f;
                     currentEnemyDist -= 0.5f;
                 }
             }
@@ -162,12 +173,12 @@ public class LevelGenerator : MonoBehaviour
                 foreach (var candidate in candidates)
                 {
                     Vector3 candidateDir = (groundMap.GetCellCenterWorld(candidate) - playerWorldPos).normalized;
-                    float maxDotProduct = -1f; 
+                    float maxDotProduct = -1f;
 
                     foreach (var spawned in spawnedEnemyCells)
                     {
                         Vector3 spawnedDir = (groundMap.GetCellCenterWorld(spawned) - playerWorldPos).normalized;
-                        float dot = Vector3.Dot(candidateDir, spawnedDir); 
+                        float dot = Vector3.Dot(candidateDir, spawnedDir);
                         if (dot > maxDotProduct) maxDotProduct = dot;
                     }
 
@@ -186,27 +197,20 @@ public class LevelGenerator : MonoBehaviour
 
             Vector3 spawnPos = groundMap.GetCellCenterWorld(bestSpawnCell);
 
-            // ========================================================
-            // YENİ: ZORLUK EĞRİSİ (DIFFICULTY CURVE) KONTROLÜ
-            // ========================================================
-            GameObject prefabToSpawn = meleeEnemyPrefab; // Varsayılan: Her zaman normal zombi
-            
-            // Eğer oyuncu yeterince ilerlediyse (Örn: Level 3 ve üstüyse) Balyozcular çıkmaya başlasın!
+            GameObject prefabToSpawn = meleeEnemyPrefab;
+
             if (RunManager.instance.currentLevel >= aoeStartLevel)
             {
-                // %30 ihtimalle AoE prefab seçilir
                 if (Random.value < 0.30f && aoeEnemyPrefab != null)
                 {
                     prefabToSpawn = aoeEnemyPrefab;
                 }
             }
 
-            // Seçilen prefab'ı sahneye koy
             GameObject newEnemyObj = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
             EnemyAI enemyAI = newEnemyObj.GetComponent<EnemyAI>();
             enemyAI.groundMap = this.groundMap;
 
-            // Elite (Şampiyon) Sistemi
             float randomMultiplier = Random.Range(0.8f, 1.25f);
             if (Random.value < 0.10f)
             {
@@ -215,20 +219,103 @@ public class LevelGenerator : MonoBehaviour
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
-            int finalHP = Mathf.RoundToInt(enemyHealth * randomMultiplier);
+            // DÜZELTME: Canlar artık Property'den çekiliyor, tam scale oluyor
+            int finalHP = Mathf.RoundToInt(CurrentEnemyHealth * randomMultiplier);
             enemyAI.health.maxHP = Mathf.Max(1, finalHP);
             enemyAI.health.currentHP = enemyAI.health.maxHP;
-            
+
             enemyAI.health.updateHealth();
-            TurnManager.instance.RegisterEnemy(enemyAI); 
+            TurnManager.instance.RegisterEnemy(enemyAI);
+            // Bunu RegisterEnemy(enemyAI); yazan yerin hemen altına ekle:
+            StartCoroutine(enemyAI.FadeSpawnCoroutine());
         }
 
         TurnManager.instance.isPlayerTurn = true;
         TurnManager.instance.player.UpdateHighlights();
-        
+
         TurnManager.instance.Invoke("LockAllEnemyIntents", 0.1f);
 
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
+    }
+
+    public void GenerateBossArena()
+    {
+        Debug.Log("🔥 BOSS BÖLÜMÜ YÜKLENİYOR! 🔥");
+        groundMap.ClearAllTiles();
+        if (backgroundMap != null) backgroundMap.ClearAllTiles();
+        validCells.Clear();
+        hazardCells.Clear();
+
+        foreach (var enemy in TurnManager.instance.enemies)
+        {
+            if (enemy != null) Destroy(enemy.gameObject);
+        }
+        TurnManager.instance.enemies.Clear();
+
+        int arenaRadius = baseMapRadius + 2;
+        for (int x = -arenaRadius; x <= arenaRadius; x++)
+        {
+            for (int y = -arenaRadius; y <= arenaRadius; y++)
+            {
+                if (Mathf.Abs(x + y) <= arenaRadius)
+                {
+                    Vector3Int cell = new Vector3Int(x, y, 0);
+                    groundMap.SetTile(cell, groundTile);
+                    validCells.Add(cell);
+                }
+            }
+        }
+        GenerateColumns();
+
+        TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(Vector3Int.zero);
+        TurnManager.instance.player.StartKnockbackMovement(Vector3Int.zero);
+        validCells.Remove(Vector3Int.zero);
+
+        List<Vector3Int> edgeCells = validCells.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), Vector3.zero)).ToList();
+
+        if (bossPrefab != null)
+        {
+            Vector3Int bossCell = edgeCells[0];
+            Vector3 bossPos = groundMap.GetCellCenterWorld(bossCell);
+
+            GameObject bossObj = Instantiate(bossPrefab, bossPos, Quaternion.identity);
+            EnemyAI bossAI = bossObj.GetComponent<EnemyAI>();
+
+            // DÜZELTME: Boss'un canı normal düşmanın 5 katı olacak şekilde scale oluyor!
+            bossAI.health.maxHP = Mathf.RoundToInt(CurrentEnemyHealth * 3f);
+            bossAI.health.currentHP = bossAI.health.maxHP;
+            bossAI.health.updateHealth();
+
+            StartCoroutine(bossAI.FadeSpawnCoroutine());
+
+            validCells.Remove(bossCell);
+            edgeCells.RemoveAt(0);
+        }
+
+        if (totemPrefab != null)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                int index = i * (edgeCells.Count / 4);
+                Vector3Int totemCell = edgeCells[index];
+                Vector3 totemPos = groundMap.GetCellCenterWorld(totemCell);
+
+                GameObject totemObj = Instantiate(totemPrefab, totemPos, Quaternion.identity);
+                EnemyAI totemAI = totemObj.GetComponent<EnemyAI>();
+
+                // DÜZELTME: Totemin canı level ile çok az artar
+                totemAI.health.maxHP = 5 + (RunManager.instance.currentLevel / 2);
+                totemAI.health.currentHP = totemAI.health.maxHP;
+                totemAI.health.updateHealth();
+
+                StartCoroutine(totemAI.FadeSpawnCoroutine());
+
+                validCells.Remove(totemCell);
+            }
+        }
+
+        TurnManager.instance.isPlayerTurn = true;
+        TurnManager.instance.player.UpdateHighlights();
     }
 
     private void GenerateColumns()
@@ -239,7 +326,7 @@ public class LevelGenerator : MonoBehaviour
         {
             Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
 
-            int[] exposedIndices = { 0, 3, 4, 5 }; 
+            int[] exposedIndices = { 0, 3, 4, 5 };
             bool isExposedEdge = false;
 
             foreach (int i in exposedIndices)
@@ -381,12 +468,13 @@ public class LevelGenerator : MonoBehaviour
         {
             if (!largestIsland.Contains(cell))
             {
-                groundMap.SetTile(cell, null); 
+                groundMap.SetTile(cell, null);
                 toRemove.Add(cell);
             }
         }
 
-        foreach(var c in toRemove) {
+        foreach (var c in toRemove)
+        {
             validCells.Remove(c);
             hazardCells.Remove(c);
         }

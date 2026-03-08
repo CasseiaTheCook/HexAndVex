@@ -2,31 +2,30 @@
 using UnityEngine.Tilemaps;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq; // LINQ kütüphanesini listeleri taramak için ekledik
+using System.Linq;
 
 public class EnemyAI : MonoBehaviour
 {
     public Tilemap groundMap;
     public HealthScript health;
-
     public SpriteRenderer visualRenderer;
 
     [Header("Düşman Tipi ve Saldırı Ayarları")]
-    public EnemyBehavior enemyBehavior = EnemyBehavior.Melee; 
-    public int aoeAttackRange = 3; 
-    
-    public int aoeCooldown = 2; 
-    private int currentCooldown = 0; 
+    public EnemyBehavior enemyBehavior = EnemyBehavior.Melee;
+    public int aoeAttackRange = 3;
+    public int aoeCooldown = 2;
+    private int currentCooldown = 0;
+    private bool isFirstTurn = true;
 
-    public enum EnemyBehavior { Melee, TelegraphAoE }
+    public enum EnemyBehavior { Melee, TelegraphAoE, Totem, Boss }
 
     [Header("AoE Uyarı Ayarları")]
-    public Tilemap warningMap; 
-    public TileBase warningTile; 
+    public Tilemap warningMap;
+    public TileBase warningTile;
 
     [Header("UI Settings")]
     public GameObject intentArrow;
-    public GameObject stunEffectObj; 
+    public GameObject stunEffectObj;
 
     public float arrowAngleOffset = 0f;
     private SpriteRenderer arrowRenderer;
@@ -36,15 +35,17 @@ public class EnemyAI : MonoBehaviour
     private Vector3Int cell;
     private Vector3 targetWorldPos;
     private bool isMoving = false;
-    public bool isBumping = false; 
+    public bool isBumping = false;
+    public bool isFading = false;
+
     private const float ENEMY_MOVE_SPEED = 5f;
 
     public Vector3Int lockedTargetCell;
     public bool hasLockedTarget = false;
     public int skipTurns = 0;
 
-    public bool isChargingAttack = false; 
-    public List<Vector3Int> warningCells = new List<Vector3Int>(); 
+    public bool isChargingAttack = false;
+    public List<Vector3Int> warningCells = new List<Vector3Int>();
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -92,9 +93,19 @@ public class EnemyAI : MonoBehaviour
     {
         if (isChargingAttack)
         {
-            SetTelegraphVisuals(false, true); 
+            // DÜZELTME: Adam ölünce de Highlight TAK diye silinmesin, YUMUŞAKÇA (Fade) silinsin (false, false yaptık)
+            SetTelegraphVisuals(false, false);
             isChargingAttack = false;
             warningCells.Clear();
+        }
+
+        if (enemyBehavior == EnemyBehavior.Totem && SpawnerBossAI.instance != null)
+        {
+            SpawnerBossAI.instance.OnTotemDestroyed();
+        }
+        else if (enemyBehavior == EnemyBehavior.Boss && SpawnerBossAI.instance != null)
+        {
+            SpawnerBossAI.instance.OnBossDied();
         }
     }
 
@@ -107,7 +118,7 @@ public class EnemyAI : MonoBehaviour
     {
         HandleMovement();
 
-        if (health != null && health.currentHP > 0)
+        if (health != null && health.currentHP > 0 && !isFading)
         {
             bool isStunned = skipTurns > 0;
             if (stunEffectObj != null)
@@ -115,6 +126,17 @@ public class EnemyAI : MonoBehaviour
                 if (stunEffectObj.activeSelf != isStunned) stunEffectObj.SetActive(isStunned);
             }
             health.SetStunnedAlpha(isStunned);
+
+            // =========================================================
+            // DÜZELTME: EĞER DÜŞMAN VURULURSA (STUN) SALDIRIYI ANINDA İPTAL ET
+            // =========================================================
+            if (isStunned && isChargingAttack)
+            {
+                isChargingAttack = false;
+                SetTelegraphVisuals(false, false); // Kırmızı alanları usulca (Fade Out) eriterek siler!
+                warningCells.Clear();
+                Debug.Log($"🛑 {gameObject.name} vurulduğu için saldırısı iptal oldu!");
+            }
         }
     }
 
@@ -131,6 +153,14 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
+    public void TeleportTo(Vector3Int targetCell)
+    {
+        cell = targetCell;
+        targetWorldPos = groundMap.GetCellCenterWorld(cell);
+        targetWorldPos.z = 0;
+        transform.position = targetWorldPos;
+    }
+
     public void SetStunVisual(bool state)
     {
         if (stunEffectObj != null) stunEffectObj.SetActive(state);
@@ -138,6 +168,7 @@ public class EnemyAI : MonoBehaviour
 
     public void StartWallBump(Vector3 direction)
     {
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
         StartCoroutine(WallBumpCoroutine(direction));
     }
 
@@ -146,14 +177,14 @@ public class EnemyAI : MonoBehaviour
         isBumping = true; isMoving = true;
         Vector3 originalPos = groundMap.GetCellCenterWorld(cell); originalPos.z = 0;
         Vector3 bumpPos = originalPos + (direction * 0.10f);
-        
+
         while (Vector3.Distance(transform.position, bumpPos) > 0.01f)
         {
             transform.position = Vector3.MoveTowards(transform.position, bumpPos, 4f * Time.deltaTime);
             yield return null;
         }
 
-        yield return new WaitForSeconds(0.05f); 
+        yield return new WaitForSeconds(0.05f);
 
         while (Vector3.Distance(transform.position, originalPos) > 0.01f)
         {
@@ -197,6 +228,8 @@ public class EnemyAI : MonoBehaviour
     {
         if (isChargingAttack) SetTelegraphVisuals(false, false);
 
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
+
         if (isStunned || health.currentHP <= 0)
         {
             hasLockedTarget = false; SetArrowVisibility(false); isChargingAttack = false; return;
@@ -213,19 +246,19 @@ public class EnemyAI : MonoBehaviour
 
         if (enemyBehavior == EnemyBehavior.TelegraphAoE)
         {
-            if (currentCooldown <= 0 && Distance(cell, playerCell) <= aoeAttackRange)
+            if (!isFirstTurn && currentCooldown <= 0 && Distance(cell, playerCell) <= aoeAttackRange)
             {
-                isChargingAttack = true; 
-                hasLockedTarget = false; 
+                isChargingAttack = true;
+                hasLockedTarget = false;
                 SetArrowVisibility(false);
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
                 SetTelegraphVisuals(true, false);
-                return; 
+                return;
             }
             else
             {
-                isChargingAttack = false; 
+                isChargingAttack = false;
             }
         }
 
@@ -258,6 +291,17 @@ public class EnemyAI : MonoBehaviour
 
     public void ExecuteLockedMove()
     {
+        isFirstTurn = false;
+
+        if (enemyBehavior == EnemyBehavior.Totem) return;
+
+        if (enemyBehavior == EnemyBehavior.Boss)
+        {
+            SpawnerBossAI bossAI = GetComponent<SpawnerBossAI>();
+            if (bossAI != null) StartCoroutine(bossAI.ExecuteBossTurn());
+            return;
+        }
+
         if (isMoving || health.currentHP <= 0 || skipTurns > 0)
         {
             hasLockedTarget = false; SetArrowVisibility(false); return;
@@ -289,6 +333,78 @@ public class EnemyAI : MonoBehaviour
         SetArrowVisibility(false);
     }
 
+    public IEnumerator FadeSpawnCoroutine()
+    {
+        isFading = true;
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+        foreach (var sr in allRenderers) { Color c = sr.color; c.a = 0f; sr.color = c; }
+
+        float duration = 0.5f; float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(0f, 1f, elapsed / duration);
+            foreach (var sr in allRenderers) { Color c = sr.color; c.a = alpha; sr.color = c; }
+            yield return null;
+        }
+
+        foreach (var sr in allRenderers) { Color c = sr.color; c.a = 1f; sr.color = c; }
+        isFading = false;
+    }
+
+    public IEnumerator FadeOutWithoutDestroy()
+    {
+        isFading = true;
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+        float duration = 0.3f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(1f, 0f, elapsed / duration);
+            foreach (var sr in allRenderers) { Color c = sr.color; c.a = alpha; sr.color = c; }
+            yield return null;
+        }
+        isFading = false;
+    }
+
+    public IEnumerator FadeDieCoroutine()
+    {
+        isFading = true;
+
+        // YENİ: Totem yüzünden ölürlerse saldırılarını anında iptal edip alanı temizle
+        if (isChargingAttack)
+        {
+            isChargingAttack = false;
+            SetTelegraphVisuals(false, false); // Kırmızı alanları usulca siler
+            warningCells.Clear();
+        }
+
+        health.currentHP = 0;
+        skipTurns = 99;
+        SetArrowVisibility(false);
+        hasLockedTarget = false;
+
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
+
+        float duration = 0.4f; float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Lerp(1f, 0f, elapsed / duration);
+            foreach (var sr in allRenderers) { Color c = sr.color; c.a = alpha; sr.color = c; }
+            yield return null;
+        }
+
+        if (TurnManager.instance != null) TurnManager.instance.enemies.Remove(this);
+        Destroy(gameObject);
+    }
+
     private List<Vector3Int> GetLineOfCells(Vector3Int startCell, Vector3Int targetCell, int length)
     {
         List<Vector3Int> line = new List<Vector3Int>();
@@ -311,25 +427,20 @@ public class EnemyAI : MonoBehaviour
         {
             Vector3Int[] currOffsets = (currentStep.y % 2 != 0) ? evenOffsets : oddOffsets;
             currentStep += currOffsets[bestDirIndex];
-            
+
             if (groundMap.HasTile(currentStep)) line.Add(currentStep);
         }
         return line;
     }
 
-    // =======================================================
-    // YENİ: KARE BAŞKA DÜŞMAN TARAFINDAN KULLANILIYOR MU KONTROLÜ
-    // =======================================================
     private bool IsCellTargetedByOtherEnemy(Vector3Int targetCell)
     {
+        if (SpawnerBossAI.instance != null && SpawnerBossAI.instance.IsCellTargetedByBoss(targetCell)) return true;
+
         if (TurnManager.instance == null) return false;
         foreach (var e in TurnManager.instance.enemies)
         {
-            // Eğer diğer düşman hayattaysa, saldırı hazırlığındaysa ve bu kare onun listesinde de varsa
-            if (e != null && e != this && e.isChargingAttack && e.warningCells.Contains(targetCell))
-            {
-                return true; 
-            }
+            if (e != null && e != this && e.isChargingAttack && e.warningCells.Contains(targetCell)) return true;
         }
         return false;
     }
@@ -345,29 +456,21 @@ public class EnemyAI : MonoBehaviour
         {
             foreach (var c in cellsToAnimate)
             {
-                // YENİ: Başka düşman kullanmıyorsa sil, kullanıyorsa Kırmızı bırak!
-                if (!IsCellTargetedByOtherEnemy(c))
-                {
-                    warningMap.SetTile(c, null);
-                }
-                else
-                {
-                    warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f)); 
-                }
+                if (!IsCellTargetedByOtherEnemy(c)) warningMap.SetTile(c, null);
+                else warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f));
             }
             return;
         }
-
         telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(show, cellsToAnimate));
     }
 
     private IEnumerator AnimateTelegraphCoroutine(bool show, List<Vector3Int> cells)
     {
-        float duration = show ? 0.35f : 0.2f; 
+        float duration = show ? 0.35f : 0.2f;
         float elapsed = 0f;
 
         Color invisibleColor = new Color(1f, 0.2f, 0.2f, 0f);
-        Color visibleColor = new Color(1f, 0.2f, 0.2f, 0.65f); 
+        Color visibleColor = new Color(1f, 0.2f, 0.2f, 0.65f);
 
         Color startColor = show ? invisibleColor : visibleColor;
         Color endColor = show ? visibleColor : invisibleColor;
@@ -399,15 +502,8 @@ public class EnemyAI : MonoBehaviour
         {
             foreach (var c in cells)
             {
-                // YENİ: Fade Out bittiğinde eğer başkası kullanıyorsa silme, geri kırmızı yap!
-                if (!IsCellTargetedByOtherEnemy(c))
-                {
-                    warningMap.SetTile(c, null);
-                }
-                else
-                {
-                    warningMap.SetColor(c, visibleColor);
-                }
+                if (!IsCellTargetedByOtherEnemy(c)) warningMap.SetTile(c, null);
+                else warningMap.SetColor(c, visibleColor);
             }
         }
     }
@@ -416,34 +512,32 @@ public class EnemyAI : MonoBehaviour
     {
         if (!isChargingAttack) yield break;
 
-        Debug.Log($"💥 {gameObject.name} Balyozunu Yere Vurdu!");
-
         if (warningMap != null && warningCells.Count > 0)
         {
-            float flashDur = 0.05f;
-            float elapsed = 0f;
+            float flashDur = 0.05f; float elapsed = 0f;
             Color startRed = new Color(1f, 0.2f, 0.2f, 0.65f);
             Color whiteFlash = new Color(1f, 1f, 1f, 0.9f);
 
-            while(elapsed < flashDur) {
+            while (elapsed < flashDur)
+            {
                 elapsed += Time.deltaTime;
                 Color current = Color.Lerp(startRed, whiteFlash, elapsed / flashDur);
                 foreach (var c in warningCells) warningMap.SetColor(c, current);
                 yield return null;
             }
 
-            elapsed = 0f;
-            float burnDur = 0.15f;
+            elapsed = 0f; float burnDur = 0.15f;
             Color yellowBurn = new Color(1f, 0.8f, 0f, 0.8f);
 
-            while(elapsed < burnDur) {
+            while (elapsed < burnDur)
+            {
                 elapsed += Time.deltaTime;
                 Color current = Color.Lerp(whiteFlash, yellowBurn, elapsed / burnDur);
                 foreach (var c in warningCells) warningMap.SetColor(c, current);
                 yield return null;
             }
-            
-            yield return new WaitForSeconds(0.1f); 
+
+            yield return new WaitForSeconds(0.1f);
         }
 
         if (warningCells.Contains(player.GetCurrentCellPosition()))
@@ -457,23 +551,18 @@ public class EnemyAI : MonoBehaviour
 
             if (!dodged)
             {
-                player.health.TakeDamage(2); 
-                Debug.Log("🔥 Alan saldırısına yakalandın!");
-                
+                player.health.TakeDamage(2);
+
                 Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
                 player.StartKnockbackMovement(pushTarget);
                 yield return new WaitUntil(() => !player.IsMoving());
-            }
-            else
-            {
-                Debug.Log("🛡️ DODGE! Alan saldırısından son anda kaçtın.");
             }
         }
 
         SetTelegraphVisuals(false, false);
         isChargingAttack = false;
         warningCells.Clear();
-        currentCooldown = aoeCooldown; 
+        currentCooldown = aoeCooldown;
         yield return new WaitForSeconds(0.2f);
     }
 
@@ -516,6 +605,8 @@ public class EnemyAI : MonoBehaviour
 
     public void StartKnockbackMovement(Vector3Int targetCell)
     {
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
+
         if (groundMap.HasTile(targetCell))
         {
             cell = targetCell; targetWorldPos = groundMap.GetCellCenterWorld(cell);
@@ -544,4 +635,5 @@ public class EnemyAI : MonoBehaviour
         foreach (var off in offsets) if (cell1 + off == cell2) return true;
         return false;
     }
+
 }

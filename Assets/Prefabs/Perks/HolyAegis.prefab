@@ -46,3 +46,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HolyAegisPerk
   perkName: Holy Aegis
   description: 1 time damage negate (refreshes each level).
+  priority: 0
+  shieldPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}

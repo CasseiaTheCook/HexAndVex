@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
@@ -8,7 +9,7 @@ public class Shopmanager : MonoBehaviour
     public static Shopmanager instance;
 
     // -------------------------------------------------------
-    // Dahili item tipi (prefab gerektirmez, anÄ±nda efekt uygular)
+    // Ic tipler
     // -------------------------------------------------------
     private enum SlotType { Perk, Item }
 
@@ -18,71 +19,62 @@ public class Shopmanager : MonoBehaviour
         public string description;
         public int price;
         public HotbarItemType itemType;
-        public System.Action onBuy;
 
-        public ShopItemData(string n, string desc, int p, HotbarItemType type, System.Action effect = null)
-        { name = n; description = desc; price = p; itemType = type; onBuy = effect; }
+        public ShopItemData(string n, string desc, int p, HotbarItemType type)
+        { name = n; description = desc; price = p; itemType = type; }
     }
 
-    [Header("Panel")]
-    public GameObject shopPanel;
-
-    [Header("Perk Listeleri (LevelUpManager ile aynÄ±)")]
+    // -------------------------------------------------------
+    // Inspector alanlari
+    // -------------------------------------------------------
+    [Header("Perk Listeleri")]
     public List<GameObject> commonPerks;
     public List<GameObject> rarePerks;
     public List<GameObject> epicPerks;
     public List<GameObject> legendaryPerks;
 
-    [Header("UI Slotlar (3 adet)")]
-    public Button[] buyButtons;
-    public TMP_Text[] itemNameTexts;
-    public TMP_Text[] itemPriceTexts;
-    public Image[] soldOutOverlays;
+    [Header("Shop Slot Sistemi")]
+    public Transform shopSlotContainer;   // Horizontal/Vertical Layout Group iceren parent
+    public GameObject shopSlotPrefab;     // ShopSlot component tasiran prefab
+    public int shopSlotCount = 3;         // Upgrades ile arttirilabilir
 
     [Header("UI Genel")]
     public TMP_Text coinDisplayText;
     public Button rerollButton;
     public TMP_Text rerollPriceText;
-    public Button shopButton;            // MainUI'daki Shop aÃ§/kapat butonu
 
-    [Header("Reroll AyarlarÄ±")]
+    [Header("Reroll Ayarlari")]
     public int rerollBaseCost = 2;
     public int rerollCostIncrease = 1;
 
-    // Dahili durum
-    private List<GameObject> currentPerkItems = new List<GameObject>(); // perk slotlarÄ±
-    private ShopItemData[] currentShopItems = new ShopItemData[3];       // item slotlarÄ±
-    private SlotType[] slotTypes = new SlotType[3];
-    private int[] currentPrices = new int[3];
-    private bool[] purchased = new bool[3];
-    private int currentRerollCost;
+    // -------------------------------------------------------
+    // Runtime state
+    // -------------------------------------------------------
+    private List<ShopSlot> spawnedSlots      = new List<ShopSlot>();
+    private List<ShopItemData> currentItems  = new List<ShopItemData>();
+    private List<SlotType> slotTypes         = new List<SlotType>();
+    private List<int> currentPrices          = new List<int>();
+    private List<bool> purchased             = new List<bool>();
+    private List<GameObject> perkPrefabs     = new List<GameObject>();
+
     private int rerollCount = 0;
-    private bool openedMidGame = false;
+    private int currentRerollCost;
 
+    // -------------------------------------------------------
     // 5 sabit consumable item havuzu
-    private List<ShopItemData> BuildItemPool()
+    // -------------------------------------------------------
+    private List<ShopItemData> BuildItemPool() => new List<ShopItemData>
     {
-        return new List<ShopItemData>
-        {
-            
-                new ShopItemData(
-    " Sağlık İksiri", "Anında 1 can yenile", 3,
-    HotbarItemType.HealthPotion),
-    new ShopItemData(
-    " Güçlü İksir", "Anında 2 can yenile", 5,
-    HotbarItemType.StrongPotion),
-    new ShopItemData(
-    " Altın Cüzdan", "Anında +6 coin kazan", 2,
-    HotbarItemType.GoldBag),
-    new ShopItemData(
-    " Enerji İçeceği", "Bu savaşta 1 ekstra hamle hakkı", 4,
-    HotbarItemType.EnergyDrink),
-    new ShopItemData(
-    " Savaş Büyüsü", "Kritik vuruş ihtimali kalıcı +%15", 6,
-    HotbarItemType.BattleSpell)
-        };
-    }
+        new ShopItemData("Sağlık İksiri",   "1 can yenile",                     3, HotbarItemType.HealthPotion),
+        new ShopItemData("Güçlü İksir",     "2 can yenile",                     5, HotbarItemType.StrongPotion),
+        new ShopItemData("Altın Cüzdan",    "+6 coin kazan",                    2, HotbarItemType.GoldBag),
+        new ShopItemData("Enerji İçeceği",  "Bu savaşta 1 ekstra hamle",        4, HotbarItemType.EnergyDrink),
+        new ShopItemData("Savaş Büyüsü",    "Kritik şans kalıcı +%15",          6, HotbarItemType.BattleSpell)
+    };
 
+    // -------------------------------------------------------
+    // Unity lifecycle
+    // -------------------------------------------------------
     void Awake()
     {
         if (instance == null) instance = this;
@@ -90,75 +82,42 @@ public class Shopmanager : MonoBehaviour
 
     void Start()
     {
+        currentRerollCost = rerollBaseCost;
+
+        // Sadece HLG ayarlarini kod uzerinden garantile, pozisyonu editor'a birak
+        if (shopSlotContainer != null)
+        {
+            var hlg = shopSlotContainer.GetComponent<HorizontalLayoutGroup>();
+            if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 8;
+            hlg.padding = new RectOffset(8, 8, 8, 8);
+            hlg.childAlignment = TextAnchor.UpperLeft;
+            hlg.childControlWidth  = true;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth  = false;
+            hlg.childForceExpandHeight = true;
+        }
+
         if (rerollButton != null)
         {
             rerollButton.onClick.RemoveAllListeners();
             rerollButton.onClick.AddListener(TryReroll);
         }
 
-        if (shopButton != null)
-        {
-            shopButton.onClick.RemoveAllListeners();
-            shopButton.onClick.AddListener(ToggleShopMidGame);
-        }
-
-        if (shopPanel != null)
-            shopPanel.SetActive(false);
+        GenerateShopItems();
     }
 
     // -------------------------------------------------------
-    // AÃ§ / Kapat
+    // Dungeon temizlendi — TurnManager cagirir
     // -------------------------------------------------------
-
-    // Dungeon bitti / tur sayÄ±sÄ± doldu â†’ TurnManager Ã§aÄŸÄ±rÄ±r
-    public void OpenShop()
+    public void OnDungeonCleared()
     {
-        openedMidGame = false;
         rerollCount = 0;
         currentRerollCost = rerollBaseCost;
-
-        if (shopPanel != null) shopPanel.SetActive(true);
         GenerateShopItems();
-        RefreshCoinDisplay();
-        RefreshRerollButton();
-    }
 
-    // ShopButton'a basÄ±nca toggle
-    public void ToggleShopMidGame()
-    {
-        if (shopPanel != null && shopPanel.activeSelf)
-        {
-            LeaveShop();
-            return;
-        }
-
-        if (TurnManager.instance != null && !TurnManager.instance.isPlayerTurn) return;
-
-        openedMidGame = true;
-        rerollCount = 0;
-        currentRerollCost = rerollBaseCost;
-
-        if (TurnManager.instance != null)
-            TurnManager.instance.isPlayerTurn = false;
-
-        if (shopPanel != null) shopPanel.SetActive(true);
-        GenerateShopItems();
-        RefreshCoinDisplay();
-        RefreshRerollButton();
-    }
-
-    public void LeaveShop()
-    {
-        if (shopPanel != null) shopPanel.SetActive(false);
-
-        if (openedMidGame || (TurnManager.instance != null && TurnManager.instance.enemies.Count > 0))
-        {
-            TurnManager.instance.ResumeAfterShop();
-        }
-        else if (LevelUpManager.instance != null)
-        {
+        if (LevelUpManager.instance != null)
             LevelUpManager.instance.ShowLevelUpScreen();
-        }
         else
         {
             RunManager.instance.currentLevel++;
@@ -189,97 +148,158 @@ public class Shopmanager : MonoBehaviour
     }
 
     // -------------------------------------------------------
-    // Slot Ã¼retimi (perk + item karÄ±ÅŸÄ±k)
+    // Slot uretimi — tum slotlari yok eder, yenilerini spawn eder
     // -------------------------------------------------------
     private void GenerateShopItems()
     {
-        currentPerkItems.Clear();
-        purchased = new bool[3];
+        // Eski slotlari temizle
+        foreach (var slot in spawnedSlots)
+            if (slot != null) Destroy(slot.gameObject);
+
+        spawnedSlots.Clear();
+        currentItems.Clear();
+        slotTypes.Clear();
+        currentPrices.Clear();
+        purchased.Clear();
+        perkPrefabs.Clear();
+
+        if (shopSlotPrefab == null || shopSlotContainer == null)
+        {
+            Debug.LogWarning("Shopmanager: shopSlotPrefab veya shopSlotContainer atanmamis!");
+            return;
+        }
+
         List<ShopItemData> itemPool = BuildItemPool();
         List<int> usedItemIndices = new List<int>();
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < shopSlotCount; i++)
         {
-            // %40 ihtimalle item, %60 ihtimalle perk (perk havuzu boÅŸsa item ver)
-            bool pickItem = (Random.value < 0.4f) || (AllPerkListsEmpty());
+            bool pickItem = (Random.value < 0.4f) || AllPerkListsEmpty();
+
+            GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
+
+            // CanvasScaler scale'i bozuyor — onu sil.
+            // Canvas ve GraphicRaycaster'i BIRAK (nested canvas olarak calissin).
+            foreach (var c in slotGO.GetComponents<CanvasScaler>()) DestroyImmediate(c);
+            // Nested canvas override sorting olmadan calissin
+            var slotCanvas = slotGO.GetComponent<Canvas>();
+            if (slotCanvas != null) slotCanvas.overrideSorting = false;
+            slotGO.transform.localScale = Vector3.one;
+
+            // Her slot icin sabit tercih genisligi ata
+            var le = slotGO.GetComponent<LayoutElement>();
+            if (le == null) le = slotGO.AddComponent<LayoutElement>();
+            le.preferredWidth  = 200f;
+            le.preferredHeight = 114f;
+
+            ShopSlot slot = slotGO.GetComponent<ShopSlot>();
+            spawnedSlots.Add(slot);
+            purchased.Add(false);
 
             if (pickItem && itemPool.Count > usedItemIndices.Count)
             {
-                // Benzersiz item seÃ§
                 int idx;
                 int safety = 0;
                 do { idx = Random.Range(0, itemPool.Count); if (++safety > 100) break; }
                 while (usedItemIndices.Contains(idx));
 
                 usedItemIndices.Add(idx);
-                slotTypes[i] = SlotType.Item;
-                currentShopItems[i] = itemPool[idx];
-                currentPrices[i] = itemPool[idx].price;
+                ShopItemData item = itemPool[idx];
 
-                SetSlotUI(i, itemPool[idx].name, itemPool[idx].description, itemPool[idx].price);
+                slotTypes.Add(SlotType.Item);
+                currentItems.Add(item);
+                perkPrefabs.Add(null);
+                currentPrices.Add(item.price);
+
+                SetupSlot(slot, i, item.name, item.description, item.price);
             }
             else
             {
-                // Benzersiz perk seÃ§
-                GameObject perk = null;
                 int price = 3;
-                int safety = 0;
-                while (perk == null || currentPerkItems.Contains(perk))
-                {
-                    perk = GetRandomPerkByRarity(out price);
-                    if (++safety > 100) break;
-                }
-                currentPerkItems.Add(perk);
-                slotTypes[i] = SlotType.Perk;
-                currentShopItems[i] = null;
-                currentPrices[i] = price;
+                GameObject perkPrefab = PickUniquePerk(out price);
 
-                if (perk != null)
+                slotTypes.Add(SlotType.Perk);
+                currentItems.Add(null);
+                perkPrefabs.Add(perkPrefab);
+                currentPrices.Add(price);
+
+                if (perkPrefab != null)
                 {
-                    BasePerk script = perk.GetComponent<BasePerk>();
-                    SetSlotUI(i, script.perkName, script.description, price);
+                    BasePerk script = perkPrefab.GetComponent<BasePerk>();
+                    SetupSlot(slot, i, script.perkName, script.description, price);
+                }
+                else
+                {
+                    SetupSlot(slot, i, "Perk yok", "-", price);
                 }
             }
         }
 
+        RefreshCoinDisplay();
+        RefreshRerollButton();
         RefreshAffordability();
     }
 
-    private void SetSlotUI(int i, string itemName, string description, int price)
+    // Daha once secilmemis benzersiz bir perk prefabi dondurur
+    private GameObject PickUniquePerk(out int price)
     {
-        if (itemNameTexts != null && i < itemNameTexts.Length && itemNameTexts[i] != null)
-            itemNameTexts[i].text = itemName + "\n<size=70%>" + description + "</size>";
-
-        if (itemPriceTexts != null && i < itemPriceTexts.Length && itemPriceTexts[i] != null)
-            itemPriceTexts[i].text = price + " Coin";
-
-        if (buyButtons != null && i < buyButtons.Length && buyButtons[i] != null)
+        GameObject result = null;
+        price = 3;
+        int safety = 0;
+        do
         {
-            int idx = i;
-            buyButtons[i].onClick.RemoveAllListeners();
-            buyButtons[i].onClick.AddListener(() => TryBuy(idx));
-            buyButtons[i].interactable = true;
+            result = GetRandomPerkByRarity(out price);
+            if (++safety > 100) break;
         }
+        while (result != null && perkPrefabs.Contains(result));
+        return result;
+    }
 
-        if (soldOutOverlays != null && i < soldOutOverlays.Length && soldOutOverlays[i] != null)
-            soldOutOverlays[i].gameObject.SetActive(false);
+    private void SetupSlot(ShopSlot slot, int index, string itemName, string desc, int price)
+    {
+        if (slot == null) return;
+
+        if (slot.nameText != null)
+            slot.nameText.text = itemName + "\n<size=70%>" + desc + "</size>";
+
+        if (slot.priceText != null)
+            slot.priceText.text = price + " Coin";
+
+        if (slot.soldOutOverlay != null)
+            slot.soldOutOverlay.SetActive(false);
+
+        if (slot.buyButton != null)
+        {
+            // Prefab'dan kalan eski etiket metnini temizle
+            var btnLabel = slot.buyButton.GetComponentInChildren<TMP_Text>();
+            if (btnLabel != null && btnLabel != slot.nameText && btnLabel != slot.priceText)
+                btnLabel.text = "";
+
+            int idx = index;
+            slot.buyButton.onClick.RemoveAllListeners();
+            slot.buyButton.onClick.AddListener(() => TryBuy(idx));
+            slot.buyButton.interactable = true;
+        }
     }
 
     // -------------------------------------------------------
-    // SatÄ±n alma
+    // Satin alma
     // -------------------------------------------------------
     public void TryBuy(int index)
     {
-        if (purchased[index] || RunManager.instance == null) return;
+        if (index >= purchased.Count || purchased[index]) return;
+        if (RunManager.instance == null) return;
 
         int price = currentPrices[index];
+
         if (RunManager.instance.currentGold < price)
         {
-            StartCoroutine(FlashPrice(index));
+            if (index < spawnedSlots.Count && spawnedSlots[index] != null)
+                StartCoroutine(FlashText(spawnedSlots[index].priceText));
             return;
         }
 
-        // Item ise hotbar doluluk kontrolu
+        // Item ise hotbar dolu mu kontrol et
         if (slotTypes[index] == SlotType.Item
             && HotbarManager.instance != null
             && !HotbarManager.instance.CanAddItem())
@@ -292,42 +312,25 @@ public class Shopmanager : MonoBehaviour
 
         if (slotTypes[index] == SlotType.Item)
         {
-            // Consumable item â†’ anÄ±nda efekti uygula
             if (HotbarManager.instance != null)
-                HotbarManager.instance.AddItem(currentShopItems[index].itemType);
-            else
-                currentShopItems[index]?.onBuy?.Invoke();
-            Debug.Log($"Hotbar'a eklendi: {currentShopItems[index]?.name}");
+                HotbarManager.instance.AddItem(currentItems[index].itemType);
         }
         else
         {
-            // Perk â†’ kalÄ±cÄ± ekle
-            int perkIdx = 0;
-            int remaining = index;
-            for (int i = 0; i <= index; i++)
-                if (slotTypes[i] == SlotType.Perk) { perkIdx = i; }
-
-            // currentPerkItems iÃ§indeki sÄ±rayÄ± bul
-            int perkListIdx = 0;
-            int count = -1;
-            for (int i = 0; i <= index; i++)
-                if (slotTypes[i] == SlotType.Perk) count++;
-            perkListIdx = count;
-
-            if (perkListIdx < currentPerkItems.Count && currentPerkItems[perkListIdx] != null)
-            {
-                RunManager.instance.AddPerk(currentPerkItems[perkListIdx]);
-                Debug.Log($"SatÄ±n alÄ±ndÄ±: {currentPerkItems[perkListIdx].GetComponent<BasePerk>().perkName} (-{price} coin)");
-            }
+            GameObject perk = index < perkPrefabs.Count ? perkPrefabs[index] : null;
+            if (perk != null)
+                RunManager.instance.AddPerk(perk);
         }
 
         purchased[index] = true;
 
-        if (buyButtons != null && index < buyButtons.Length && buyButtons[index] != null)
-            buyButtons[index].interactable = false;
-
-        if (soldOutOverlays != null && index < soldOutOverlays.Length && soldOutOverlays[index] != null)
-            soldOutOverlays[index].gameObject.SetActive(true);
+        if (index < spawnedSlots.Count && spawnedSlots[index] != null)
+        {
+            if (spawnedSlots[index].buyButton != null)
+                spawnedSlots[index].buyButton.interactable = false;
+            if (spawnedSlots[index].soldOutOverlay != null)
+                spawnedSlots[index].soldOutOverlay.SetActive(true);
+        }
 
         RefreshCoinDisplay();
         RefreshAffordability();
@@ -335,9 +338,9 @@ public class Shopmanager : MonoBehaviour
     }
 
     // -------------------------------------------------------
-    // UI YardÄ±mcÄ±larÄ±
+    // UI yardimcilari
     // -------------------------------------------------------
-    private void RefreshCoinDisplay()
+    public void RefreshCoinDisplay()
     {
         if (coinDisplayText != null && RunManager.instance != null)
             coinDisplayText.text = "Coin: " + RunManager.instance.currentGold;
@@ -346,11 +349,11 @@ public class Shopmanager : MonoBehaviour
     private void RefreshAffordability()
     {
         if (RunManager.instance == null) return;
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < spawnedSlots.Count; i++)
         {
-            if (purchased[i]) continue;
-            if (buyButtons != null && i < buyButtons.Length && buyButtons[i] != null)
-                buyButtons[i].interactable = RunManager.instance.currentGold >= currentPrices[i];
+            if (purchased[i] || spawnedSlots[i] == null) continue;
+            if (spawnedSlots[i].buyButton != null)
+                spawnedSlots[i].buyButton.interactable = RunManager.instance.currentGold >= currentPrices[i];
         }
     }
 
@@ -358,7 +361,6 @@ public class Shopmanager : MonoBehaviour
     {
         if (rerollPriceText != null)
             rerollPriceText.text = "Reroll: " + currentRerollCost + " Coin";
-
         if (rerollButton != null && RunManager.instance != null)
             rerollButton.interactable = RunManager.instance.currentGold >= currentRerollCost;
     }
@@ -369,13 +371,7 @@ public class Shopmanager : MonoBehaviour
         (epicPerks == null || epicPerks.Count == 0) &&
         (legendaryPerks == null || legendaryPerks.Count == 0);
 
-    private System.Collections.IEnumerator FlashPrice(int index)
-    {
-        if (itemPriceTexts == null || index >= itemPriceTexts.Length || itemPriceTexts[index] == null) yield break;
-        yield return StartCoroutine(FlashText(itemPriceTexts[index]));
-    }
-
-    private System.Collections.IEnumerator FlashText(TMP_Text t)
+    private IEnumerator FlashText(TMP_Text t)
     {
         if (t == null) yield break;
         Color orig = t.color;
@@ -384,9 +380,6 @@ public class Shopmanager : MonoBehaviour
         t.color = orig;
     }
 
-    // -------------------------------------------------------
-    // Perk seÃ§imi
-    // -------------------------------------------------------
     private GameObject GetRandomPerkByRarity(out int price)
     {
         float roll = Random.Range(0f, 100f);

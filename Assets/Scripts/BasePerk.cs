@@ -22,6 +22,12 @@ public abstract class BasePerk : MonoBehaviour
     // Düşman öldüğünde çalışır
     public virtual void OnEnemyKilled(EnemyAI enemy) { }
 
+    // ======================================================
+    // İŞTE YENİ EKLENEN KISIM BURASI KANKA:
+    // Ancient Blessing bu komutu çağıracak. Diğer perkler de bu komutu alınca ne yapacaklarını bilecek.
+    public virtual void UpgradePerk() { }
+    // ======================================================
+
     // Görsel geri bildirim: Perk çalıştığında ekranda zıplar
     public void TriggerVisualPop()
     {
