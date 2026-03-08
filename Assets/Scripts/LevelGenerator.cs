@@ -54,10 +54,7 @@ public class LevelGenerator : MonoBehaviour
 
     void Start()
     {
-        ScreenFader.instance.FadeAndLoad(() =>
-        {
-            LevelGenerator.instance.GenerateNextLevel();
-        });
+        GenerateNextLevel();
     }
 
     public void GenerateNextLevel()
@@ -257,7 +254,7 @@ public class LevelGenerator : MonoBehaviour
 
         // 1. ARENAYI RASTGELE OLUŞTUR (Normal bölüm gibi ama daha büyük)
         int arenaRadius = baseMapRadius + 2 + (RunManager.instance.currentLevel / 10); // Boss arenası gittikçe daha da büyür
-        
+
         for (int x = -arenaRadius; x <= arenaRadius; x++)
         {
             for (int y = -arenaRadius; y <= arenaRadius; y++)
@@ -267,10 +264,10 @@ public class LevelGenerator : MonoBehaviour
                     Vector3Int cell = new Vector3Int(x, y, 0);
 
                     // %5 ihtimalle haritadan parça kopar (Girintili çıkıntılı asimetrik olsun)
-                    if (Random.value > 0.05f) 
+                    if (Random.value > 0.05f)
                     {
                         // Boss arenasına hafif bir diken (hazard) serpiştirelim (%5 ihtimal)
-                        if (Random.value < 0.05f && Vector3Int.zero != cell) 
+                        if (Random.value < 0.05f && Vector3Int.zero != cell)
                         {
                             groundMap.SetTile(cell, hazardTile);
                             hazardCells.Add(cell);
@@ -300,7 +297,7 @@ public class LevelGenerator : MonoBehaviour
 
         // 3. BOSS VE TOTEMLERİ RASTGELE AMA UZAK YERLERE DAĞIT
         List<Vector3Int> availableSpawnCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
-        
+
         // Karıştır (Shuffle)
         for (int i = 0; i < availableSpawnCells.Count; i++)
         {
@@ -339,7 +336,7 @@ public class LevelGenerator : MonoBehaviour
                 if (availableSpawnCells.Count == 0) break; // Yer kalmadıysa doğurma
 
                 // Totemleri birbirine çok yapıştırmamak için listenin farklı bölgelerinden çek
-                int index = (i * (availableSpawnCells.Count / 4)); 
+                int index = (i * (availableSpawnCells.Count / 4));
                 Vector3Int totemCell = availableSpawnCells[index];
                 Vector3 totemPos = groundMap.GetCellCenterWorld(totemCell);
 
