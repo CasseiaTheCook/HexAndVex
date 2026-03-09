@@ -25,8 +25,9 @@ public class HealthScript : MonoBehaviour
 
     private bool isDeepStunnedAlpha = false;
     [Header("VFX")]
-public GameObject damageTextPrefab; // Hazırladığın prefabı buraya sürükle
+    public GameObject damageTextPrefab; // Hazırladığın prefabı buraya sürükle
 
+    public GameObject deathMenuUI; // Ölme ekranını buraya da sürükle
     void Start()
     {
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
@@ -56,10 +57,10 @@ public GameObject damageTextPrefab; // Hazırladığın prefabı buraya sürükl
         if (damageTextPrefab != null)
         {
             // Sayıyı tam düşmanın merkezinde oluştur
-        GameObject dmgObj = Instantiate(damageTextPrefab, transform.position, Quaternion.identity);
-        
-        // Setup fonksiyonunu çağırarak içindeki rakamı yazdır
-        dmgObj.GetComponent<DamageNumber>().Setup(dmg);
+            GameObject dmgObj = Instantiate(damageTextPrefab, transform.position, Quaternion.identity);
+
+            // Setup fonksiyonunu çağırarak içindeki rakamı yazdır
+            dmgObj.GetComponent<DamageNumber>().Setup(dmg);
         }
 
         EnemyAI enemy = GetComponentInParent<EnemyAI>();
@@ -160,7 +161,6 @@ public GameObject damageTextPrefab; // Hazırladığın prefabı buraya sürükl
     private void Die()
     {
         isDead = true;
-        Debug.Log($"{gameObject.name} öldü!");
         OnDeath?.Invoke();
 
         if (hptext != null) hptext.gameObject.SetActive(false);
@@ -171,6 +171,23 @@ public GameObject damageTextPrefab; // Hazırladığın prefabı buraya sürükl
         }
         else
         {
+            Destroy(gameObject);
+        }
+        if (gameObject.CompareTag("Player"))
+        {
+            // Sadece oyuncuysa ve ekran atanmışsa çalıştır
+            if (deathMenuUI != null)
+            {
+                deathMenuUI.SetActive(true);
+                Time.timeScale = 0f; // Oyunu durdur
+            }
+        }
+        else
+        {
+            // 2. DURUM: Bu bir düşmansa yapılacaklar
+            Debug.Log(gameObject.name + " öldü ve yok ediliyor.");
+
+            // Düşman öldüğünde listeden silme veya puan verme gibi işlemleri buraya yazabilirsin
             Destroy(gameObject);
         }
     }
