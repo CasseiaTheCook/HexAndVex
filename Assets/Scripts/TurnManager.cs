@@ -270,11 +270,11 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.15f);
             StartCoroutine(FlashHazardTileCoroutine(playerCell));
 
-            if (RunManager.instance.hasHolyAegis)
+            if (RunManager.instance.hasBioBarrier)
             {
                 foreach (var perk in RunManager.instance.activePerks)
-                    if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
-                RunManager.instance.hasHolyAegis = false;
+                    if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
             }
             else player.health.TakeDamage(1);
 
@@ -362,11 +362,11 @@ public class TurnManager : MonoBehaviour
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         int extraDices = 0;
-        foreach (var p in RunManager.instance.activePerks) if (p is CalculatedAmbushPerk ambushPerk) { extraDices += ambushPerk.storedExtraDices; ambushPerk.storedExtraDices = 0; }
+        foreach (var p in RunManager.instance.activePerks) if (p is DormantSporePerk ambushPerk) { extraDices += ambushPerk.storedExtraDices; ambushPerk.storedExtraDices = 0; }
         if (RunManager.instance.bonusDiceNextCombat > 0) { extraDices += RunManager.instance.bonusDiceNextCombat; RunManager.instance.bonusDiceNextCombat = 0; }
         for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
         CombatPayload payload = new CombatPayload(currentRolls);
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk")) payload.multiplyInsteadOfAdd = true;
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.5f);
@@ -533,10 +533,10 @@ public class TurnManager : MonoBehaviour
         {
             if (dodgeEffectPrefab != null) Instantiate(dodgeEffectPrefab, player.transform.position, Quaternion.identity);
         }
-        else if (RunManager.instance.hasHolyAegis)
+        else if (RunManager.instance.hasBioBarrier)
         {
-            foreach (var perk in RunManager.instance.activePerks) if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
-            RunManager.instance.hasHolyAegis = false;
+            foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+            RunManager.instance.hasBioBarrier = false;
         }
         else player.health.TakeDamage(1);
 
@@ -548,10 +548,10 @@ public class TurnManager : MonoBehaviour
         if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
         {
             yield return new WaitForSeconds(0.4f);
-            if (RunManager.instance.hasHolyAegis)
+            if (RunManager.instance.hasBioBarrier)
             {
-                foreach (var perk in RunManager.instance.activePerks) if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
-                RunManager.instance.hasHolyAegis = false;
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
             }
             else player.health.TakeDamage(1);
 

@@ -4599,7 +4599,7 @@ MonoBehaviour:
   bonusGoldPerKill: 0
   bonusGold: 0
   dodgeChance: 0
-  hasHolyAegis: 0
+  hasBioBarrier: 0
   skipBonusGold: 0
   criticalChance: 0.1
   criticalDamageMultiplier: 2
