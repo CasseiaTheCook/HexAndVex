@@ -80,9 +80,10 @@ public class PerkListUISetup : EditorWindow
         panelImage.color = Color.black; // #000000
 
         VerticalLayoutGroup vlg = panelObj.GetComponent<VerticalLayoutGroup>();
-        vlg.padding = new RectOffset(14, 14, 10, 10);
+        vlg.padding = new RectOffset(10, 10, 10, 10);
+        vlg.spacing = 6f;
         vlg.childControlWidth = true;
-        vlg.childControlHeight = true;
+        vlg.childControlHeight = false;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
 
