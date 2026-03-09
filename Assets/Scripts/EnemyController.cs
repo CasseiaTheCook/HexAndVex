@@ -546,9 +546,9 @@ public class EnemyAI : MonoBehaviour
                     Instantiate(TurnManager.instance.dodgeEffectPrefab, player.transform.position, Quaternion.identity);
                 }
             }
-            else if (RunManager.instance.hasHolyAegis)
+            else if (RunManager.instance.hasBioBarrier)
             {
-                RunManager.instance.hasHolyAegis = false;
+                RunManager.instance.hasBioBarrier = false;
             }
             else
             {

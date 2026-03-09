@@ -364,13 +364,13 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.15f);
             StartCoroutine(FlashHazardTileCoroutine(playerCell));
 
-            if (RunManager.instance.hasHolyAegis)
+            if (RunManager.instance.hasBioBarrier)
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
+                    if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
                 }
-                RunManager.instance.hasHolyAegis = false;
+                RunManager.instance.hasBioBarrier = false;
             }
             else
             {
@@ -518,7 +518,7 @@ public class TurnManager : MonoBehaviour
         int extraDices = 0;
         foreach (var p in RunManager.instance.activePerks)
         {
-            if (p is CalculatedAmbushPerk ambushPerk)
+            if (p is DormantSporePerk ambushPerk)
             {
                 extraDices += ambushPerk.storedExtraDices;
                 ambushPerk.storedExtraDices = 0; 
@@ -535,7 +535,7 @@ public class TurnManager : MonoBehaviour
 
         CombatPayload payload = new CombatPayload(currentRolls);
 
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk"))
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk"))
         {
             payload.multiplyInsteadOfAdd = true;
         }
@@ -837,18 +837,18 @@ public class TurnManager : MonoBehaviour
                 Instantiate(dodgeEffectPrefab, player.transform.position, Quaternion.identity);
             }
         }
-        else if (RunManager.instance.hasHolyAegis)
+        else if (RunManager.instance.hasBioBarrier)
         {
             foreach (var perk in RunManager.instance.activePerks)
             {
-                if (perk is HolyAegisPerk aegis)
+                if (perk is BioBarrierPerk aegis)
                 {
                     aegis.BreakShield();
                     break;
                 }
             }
-            RunManager.instance.hasHolyAegis = false;
-            Debug.Log("🛡️ Holy Aegis kırıldı!");
+            RunManager.instance.hasBioBarrier = false;
+            Debug.Log("🛡️ Bio-Barrier kırıldı!");
         }
         else
         {
@@ -868,18 +868,18 @@ public class TurnManager : MonoBehaviour
             int spikeDamage = Mathf.Max(1, player.health.maxHP / 2);
             Debug.Log($"🔥 Dikenlere sürüklendin! {spikeDamage} hasar yiyorsun!");
 
-            if (RunManager.instance.hasHolyAegis)
+            if (RunManager.instance.hasBioBarrier)
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis)
+                    if (perk is BioBarrierPerk aegis)
                     {
                         aegis.BreakShield();
                         break;
                     }
                 }
-                RunManager.instance.hasHolyAegis = false;
-                Debug.Log("🛡️ Holy Aegis dikenlerde kırıldı!");
+                RunManager.instance.hasBioBarrier = false;
+                Debug.Log("🛡️ Bio-Barrier dikenlerde kırıldı!");
             }
             else
             {

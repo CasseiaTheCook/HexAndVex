@@ -37,7 +37,7 @@ public abstract class BasePerk : MonoBehaviour
         Debug.Log($"{perkName} seviye atladı! Yeni Seviye: {currentLevel}");
         
         // İleride yeteneklerine özel Upgrade işlemleri yapmak istersen, 
-        // SwiftActionPerk gibi alt kodlarda "public override void Upgrade()" diyerek ezeceksin.
+        // ReflexFiberPerk gibi alt kodlarda "public override void Upgrade()" diyerek ezeceksin.
     }
     // ======================================================
 
