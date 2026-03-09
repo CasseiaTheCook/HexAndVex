@@ -10,23 +10,55 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     public TMP_Text perkListText;
     public TMP_Text buttonText;
 
+    private CanvasGroup panelCanvasGroup;
+    private Coroutine fadeCoroutine;
+    private const float fadeDuration = 0.15f;
+
     void Start()
     {
         if (perkListPanel != null)
+        {
+            panelCanvasGroup = perkListPanel.GetComponent<CanvasGroup>();
+            if (panelCanvasGroup == null)
+                panelCanvasGroup = perkListPanel.AddComponent<CanvasGroup>();
+
+            panelCanvasGroup.alpha = 0f;
             perkListPanel.SetActive(false);
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
         RefreshPerkList();
         if (perkListPanel != null)
+        {
             perkListPanel.SetActive(true);
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadePanel(0f, 1f));
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         if (perkListPanel != null)
-            perkListPanel.SetActive(false);
+        {
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadePanel(panelCanvasGroup.alpha, 0f, true));
+        }
+    }
+
+    private System.Collections.IEnumerator FadePanel(float from, float to, bool deactivateOnDone = false)
+    {
+        float elapsed = 0f;
+        panelCanvasGroup.alpha = from;
+        while (elapsed < fadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            panelCanvasGroup.alpha = Mathf.Lerp(from, to, elapsed / fadeDuration);
+            yield return null;
+        }
+        panelCanvasGroup.alpha = to;
+        if (deactivateOnDone) perkListPanel.SetActive(false);
     }
 
     private void RefreshPerkList()

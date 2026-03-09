@@ -46,7 +46,7 @@ public class PerkListUISetup : EditorWindow
         btnRect.sizeDelta = new Vector2(160, 45);
 
         Image btnImage = buttonObj.GetComponent<Image>();
-        btnImage.color = new Color(0.12f, 0.12f, 0.18f, 0.85f);
+        btnImage.color = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
 
         // 3. Buton metni
         GameObject btnTextObj = new GameObject("ButtonText", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -77,7 +77,7 @@ public class PerkListUISetup : EditorWindow
         panelRect.sizeDelta = new Vector2(320, 200);
 
         Image panelImage = panelObj.GetComponent<Image>();
-        panelImage.color = new Color(0.08f, 0.08f, 0.14f, 0.92f);
+        panelImage.color = Color.black; // #000000
 
         VerticalLayoutGroup vlg = panelObj.GetComponent<VerticalLayoutGroup>();
         vlg.padding = new RectOffset(14, 14, 10, 10);
@@ -113,11 +113,11 @@ public class PerkListUISetup : EditorWindow
 
         // Outline ekle
         Outline btnOutline = buttonObj.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(1f, 0.84f, 0f, 0.5f);
+        btnOutline.effectColor = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
         btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         Outline panelOutline = panelObj.AddComponent<Outline>();
-        panelOutline.effectColor = new Color(1f, 0.84f, 0f, 0.3f);
+        panelOutline.effectColor = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
         panelOutline.effectDistance = new Vector2(1, -1);
 
         Selection.activeGameObject = buttonObj;
