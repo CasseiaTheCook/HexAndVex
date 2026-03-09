@@ -14,8 +14,8 @@ public class TurnManager : MonoBehaviour
     public UnityEngine.Tilemaps.TileBase warningTile;
 
     [Header("Efektler")]
-    public GameObject explosionPrefab; 
-    public GameObject dodgeEffectPrefab; 
+    public GameObject explosionPrefab;
+    public GameObject dodgeEffectPrefab;
 
     public HexMovement player;
     public Tilemap groundMap;
@@ -33,8 +33,8 @@ public class TurnManager : MonoBehaviour
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
     public bool isPlayerTurn = true;
-    
-    public bool hasAttackedThisTurn = false; 
+
+    public bool hasAttackedThisTurn = false;
 
     // NecroShot hedefleme modu
     [HideInInspector] public bool isNecroShotTargeting = false;
@@ -69,7 +69,7 @@ public class TurnManager : MonoBehaviour
         Invoke("StartPlayerTurn", 0.5f);
     }
 
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.F8))
@@ -185,14 +185,14 @@ public class TurnManager : MonoBehaviour
 
         Debug.Log("[DEBUG F8] 2 AoE düşman karşılıklı spawnlandı. F9 ile saldırıya zorla!");
     }
-    #endif
+#endif
 
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
 
         isPlayerTurn = true;
-        hasAttackedThisTurn = false; 
+        hasAttackedThisTurn = false;
 
         if (RunManager.instance != null)
         {
@@ -297,10 +297,10 @@ public class TurnManager : MonoBehaviour
         foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
-        
+
         isPlayerTurn = false;
-        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0; 
-        
+        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
+
         StartCoroutine(EnemyPhase());
     }
 
@@ -332,10 +332,10 @@ public class TurnManager : MonoBehaviour
         GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
 
-        Vector3 startScale = Vector3.one * 0.5f; 
-        Vector3 endScale = Vector3.one * 1.3f;    
+        Vector3 startScale = Vector3.one * 0.5f;
+        Vector3 endScale = Vector3.one * 1.3f;
 
-        float duration = 0.15f; 
+        float duration = 0.15f;
         float elapsed = 0f;
 
         while (elapsed < duration)
@@ -348,7 +348,7 @@ public class TurnManager : MonoBehaviour
             foreach (var sr in renderers)
             {
                 Color c = sr.color;
-                c.a = Mathf.Lerp(0.8f, 0f, t); 
+                c.a = Mathf.Lerp(0.8f, 0f, t);
                 sr.color = c;
             }
 
@@ -388,8 +388,8 @@ public class TurnManager : MonoBehaviour
                 RunManager.instance.remainingMoves--;
                 isPlayerTurn = true;
                 player.UpdateHighlights();
-                
-                ShowAllEnemyIntents(); 
+
+                ShowAllEnemyIntents();
             }
             else if (player != null && player.health.currentHP > 0)
             {
@@ -399,10 +399,10 @@ public class TurnManager : MonoBehaviour
         }
 
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
-        
+
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-            hasAttackedThisTurn = true; 
+            hasAttackedThisTurn = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
         else if (adjacentEnemies.Count > 0 && hasAttackedThisTurn)
@@ -417,7 +417,7 @@ public class TurnManager : MonoBehaviour
             isPlayerTurn = true;
             player.UpdateHighlights();
 
-            ShowAllEnemyIntents(); 
+            ShowAllEnemyIntents();
         }
         else
         {
@@ -505,11 +505,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
-        // ==========================================
-        // YENİ: SALDIRI ANİMASYONUNU OYNAT!
-        // ==========================================
-        if (player != null) player.TriggerAttackAnimation();
-
+        // NOT: En baştaki TriggerAttack satırını kaldırdık, animasyon zarlardan sonra girecek!
         yield return new WaitForSeconds(0.3f);
 
         List<int> currentRolls = new List<int>();
@@ -521,7 +517,7 @@ public class TurnManager : MonoBehaviour
             if (p is CalculatedAmbushPerk ambushPerk)
             {
                 extraDices += ambushPerk.storedExtraDices;
-                ambushPerk.storedExtraDices = 0; 
+                ambushPerk.storedExtraDices = 0;
             }
         }
 
@@ -550,7 +546,7 @@ public class TurnManager : MonoBehaviour
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
             perksToProcess.Sort((a, b) =>
             {
-                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); 
+                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk);
                 return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority);
             });
 
@@ -640,6 +636,16 @@ public class TurnManager : MonoBehaviour
 
         int damagePerEnemy = finalDamage / targets.Count;
 
+        // ========================================================
+        // İŞTE YENİ SİSTEM: ZARLAR HESAPLANDI, KILICI KALDIR VE VUR!
+        // ========================================================
+        if (player != null) player.TriggerAttackAnimation();
+
+        // Bu süre kılıcın havadayken düşmana inene kadar geçen süredir.
+        // Eğer kılıç erken inip adam geç uçuyorsa bu süreyi uzat (Örn: 0.4f).
+        yield return new WaitForSeconds(0.3f);
+        // ========================================================
+
         List<EnemyAI> knockedEnemies = new List<EnemyAI>();
         List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
 
@@ -648,7 +654,7 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
 
             bool dies = enemy.health.currentHP <= damagePerEnemy;
-            enemy.health.TakeDamage(damagePerEnemy);
+            enemy.health.TakeDamage(damagePerEnemy); // Kan çıkma ve hasar tam bu anda gerçekleşir
 
             knockedEnemies.Add(enemy);
             if (dies) deadEnemiesThisTurn.Add(enemy);
@@ -718,7 +724,7 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0)
         {
-            ClearWarningMap(); 
+            ClearWarningMap();
             if (Shopmanager.instance != null)
             {
                 bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
@@ -786,7 +792,7 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0)
         {
-            ClearWarningMap(); 
+            ClearWarningMap();
             if (Shopmanager.instance != null)
             {
                 bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
@@ -1170,14 +1176,14 @@ public class TurnManager : MonoBehaviour
     private IEnumerator SmoothWarningFadeIn(Vector3Int cell)
     {
         warningMap.SetTile(cell, warningTile);
-        warningMap.SetTileFlags(cell, TileFlags.None); 
+        warningMap.SetTileFlags(cell, TileFlags.None);
 
-        Color startColor = new Color(1f, 1f, 1f, 0f);   
-        Color endColor = new Color(1f, 1f, 1f, 0.5f);   
+        Color startColor = new Color(1f, 1f, 1f, 0f);
+        Color endColor = new Color(1f, 1f, 1f, 0.5f);
 
         warningMap.SetColor(cell, startColor);
 
-        float duration = 0.3f; 
+        float duration = 0.3f;
         float elapsed = 0f;
 
         while (elapsed < duration)
