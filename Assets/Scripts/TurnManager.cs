@@ -36,6 +36,9 @@ public class TurnManager : MonoBehaviour
     
     public bool hasAttackedThisTurn = false; 
 
+    // NecroShot hedefleme modu
+    [HideInInspector] public bool isNecroShotTargeting = false;
+
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
@@ -226,6 +229,48 @@ public class TurnManager : MonoBehaviour
     public void RegisterEnemy(EnemyAI enemy)
     {
         if (!enemies.Contains(enemy)) enemies.Add(enemy);
+    }
+
+    // -------------------------------------------------------
+    // NecroShot: Düşman seçme modu
+    // -------------------------------------------------------
+    public void StartNecroShotTargeting()
+    {
+        isNecroShotTargeting = true;
+        Debug.Log("Necro-Shot aktif! Bir düşmana tıkla.");
+    }
+
+    public void TryNecroShotKill(EnemyAI target)
+    {
+        if (!isNecroShotTargeting || target == null) return;
+        isNecroShotTargeting = false;
+
+        target.health.TakeDamage(target.health.maxHP + 999);
+
+        int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+        if (RunManager.instance.doubleGoldNextKill)
+        {
+            coinDrop *= 2;
+            RunManager.instance.doubleGoldNextKill = false;
+        }
+        RunManager.instance.currentGold += coinDrop;
+        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
+        UpdateCoinUI();
+
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        if (enemies.Count <= 0)
+        {
+            ClearWarningMap();
+            if (Shopmanager.instance != null)
+            {
+                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+                if (isBossLevel)
+                    Shopmanager.instance.OnBossCleared();
+                else
+                    Shopmanager.instance.OnDungeonCleared();
+            }
+        }
     }
 
     public void LockAllEnemyIntents()
@@ -486,6 +531,13 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // SynthStim item buffı: +1 zar
+        if (RunManager.instance.bonusDiceNextCombat > 0)
+        {
+            extraDices += RunManager.instance.bonusDiceNextCombat;
+            RunManager.instance.bonusDiceNextCombat = 0;
+        }
+
         for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
 
         CombatPayload payload = new CombatPayload(currentRolls);
@@ -589,6 +641,14 @@ public class TurnManager : MonoBehaviour
         HideDiceResults();
 
         int finalDamage = payload.GetFinalDamage();
+
+        // OverClok item buffı: 2x hasar
+        if (RunManager.instance.doubleDamageNextCombat)
+        {
+            finalDamage *= 2;
+            RunManager.instance.doubleDamageNextCombat = false;
+        }
+
         int damagePerEnemy = finalDamage / targets.Count;
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>();
@@ -654,7 +714,12 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
         {
-            int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+            if (RunManager.instance.doubleGoldNextKill)
+            {
+                coinDrop *= 2;
+                RunManager.instance.doubleGoldNextKill = false;
+            }
             RunManager.instance.currentGold += coinDrop;
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }
@@ -665,7 +730,14 @@ public class TurnManager : MonoBehaviour
         if (enemies.Count <= 0)
         {
             ClearWarningMap(); 
-            if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
+            if (Shopmanager.instance != null)
+            {
+                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+                if (isBossLevel)
+                    Shopmanager.instance.OnBossCleared();
+                else
+                    Shopmanager.instance.OnDungeonCleared();
+            }
             else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
@@ -710,7 +782,12 @@ public class TurnManager : MonoBehaviour
         deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
         {
-            int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+            if (RunManager.instance.doubleGoldNextKill)
+            {
+                coinDrop *= 2;
+                RunManager.instance.doubleGoldNextKill = false;
+            }
             RunManager.instance.currentGold += coinDrop;
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }
@@ -721,7 +798,14 @@ public class TurnManager : MonoBehaviour
         if (enemies.Count <= 0)
         {
             ClearWarningMap(); 
-            if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
+            if (Shopmanager.instance != null)
+            {
+                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+                if (isBossLevel)
+                    Shopmanager.instance.OnBossCleared();
+                else
+                    Shopmanager.instance.OnDungeonCleared();
+            }
             else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }

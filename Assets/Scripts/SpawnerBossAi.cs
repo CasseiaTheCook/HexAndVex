@@ -55,12 +55,12 @@ public class SpawnerBossAI : MonoBehaviour
         // DÜZELTME: BOSS KENDİ ÖZEL TILE'INI KULLANIR!
         // ZORLA BAŞKA BİR ŞEYE ÇEVİRME KODUNU SİLDİK.
         // ==========================================
+        if (warningTile == null && myEnemyAI != null)
+            warningTile = myEnemyAI.warningTile;
+        if (warningTile == null && TurnManager.instance != null)
+            warningTile = TurnManager.instance.warningTile;
         if (warningTile == null)
-        {
             Debug.LogError("🚨 KANKA DİKKAT: Boss'un 'Warning Tile' boş kalmış! Lütfen Inspector'dan boss'un özel uyarı karosunu ata.");
-            // Yine de oyun çökmesin diye yedek
-            if (TurnManager.instance != null) warningTile = TurnManager.instance.warningTile; 
-        }
 
         activeTotems = 4;
         isShielded = true;

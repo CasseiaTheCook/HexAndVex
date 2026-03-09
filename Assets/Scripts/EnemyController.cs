@@ -69,6 +69,13 @@ public class EnemyAI : MonoBehaviour
     {
         if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
 
+        // NecroShot için Collider2D gerekli
+        if (GetComponent<Collider2D>() == null)
+        {
+            var col = gameObject.AddComponent<BoxCollider2D>();
+            col.isTrigger = true;
+        }
+
         cell = groundMap.WorldToCell(transform.position);
 
         if (TurnManager.instance != null) TurnManager.instance.RegisterEnemy(this);
@@ -112,6 +119,12 @@ public class EnemyAI : MonoBehaviour
     void OnDestroy()
     {
         if (health != null) health.OnDeath -= HandleDeath;
+    }
+
+    void OnMouseDown()
+    {
+        if (TurnManager.instance != null && TurnManager.instance.isNecroShotTargeting)
+            TurnManager.instance.TryNecroShotKill(this);
     }
 
     void Update()

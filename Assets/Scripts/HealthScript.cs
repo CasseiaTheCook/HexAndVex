@@ -165,29 +165,24 @@ public class HealthScript : MonoBehaviour
 
         if (hptext != null) hptext.gameObject.SetActive(false);
 
+        if (gameObject.CompareTag("Player"))
+        {
+            if (deathMenuUI != null)
+            {
+                deathMenuUI.SetActive(true);
+                Time.timeScale = 0f;
+            }
+            return;
+        }
+
+        // Düşman: DeathAnimation ile yok et (TurnManager gold verene kadar hayatta kalır)
+        Debug.Log(gameObject.name + " öldü.");
         if (gameObject.activeInHierarchy)
         {
             StartCoroutine(DeathAnimation());
         }
         else
         {
-            Destroy(gameObject);
-        }
-        if (gameObject.CompareTag("Player"))
-        {
-            // Sadece oyuncuysa ve ekran atanmışsa çalıştır
-            if (deathMenuUI != null)
-            {
-                deathMenuUI.SetActive(true);
-                Time.timeScale = 0f; // Oyunu durdur
-            }
-        }
-        else
-        {
-            // 2. DURUM: Bu bir düşmansa yapılacaklar
-            Debug.Log(gameObject.name + " öldü ve yok ediliyor.");
-
-            // Düşman öldüğünde listeden silme veya puan verme gibi işlemleri buraya yazabilirsin
             Destroy(gameObject);
         }
     }
