@@ -52,32 +52,32 @@ public class LevelGenerator : MonoBehaviour
         }
     }
 
-void Start()
-{
-    // Direkt çalıştırmak yerine bir yardımcı (Coroutine) çağırıyoruz
-    StartCoroutine(LevelBaslatmaSırası());
-}
-
-System.Collections.IEnumerator LevelBaslatmaSırası()
-{
-    // 1. Adım: ScreenFader hazır olana kadar bir kare bekle
-    yield return null; 
-
-    // 2. Adım: ScreenFader sahnede var mı kontrol et
-    if (ScreenFader.instance != null)
+    void Start()
     {
-        Debug.Log("Fader bulundu, karartma başlıyor...");
-        ScreenFader.instance.FadeAndLoad(() =>
+        // Direkt çalıştırmak yerine bir yardımcı (Coroutine) çağırıyoruz
+        StartCoroutine(LevelBaslatmaSırası());
+    }
+
+    System.Collections.IEnumerator LevelBaslatmaSırası()
+    {
+        // 1. Adım: ScreenFader hazır olana kadar bir kare bekle
+        yield return null; 
+
+        // 2. Adım: ScreenFader sahnede var mı kontrol et
+        if (ScreenFader.instance != null)
         {
+            Debug.Log("Fader bulundu, karartma başlıyor...");
+            ScreenFader.instance.FadeAndLoad(() =>
+            {
+                GenerateNextLevel();
+            });
+        }
+        else
+        {
+            Debug.LogWarning("Fader bulunamadı, direkt yükleniyor!");
             GenerateNextLevel();
-        });
+        }
     }
-    else
-    {
-        Debug.LogWarning("Fader bulunamadı, direkt yükleniyor!");
-        GenerateNextLevel();
-    }
-}
 
     public void GenerateNextLevel()
     {
@@ -233,10 +233,14 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
             enemyAI.groundMap = this.groundMap;
 
             float randomMultiplier = Random.Range(0.8f, 1.25f);
+            
+            // ==========================================
+            // DÜZELTME BURADA: ELİT DÜŞMAN BOYUTU SABİT KALDI
+            // ==========================================
             if (Random.value < 0.10f)
             {
-                randomMultiplier *= 2.0f;
-                newEnemyObj.transform.localScale *= 1.2f;
+                randomMultiplier *= 2.0f; // Sadece canı katlanır
+                // SİLDİM -> newEnemyObj.transform.localScale *= 1.2f;
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
@@ -257,9 +261,6 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
     }
 
-    // =======================================================
-    // YENİ VE KAOTİK BOSS ARENASI ÜRETİCİSİ!
-    // =======================================================
     public void GenerateBossArena()
     {
         Debug.Log("🔥 BOSS BÖLÜMÜ YÜKLENİYOR! 🔥");
@@ -274,8 +275,7 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
         }
         TurnManager.instance.enemies.Clear();
 
-        // 1. ARENAYI RASTGELE OLUŞTUR (Normal bölüm gibi ama daha büyük)
-        int arenaRadius = baseMapRadius + 2 + (RunManager.instance.currentLevel / 10); // Boss arenası gittikçe daha da büyür
+        int arenaRadius = baseMapRadius + 2 + (RunManager.instance.currentLevel / 10); 
 
         for (int x = -arenaRadius; x <= arenaRadius; x++)
         {
@@ -285,10 +285,8 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
                 {
                     Vector3Int cell = new Vector3Int(x, y, 0);
 
-                    // %5 ihtimalle haritadan parça kopar (Girintili çıkıntılı asimetrik olsun)
                     if (Random.value > 0.05f)
                     {
-                        // Boss arenasına hafif bir diken (hazard) serpiştirelim (%5 ihtimal)
                         if (Random.value < 0.05f && Vector3Int.zero != cell)
                         {
                             groundMap.SetTile(cell, hazardTile);
@@ -308,7 +306,6 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
         EnsureSafeConnectivity();
         GenerateColumns();
 
-        // 2. OYUNCUYU MERKEZE VEYA EN YAKIN GÜVENLİ YERE KOY
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
@@ -317,10 +314,8 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        // 3. BOSS VE TOTEMLERİ RASTGELE AMA UZAK YERLERE DAĞIT
         List<Vector3Int> availableSpawnCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
 
-        // Karıştır (Shuffle)
         for (int i = 0; i < availableSpawnCells.Count; i++)
         {
             Vector3Int temp = availableSpawnCells[i];
@@ -329,13 +324,11 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
             availableSpawnCells[r] = temp;
         }
 
-        // Listeyi Oyuncuya Uzaklığına Göre Sırala (Önce en uzaklar)
         availableSpawnCells = availableSpawnCells.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).ToList();
 
-        // BOSS'U DOĞUR
         if (bossPrefab != null && availableSpawnCells.Count > 0)
         {
-            Vector3Int bossCell = availableSpawnCells[0]; // En uzak nokta!
+            Vector3Int bossCell = availableSpawnCells[0]; 
             Vector3 bossPos = groundMap.GetCellCenterWorld(bossCell);
 
             GameObject bossObj = Instantiate(bossPrefab, bossPos, Quaternion.identity);
@@ -350,14 +343,12 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
             availableSpawnCells.RemoveAt(0);
         }
 
-        // TOTEMLERİ DOĞUR (Kalan uzak/rastgele noktalara)
         if (totemPrefab != null)
         {
             for (int i = 0; i < 4; i++)
             {
-                if (availableSpawnCells.Count == 0) break; // Yer kalmadıysa doğurma
+                if (availableSpawnCells.Count == 0) break; 
 
-                // Totemleri birbirine çok yapıştırmamak için listenin farklı bölgelerinden çek
                 int index = (i * (availableSpawnCells.Count / 4));
                 Vector3Int totemCell = availableSpawnCells[index];
                 Vector3 totemPos = groundMap.GetCellCenterWorld(totemCell);
@@ -383,10 +374,8 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
     {
         if (backgroundMap == null || columnTile == null) return;
 
-        // Tüm geçerli hücreleri hızlı lookup için HashSet'e al
         HashSet<Vector3Int> validSet = new HashSet<Vector3Int>(validCells);
 
-        // 1. Kenar hücrelerine column ekle (mevcut mantık — tüm 6 yön kontrol)
         foreach (var cell in validCells)
         {
             Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
@@ -407,7 +396,6 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
             }
         }
 
-        // 2. İç boşlukları doldur — komşularının çoğunluğu geçerli olan boş hücreler (harita ortasındaki delikler)
         HashSet<Vector3Int> holeFills = new HashSet<Vector3Int>();
         foreach (var cell in validCells)
         {
@@ -417,7 +405,6 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
                 Vector3Int neighbor = cell + off;
                 if (!validSet.Contains(neighbor) && !holeFills.Contains(neighbor))
                 {
-                    // Bu boş hücrenin kaç komşusu geçerli tile?
                     Vector3Int[] nOffsets = (neighbor.y % 2 != 0) ? evenOffsets : oddOffsets;
                     int validNeighborCount = 0;
                     foreach (var nOff in nOffsets)
@@ -425,7 +412,6 @@ System.Collections.IEnumerator LevelBaslatmaSırası()
                         if (validSet.Contains(neighbor + nOff)) validNeighborCount++;
                     }
 
-                    // 4+ komşusu varsa iç deliktir, doldur
                     if (validNeighborCount >= 4)
                         holeFills.Add(neighbor);
                 }

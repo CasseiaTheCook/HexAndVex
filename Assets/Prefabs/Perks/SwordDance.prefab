@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2eca61f47df85884598562711cb799e1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SwordDancePerk
+  currentLevel: 1
+  maxLevel: 1
   perkName: Sword Dance
   description: Multiply the dices next to each other instead of addition.
-  priority: 2
+  priority: 3
+  isRerollPerk: 0

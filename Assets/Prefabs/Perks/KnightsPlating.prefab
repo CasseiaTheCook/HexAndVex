@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2cd62e9f98aae9a46a29f800988b9910, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KnightsPlatingPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Knights Plating
-  description: +15% armor (chance to block damage).
+  description: +15% Chance to evade damage each LVL.
+  priority: 0
+  isRerollPerk: 0

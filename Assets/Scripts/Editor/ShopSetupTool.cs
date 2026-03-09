@@ -68,7 +68,6 @@ public static class ShopSetupTool
         nameTxt.fontSize = 8;
         nameTxt.alignment = TextAlignmentOptions.Center;
         nameTxt.color = Color.white;
-        shopSlot.nameText = nameTxt;
 
         // -- Fiyat text (hover'da gorunur)
         GameObject priceGO = new GameObject("Fiyat");
@@ -84,7 +83,6 @@ public static class ShopSetupTool
         priceTxt.fontSize = 7;
         priceTxt.alignment = TextAlignmentOptions.Center;
         priceTxt.color = new Color(1f, 0.85f, 0.2f);
-        shopSlot.priceText = priceTxt;
 
         // -- SoldOut overlay
         GameObject soldGO = new GameObject("SoldOut");

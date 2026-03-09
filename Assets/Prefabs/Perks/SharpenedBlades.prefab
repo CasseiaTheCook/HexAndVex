@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f76f9abcfabb5354bb039b28ba5e2c86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SharpenedBladesPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Sharpened Blades
-  description: +2 to all dices.
+  description: Adds 1 to all dices. (+1 each LVL)
   priority: 1
+  isRerollPerk: 0

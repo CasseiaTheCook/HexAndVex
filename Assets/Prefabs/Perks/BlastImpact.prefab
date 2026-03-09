@@ -44,5 +44,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e33ecb48b2ada8e47a753b974ca276db, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlastImpactPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Blast Impact
-  description: Enemies explode after being attacked (damages enemies around).
+  description: Enemies explode after being attacked and damage enemies close by.
+    (%25 max health damage each level)
+  priority: 0
+  isRerollPerk: 0

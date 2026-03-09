@@ -8,9 +8,6 @@ public class Shopmanager : MonoBehaviour
 {
     public static Shopmanager instance;
 
-    // -------------------------------------------------------
-    // Inspector alanlari
-    // -------------------------------------------------------
     [Header("Item Havuzu")]
     public List<BaseItem> itemPool = new List<BaseItem>();
 
@@ -28,9 +25,6 @@ public class Shopmanager : MonoBehaviour
     public float rerollBaseCost = 2f;
     public float rerollMultiplier = 1.5f;
 
-    // -------------------------------------------------------
-    // Runtime state
-    // -------------------------------------------------------
     private List<ShopSlot> spawnedSlots = new List<ShopSlot>();
     private List<BaseItem> currentItems = new List<BaseItem>();
     private List<bool> purchased = new List<bool>();
@@ -38,9 +32,6 @@ public class Shopmanager : MonoBehaviour
     private int rerollCount = 0;
     private int currentRerollCost;
 
-    // -------------------------------------------------------
-    // Unity lifecycle
-    // -------------------------------------------------------
     void Awake()
     {
         if (instance == null) instance = this;
@@ -57,9 +48,9 @@ public class Shopmanager : MonoBehaviour
             hlg.spacing = 8;
             hlg.padding = new RectOffset(4, 4, 4, 4);
             hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.childControlWidth  = false;
+            hlg.childControlWidth = false;
             hlg.childControlHeight = false;
-            hlg.childForceExpandWidth  = false;
+            hlg.childForceExpandWidth = false;
             hlg.childForceExpandHeight = false;
         }
 
@@ -72,9 +63,6 @@ public class Shopmanager : MonoBehaviour
         GenerateShopItems();
     }
 
-    // -------------------------------------------------------
-    // Normal tur temizlendi — sadece perk seçim ekranını aç
-    // -------------------------------------------------------
     public void OnDungeonCleared()
     {
         RefreshCoinDisplay();
@@ -88,9 +76,6 @@ public class Shopmanager : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------
-    // Boss temizlendi — shopı yenile + perk seçim ekranı
-    // -------------------------------------------------------
     public void OnBossCleared()
     {
         rerollCount = 0;
@@ -107,9 +92,6 @@ public class Shopmanager : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------
-    // Reroll
-    // -------------------------------------------------------
     public void TryReroll()
     {
         if (RunManager.instance == null) return;
@@ -128,9 +110,6 @@ public class Shopmanager : MonoBehaviour
         RefreshCoinDisplay();
     }
 
-    // -------------------------------------------------------
-    // Slot üretimi
-    // -------------------------------------------------------
     public void GenerateShopItems()
     {
         foreach (var slot in spawnedSlots)
@@ -142,7 +121,6 @@ public class Shopmanager : MonoBehaviour
 
         if (shopSlotPrefab == null || shopSlotContainer == null) return;
 
-        // Havuzdan rastgele benzersiz seçim
         List<int> usedIndices = new List<int>();
 
         for (int i = 0; i < shopSlotCount; i++)
@@ -195,7 +173,9 @@ public class Shopmanager : MonoBehaviour
         if (slot.buyButton != null)
         {
             var btnLabel = slot.buyButton.GetComponentInChildren<TMP_Text>();
-            if (btnLabel != null && btnLabel != slot.nameText && btnLabel != slot.priceText)
+
+            // DÜZELTME: Eski nameText ve priceText çöpleri tamamen silindi!
+            if (btnLabel != null)
                 btnLabel.text = "";
 
             int idx = index;
@@ -205,9 +185,6 @@ public class Shopmanager : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------
-    // Satın alma
-    // -------------------------------------------------------
     public void TryBuy(int index)
     {
         if (index >= purchased.Count || purchased[index]) return;
@@ -218,8 +195,8 @@ public class Shopmanager : MonoBehaviour
 
         if (RunManager.instance.currentGold < item.price)
         {
-            if (index < spawnedSlots.Count && spawnedSlots[index] != null)
-                StartCoroutine(FlashText(spawnedSlots[index].priceText));
+            // DÜZELTME: Artık paran yetmediğinde ana paran (coinDisplayText) kırmızı yanacak!
+            StartCoroutine(FlashText(coinDisplayText));
             return;
         }
 
@@ -239,9 +216,6 @@ public class Shopmanager : MonoBehaviour
         RefreshCoinDisplay();
     }
 
-    // -------------------------------------------------------
-    // UI yardımcıları
-    // -------------------------------------------------------
     public void RefreshCoinDisplay()
     {
         if (coinDisplayText != null && RunManager.instance != null)
@@ -276,5 +250,60 @@ public class Shopmanager : MonoBehaviour
         t.color = Color.red;
         yield return new WaitForSeconds(0.5f);
         t.color = orig;
+    }
+    // ==========================================
+    // YENİ: DÜKKANI SİLMEDEN SADECE 1 YENİ SLOT EKLER (Deep Pockets İçin)
+    // ==========================================
+    public void AddSingleExtraSlot()
+    {
+        if (shopSlotPrefab == null || shopSlotContainer == null) return;
+
+        // 1. Dükkanda şu an neler var indekslerini bulalım ki aynısı çıkmasın
+        List<int> usedIndices = new List<int>();
+        foreach (var currentItem in currentItems)
+        {
+            if (currentItem != null)
+            {
+                int indexInPool = itemPool.IndexOf(currentItem);
+                if (indexInPool != -1) usedIndices.Add(indexInPool);
+            }
+        }
+
+        // Havuzda eşya kalmadıysa boşuna ekleme yapma
+        if (itemPool.Count <= usedIndices.Count) return;
+
+        // 2. Rastgele ve benzersiz yeni bir eşya seç
+        int idx;
+        int safety = 0;
+        do { idx = Random.Range(0, itemPool.Count); if (++safety > 100) break; }
+        while (usedIndices.Contains(idx));
+
+        BaseItem newItem = itemPool[idx];
+
+        // 3. Yeni slotu UI'da yarat ve listeye ekle
+        GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
+        slotGO.transform.localScale = Vector3.one;
+
+        RectTransform slotRT = slotGO.GetComponent<RectTransform>();
+        if (slotRT != null) slotRT.sizeDelta = new Vector2(65f, 65f);
+
+        var le = slotGO.GetComponent<LayoutElement>();
+        if (le == null) le = slotGO.AddComponent<LayoutElement>();
+        le.preferredWidth = 65f;
+        le.preferredHeight = 65f;
+        le.flexibleWidth = 0f;
+        le.flexibleHeight = 0f;
+
+        ShopSlot slot = slotGO.GetComponent<ShopSlot>();
+
+        // 4. Yeni index'i belirle ve listelere kaydet
+        int newIndex = spawnedSlots.Count;
+        spawnedSlots.Add(slot);
+        currentItems.Add(newItem);
+        purchased.Add(false);
+
+        // 5. Slotu kur ve parayı kontrol et
+        SetupSlot(slot, newIndex, newItem);
+        RefreshAffordability();
     }
 }

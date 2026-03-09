@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2fffdd089117edf4aa0c69539591d569, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LoneKnightPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Lone Knight
-  description: 6x total dice multiplier, but -1x for each dice you can roll.
+  description: 5X Total dice but loses 1X for each dice you roll.
   priority: 2
+  isRerollPerk: 0

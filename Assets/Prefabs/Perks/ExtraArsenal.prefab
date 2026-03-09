@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37583e33d7a06084a9c9c82aca665bd0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ExtraArsenalPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Extra Arsenal
-  description: +1 dice count.
+  description: Roll an extra dice in combat.
+  priority: 0
+  isRerollPerk: 0

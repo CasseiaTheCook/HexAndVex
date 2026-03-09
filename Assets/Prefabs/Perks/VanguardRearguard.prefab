@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4078e4e3676ba54588d6ad7d185bf31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VanguardRearguardPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Vanguard & Rearguard
-  description: +4 to the first and last dice.
+  description: +2 to the first and last dice. (+2 each LVL)
   priority: 1
+  isRerollPerk: 0

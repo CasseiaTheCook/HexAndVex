@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 65c7afd3e05b2b044ab22c3bc0337892, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BountyHunterPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: BountyHunter
-  description: Drop more gold from each enemy.
+  description: Enemies drop 2 additional gold.
+  priority: 0
+  isRerollPerk: 0

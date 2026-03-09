@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96cc63cedec28a048ad5bd423fbe1231, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DoubleStrikePerk
+  currentLevel: 1
+  maxLevel: 1
   perkName: Double Strike
-  description: 2x total dice multiplier.
+  description: Doubles total dice.
   priority: 2
+  isRerollPerk: 0

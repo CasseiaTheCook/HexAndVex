@@ -44,7 +44,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 620da640b5cc4f341aa7aba50df807dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HolyAegisPerk
+  currentLevel: 1
+  maxLevel: 1
   perkName: Holy Aegis
-  description: 1 time damage negate (refreshes each level).
+  description: One time damage negation.
   priority: 0
+  isRerollPerk: 0
   shieldPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
