@@ -69,6 +69,12 @@ public class EnemyAI : MonoBehaviour
     {
         if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
 
+        if (GetComponent<Collider2D>() == null)
+        {
+            var col = gameObject.AddComponent<BoxCollider2D>();
+            col.isTrigger = true;
+        }
+
         cell = groundMap.WorldToCell(transform.position);
 
         if (TurnManager.instance != null) TurnManager.instance.RegisterEnemy(this);
@@ -91,12 +97,12 @@ public class EnemyAI : MonoBehaviour
 
     private void HandleDeath()
     {
+        // 1. FIX: Highlight Persistence on Death
+        // Immediatly clear the tiles this enemy painted.
         if (isChargingAttack)
         {
-            // DÜZELTME: Adam ölünce de Highlight TAK diye silinmesin, YUMUŞAKÇA (Fade) silinsin (false, false yaptık)
-            SetTelegraphVisuals(false, false);
+            ForceClearWarningCells();
             isChargingAttack = false;
-            warningCells.Clear();
         }
 
         if (enemyBehavior == EnemyBehavior.Totem && SpawnerBossAI.instance != null)
@@ -114,6 +120,12 @@ public class EnemyAI : MonoBehaviour
         if (health != null) health.OnDeath -= HandleDeath;
     }
 
+    void OnMouseDown()
+    {
+        if (TurnManager.instance != null && TurnManager.instance.isNecroShotTargeting)
+            TurnManager.instance.TryNecroShotKill(this);
+    }
+
     void Update()
     {
         HandleMovement();
@@ -127,15 +139,14 @@ public class EnemyAI : MonoBehaviour
             }
             health.SetStunnedAlpha(isStunned);
 
-            // =========================================================
-            // DÜZELTME: EĞER DÜŞMAN VURULURSA (STUN) SALDIRIYI ANINDA İPTAL ET
-            // =========================================================
+            // 2. FIX: Stun Interruption Cycle
+            // If stunned while charging, cancel the attack AND reset the cooldown so it moves next turn.
             if (isStunned && isChargingAttack)
             {
                 isChargingAttack = false;
-                SetTelegraphVisuals(false, false); // Kırmızı alanları usulca (Fade Out) eriterek siler!
-                warningCells.Clear();
-                Debug.Log($"🛑 {gameObject.name} vurulduğu için saldırısı iptal oldu!");
+                currentCooldown = 0; // Force it to recalculate its action (likely move) next turn
+                ForceClearWarningCells();
+                Debug.Log($"🛑 {gameObject.name} attack cancelled by stun! Will rethink next turn.");
             }
         }
     }
@@ -226,7 +237,7 @@ public class EnemyAI : MonoBehaviour
 
     public void LockNextMove(Vector3Int playerCell, bool isStunned)
     {
-        if (isChargingAttack) SetTelegraphVisuals(false, false);
+        if (isChargingAttack) ForceClearWarningCells();
 
         if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
 
@@ -254,10 +265,6 @@ public class EnemyAI : MonoBehaviour
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
 
-                // === İŞTE DEĞİŞİKLİK BURADA ===
-                // ESKİ HALİ: SetTelegraphVisuals(true, false); (Bunu siliyorsun!)
-
-                // YENİ HALİ (Yağ gibi süzülerek çizen kodumuz):
                 if (TurnManager.instance != null)
                 {
                     foreach (var wCell in warningCells)
@@ -265,7 +272,6 @@ public class EnemyAI : MonoBehaviour
                         TurnManager.instance.DrawWarningTile(wCell);
                     }
                 }
-                // ==============================
 
                 return;
             }
@@ -281,8 +287,6 @@ public class EnemyAI : MonoBehaviour
         }
 
         lockedTargetCell = CalculateNextMove(playerCell);
-
-
 
         if (lockedTargetCell != cell)
         {
@@ -391,12 +395,10 @@ public class EnemyAI : MonoBehaviour
     {
         isFading = true;
 
-        // YENİ: Totem yüzünden ölürlerse saldırılarını anında iptal edip alanı temizle
         if (isChargingAttack)
         {
             isChargingAttack = false;
-            SetTelegraphVisuals(false, false); // Kırmızı alanları usulca siler
-            warningCells.Clear();
+            ForceClearWarningCells();
         }
 
         health.currentHP = 0;
@@ -460,94 +462,35 @@ public class EnemyAI : MonoBehaviour
         return false;
     }
 
-    private void SetTelegraphVisuals(bool show, bool instantClear)
+    // Safely and instantly removes the warning tiles for this enemy.
+    private void ForceClearWarningCells()
     {
-        if (warningMap == null || warningTile == null) return;
-        if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
+        if (warningMap == null) return;
 
-        List<Vector3Int> cellsToAnimate = new List<Vector3Int>(warningCells);
-
-        if (instantClear && !show)
+        foreach (var c in warningCells)
         {
-            foreach (var c in cellsToAnimate)
+            if (warningMap.HasTile(c))
             {
-                if (!IsCellTargetedByOtherEnemy(c)) warningMap.SetTile(c, null);
-                else warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f));
-            }
-            return;
-        }
-        telegraphCoroutine = StartCoroutine(AnimateTelegraphCoroutine(show, cellsToAnimate));
-    }
-
-    private IEnumerator AnimateTelegraphCoroutine(bool show, List<Vector3Int> cells)
-    {
-        float duration = show ? 0.35f : 0.2f;
-        float elapsed = 0f;
-
-        Color invisibleColor = new Color(1f, 0.2f, 0.2f, 0f);
-        Color visibleColor = new Color(1f, 0.2f, 0.2f, 0.65f);
-
-        Color startColor = show ? invisibleColor : visibleColor;
-        Color endColor = show ? visibleColor : invisibleColor;
-
-        if (show)
-        {
-            foreach (var c in cells)
-            {
-                warningMap.SetTile(c, warningTile);
-                warningMap.SetTileFlags(c, TileFlags.None);
-                warningMap.SetColor(c, startColor);
-            }
-        }
-
-        // Çakışan tile'ları animasyon dışında tut
-        HashSet<Vector3Int> sharedFadeCells = new HashSet<Vector3Int>();
-        if (!show)
-        {
-            foreach (var c in cells)
-                if (IsCellTargetedByOtherEnemy(c)) sharedFadeCells.Add(c);
-        }
-
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            Color current = Color.Lerp(startColor, endColor, elapsed / duration);
-            foreach (var c in cells)
-            {
-                if (!sharedFadeCells.Contains(c) && warningMap.HasTile(c))
-                    warningMap.SetColor(c, current);
-            }
-            yield return null;
-        }
-
-        foreach (var c in cells)
-        {
-            if (!sharedFadeCells.Contains(c) && warningMap.HasTile(c))
-                warningMap.SetColor(c, endColor);
-        }
-
-        if (!show)
-        {
-            foreach (var c in cells)
-            {
-                if (sharedFadeCells.Contains(c))
-                    warningMap.SetColor(c, visibleColor); // Çakışan tile'ın rengini koru
-                else
+                if (!IsCellTargetedByOtherEnemy(c))
+                {
                     warningMap.SetTile(c, null);
+                }
+                else
+                {
+                    // Restore the default warning color if another enemy is using it
+                    warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f)); 
+                }
             }
         }
+        warningCells.Clear();
     }
 
     public IEnumerator ExecuteAoEAttackCoroutine(HexMovement player)
     {
         if (!isChargingAttack) yield break;
 
-        // =======================================================
-        // YENİ VE HAŞİN HASAR RENK ANİMASYONU
-        // =======================================================
         if (warningMap != null && warningCells.Count > 0)
         {
-            // Çakışan tile'ları belirle — başka düşman da kullanıyorsa onlara dokunma
             HashSet<Vector3Int> sharedCells = new HashSet<Vector3Int>();
             List<Vector3Int> ownCells = new List<Vector3Int>();
             foreach (var c in warningCells)
@@ -556,21 +499,21 @@ public class EnemyAI : MonoBehaviour
                 else ownCells.Add(c);
             }
 
-            // 1. AŞAMA: ŞAK! Aniden parlayan sert kırmızı (Kritik hissi)
-            Color intenseRed = new Color(1f, 0f, 0f, 1f);
+            // 3. FIX: Attack Flash Color
+            // Changed from intense red to a sharp Yellow/Orange warning flash
+            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f); 
 
             foreach (var c in ownCells)
             {
-                if (warningMap.HasTile(c)) warningMap.SetColor(c, intenseRed);
+                if (warningMap.HasTile(c)) warningMap.SetColor(c, attackFlashColor);
             }
 
             yield return new WaitForSeconds(0.1f);
 
-            // 2. AŞAMA: Yumuşak Erime (Fade-Out) — sadece bize ait tile'lar
             float fadeDur = 0.4f;
             float elapsed = 0f;
-            Color startFadeColor = intenseRed;
-            Color endFadeColor = new Color(1f, 0f, 0f, 0f);
+            Color startFadeColor = attackFlashColor;
+            Color endFadeColor = new Color(1f, 0.8f, 0f, 0f); 
 
             while (elapsed < fadeDur)
             {
@@ -587,9 +530,6 @@ public class EnemyAI : MonoBehaviour
                 yield return null;
             }
         }
-        // =======================================================
-
-        // ... (Bundan sonrası senin eski hasar uygulama ve geri tepme kodların, dokunmuyoruz) ...
 
         if (warningCells.Contains(player.GetCurrentCellPosition()))
         {
@@ -599,10 +539,8 @@ public class EnemyAI : MonoBehaviour
                 dodged = Random.value < RunManager.instance.dodgeChance;
             }
 
-            // HASAR KISMI
             if (dodged)
             {
-                // Dodge efekti (TurnManager'daki prefabı kullanıyoruz)
                 if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
                 {
                     Instantiate(TurnManager.instance.dodgeEffectPrefab, player.transform.position, Quaternion.identity);
@@ -611,36 +549,19 @@ public class EnemyAI : MonoBehaviour
             else if (RunManager.instance.hasHolyAegis)
             {
                 RunManager.instance.hasHolyAegis = false;
-                // Kalkan kırılma efekti zaten HolyAegis perk kodunda tetikleniyor
             }
             else
             {
                 player.health.TakeDamage(2);
             }
 
-            // KNOCKBACK KISMI (Her halükarda uçar)
             Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
             player.StartKnockbackMovement(pushTarget);
             yield return new WaitUntil(() => !player.IsMoving());
         }
 
-        // Saldırı bitti, her şeyi temizle
-        // ESKİ HALİ: SetTelegraphVisuals(false, false); (Bunu silebilirsin çünkü zaten yukarıda erittik)
-
-        // Sadece karoları haritadan temizlemek için:
-        foreach (var c in warningCells)
-        {
-            if (warningMap.HasTile(c))
-            {
-                if (!IsCellTargetedByOtherEnemy(c))
-                    warningMap.SetTile(c, null);
-                else
-                    warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f)); // Çakışan tile'ı geri yükle
-            }
-        }
-
+        ForceClearWarningCells();
         isChargingAttack = false;
-        warningCells.Clear();
         currentCooldown = aoeCooldown;
         yield return new WaitForSeconds(0.2f);
     }
@@ -714,5 +635,4 @@ public class EnemyAI : MonoBehaviour
         foreach (var off in offsets) if (cell1 + off == cell2) return true;
         return false;
     }
-
 }

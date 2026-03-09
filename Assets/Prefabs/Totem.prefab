@@ -74,8 +74,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 16777215
+  m_fontColor: {r: 1, g: 1, b: 1, a: 0}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -278,6 +278,7 @@ MonoBehaviour:
   currentHP: 0
   hptext: {fileID: 3984692308681975835}
   damageTextPrefab: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
+  deathMenuUI: {fileID: 0}
 --- !u!1 &1595757694749280500
 GameObject:
   m_ObjectHideFlags: 0

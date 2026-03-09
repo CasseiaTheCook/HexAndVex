@@ -33,8 +33,10 @@ public class RunManager : MonoBehaviour
     public Transform perkUIContainer; // Assign a Horizontal Layout Group UI panel here!
     public List<BasePerk> activePerks = new List<BasePerk>();
 
-    [Header("Hotbar Items")]
-    public System.Collections.Generic.List<HotbarItemType> hotbarItems = new System.Collections.Generic.List<HotbarItemType>();
+    [Header("Item Buff'ları (Tek Kullanımlık)")]
+    public int bonusDiceNextCombat = 0;
+    public bool doubleGoldNextKill = false;
+    public bool doubleDamageNextCombat = false;
 
     [Header("Legendary Stats")]
     public int extraMovesPerTurn = 0; // Swift Action ile artacak (Normalde 0)
@@ -63,7 +65,7 @@ public class RunManager : MonoBehaviour
     {
         BasePerk prefabScript = perkPrefab.GetComponent<BasePerk>();
 
-        // Oyuncunun elinde bu perk tipinden (Örn: SwiftActionPerk) zaten var mı kontrol et
+        // Oyuncunun elinde bu perk tipinden (Örn: ReflexFiberPerk) zaten var mı kontrol et
         BasePerk existingPerk = activePerks.Find(p => p.GetType() == prefabScript.GetType());
 
         if (existingPerk != null)

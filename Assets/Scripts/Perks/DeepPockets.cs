@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class DeepPocketsPerk : BasePerk
+public class OrganPouchPerk : BasePerk
 {
     // İlk alındığında çalışır (1. Seviye)
     public override void OnAcquire()
@@ -8,20 +8,24 @@ public class DeepPocketsPerk : BasePerk
         if (Shopmanager.instance != null)
         {
             Shopmanager.instance.shopSlotCount += 1;
-            Shopmanager.instance.GenerateShopItems();
+            
+            // DÜZELTME: Artık dükkanı resetlemiyor, eskilere dokunmadan 1 tane ekliyor!
+            Shopmanager.instance.AddSingleExtraSlot(); 
         }
         TriggerVisualPop();
     }
 
-    // YENİ: Kart tekrar seçilirse çalışır (2. ve 3. Seviyeler)
+    // Kart tekrar seçilirse çalışır (2. ve 3. Seviyeler)
     public override void Upgrade()
     {
-        base.Upgrade(); // Seviyeyi 1 artır
+        base.Upgrade(); 
         
         if (Shopmanager.instance != null)
         {
-            Shopmanager.instance.shopSlotCount += 1; // Dükkana 1 slot daha ekle
-            Shopmanager.instance.GenerateShopItems(); // Yeni slot boş kalmasın diye dükkanı hemen yenile
+            Shopmanager.instance.shopSlotCount += 1; 
+            
+            // DÜZELTME: Artık dükkanı resetlemiyor, eskilere dokunmadan 1 tane ekliyor!
+            Shopmanager.instance.AddSingleExtraSlot(); 
         }
         TriggerVisualPop();
     }

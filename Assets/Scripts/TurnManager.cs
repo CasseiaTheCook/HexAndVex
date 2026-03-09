@@ -14,8 +14,8 @@ public class TurnManager : MonoBehaviour
     public UnityEngine.Tilemaps.TileBase warningTile;
 
     [Header("Efektler")]
-    public GameObject explosionPrefab; 
-    public GameObject dodgeEffectPrefab; 
+    public GameObject explosionPrefab;
+    public GameObject dodgeEffectPrefab;
 
     public HexMovement player;
     public Tilemap groundMap;
@@ -33,8 +33,11 @@ public class TurnManager : MonoBehaviour
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
     public bool isPlayerTurn = true;
-    
-    public bool hasAttackedThisTurn = false; 
+
+    public bool hasAttackedThisTurn = false;
+
+    // NecroShot hedefleme modu
+    [HideInInspector] public bool isNecroShotTargeting = false;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -66,11 +69,9 @@ public class TurnManager : MonoBehaviour
         Invoke("StartPlayerTurn", 0.5f);
     }
 
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     void Update()
     {
-        // DEBUG: F9 ile tüm TelegraphAoE düşmanlarını aynı anda saldırıya zorla (çakışma testi)
-        // DEBUG: F8 ile oyuncunun iki yanına 2 AoE düşman spawnla (çakışma senaryosu)
         if (Input.GetKeyDown(KeyCode.F8))
         {
             SpawnDebugAoEEnemies();
@@ -98,7 +99,6 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // Debug yardımcı: EnemyAI.GetLineOfCells private olduğu için burada kopyası
     private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
     {
         List<Vector3Int> line = new List<Vector3Int>();
@@ -122,6 +122,7 @@ public class TurnManager : MonoBehaviour
         }
         return line;
     }
+
     private void SpawnDebugAoEEnemies()
     {
         if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null)
@@ -134,11 +135,9 @@ public class TurnManager : MonoBehaviour
         Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
         Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
 
-        // Oyuncunun karşılıklı iki komşusuna spawn et (warningleri çakışsın)
         Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
         List<Vector3Int> spawnCells = new List<Vector3Int>();
 
-        // Birbirine zıt iki yön seç (0-3, 1-4, 2-5)
         int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
         foreach (var pair in pairs)
         {
@@ -146,7 +145,6 @@ public class TurnManager : MonoBehaviour
             Vector3Int c2 = playerCell + offsets[pair[1]];
             if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2))
             {
-                // Bir hex daha uzaklaştır ki arada oyuncu kalsın
                 Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff;
                 Vector3Int far1 = c1 + off1[pair[0]];
                 Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff;
@@ -158,7 +156,6 @@ public class TurnManager : MonoBehaviour
                     spawnCells.Add(far2);
                     break;
                 }
-                // Yakına spawn et
                 spawnCells.Add(c1);
                 spawnCells.Add(c2);
                 break;
@@ -188,14 +185,14 @@ public class TurnManager : MonoBehaviour
 
         Debug.Log("[DEBUG F8] 2 AoE düşman karşılıklı spawnlandı. F9 ile saldırıya zorla!");
     }
-    #endif
+#endif
 
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
 
         isPlayerTurn = true;
-        hasAttackedThisTurn = false; 
+        hasAttackedThisTurn = false;
 
         if (RunManager.instance != null)
         {
@@ -228,6 +225,53 @@ public class TurnManager : MonoBehaviour
         if (!enemies.Contains(enemy)) enemies.Add(enemy);
     }
 
+    // -------------------------------------------------------
+    // NecroShot: Düşman seçme modu
+    // -------------------------------------------------------
+    public void StartNecroShotTargeting()
+    {
+        isNecroShotTargeting = true;
+        Debug.Log("Necro-Shot aktif! Bir düşmana tıkla.");
+    }
+
+    public void TryNecroShotKill(EnemyAI target)
+    {
+        if (!isNecroShotTargeting || target == null) return;
+        isNecroShotTargeting = false;
+
+        // ==========================================
+        // YENİ: NECRO SHOT ATARKEN ANİMASYON OYNAT
+        // ==========================================
+        if (player != null) player.TriggerAttackAnimation();
+
+        target.health.TakeDamage(target.health.maxHP + 999);
+
+        int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+        if (RunManager.instance.doubleGoldNextKill)
+        {
+            coinDrop *= 2;
+            RunManager.instance.doubleGoldNextKill = false;
+        }
+        RunManager.instance.currentGold += coinDrop;
+        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
+        UpdateCoinUI();
+
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        if (enemies.Count <= 0)
+        {
+            ClearWarningMap();
+            if (Shopmanager.instance != null)
+            {
+                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+                if (isBossLevel)
+                    Shopmanager.instance.OnBossCleared();
+                else
+                    Shopmanager.instance.OnDungeonCleared();
+            }
+        }
+    }
+
     public void LockAllEnemyIntents()
     {
         if (player == null || player.health.currentHP <= 0) return;
@@ -253,10 +297,10 @@ public class TurnManager : MonoBehaviour
         foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
-        
+
         isPlayerTurn = false;
-        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0; 
-        
+        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
+
         StartCoroutine(EnemyPhase());
     }
 
@@ -288,10 +332,10 @@ public class TurnManager : MonoBehaviour
         GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
 
-        Vector3 startScale = Vector3.one * 0.5f; 
-        Vector3 endScale = Vector3.one * 2f;    
+        Vector3 startScale = Vector3.one * 0.5f;
+        Vector3 endScale = Vector3.one * 1.3f;
 
-        float duration = 0.15f; 
+        float duration = 0.15f;
         float elapsed = 0f;
 
         while (elapsed < duration)
@@ -304,7 +348,7 @@ public class TurnManager : MonoBehaviour
             foreach (var sr in renderers)
             {
                 Color c = sr.color;
-                c.a = Mathf.Lerp(0.8f, 0f, t); 
+                c.a = Mathf.Lerp(0.8f, 0f, t);
                 sr.color = c;
             }
 
@@ -324,7 +368,7 @@ public class TurnManager : MonoBehaviour
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
+                    if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
                 }
                 RunManager.instance.hasHolyAegis = false;
             }
@@ -344,11 +388,8 @@ public class TurnManager : MonoBehaviour
                 RunManager.instance.remainingMoves--;
                 isPlayerTurn = true;
                 player.UpdateHighlights();
-                
-                // ==========================================
-                // YENİ: OKLARI GERİ GETİR (Tuzağa basıp sekse bile oklar gelsin)
-                // ==========================================
-                ShowAllEnemyIntents(); 
+
+                ShowAllEnemyIntents();
             }
             else if (player != null && player.health.currentHP > 0)
             {
@@ -358,10 +399,10 @@ public class TurnManager : MonoBehaviour
         }
 
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
-        
+
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-            hasAttackedThisTurn = true; 
+            hasAttackedThisTurn = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
         else if (adjacentEnemies.Count > 0 && hasAttackedThisTurn)
@@ -376,10 +417,7 @@ public class TurnManager : MonoBehaviour
             isPlayerTurn = true;
             player.UpdateHighlights();
 
-            // ==========================================
-            // YENİ: OKLARI GERİ GETİR (Normal hareket veya saldırı sonrası oklar geri gelsin)
-            // ==========================================
-            ShowAllEnemyIntents(); 
+            ShowAllEnemyIntents();
         }
         else
         {
@@ -457,20 +495,17 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // ==========================================
-    // YENİ: DÜŞMANIN OKLARINI GERİ ÇAĞIRAN FONKSİYON
-    // ==========================================
     public void ShowAllEnemyIntents()
     {
         foreach (var e in enemies)
         {
-            // Eğer adam sersemlemiş değilse (skipTurns <= 0) ve okları varsa görünür yap
             if (e != null && e.skipTurns <= 0) e.SetArrowVisibility(true);
         }
     }
 
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
+        // NOT: En baştaki TriggerAttack satırını kaldırdık, animasyon zarlardan sonra girecek!
         yield return new WaitForSeconds(0.3f);
 
         List<int> currentRolls = new List<int>();
@@ -482,8 +517,14 @@ public class TurnManager : MonoBehaviour
             if (p is CalculatedAmbushPerk ambushPerk)
             {
                 extraDices += ambushPerk.storedExtraDices;
-                ambushPerk.storedExtraDices = 0; 
+                ambushPerk.storedExtraDices = 0;
             }
+        }
+
+        if (RunManager.instance.bonusDiceNextCombat > 0)
+        {
+            extraDices += RunManager.instance.bonusDiceNextCombat;
+            RunManager.instance.bonusDiceNextCombat = 0;
         }
 
         for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
@@ -503,10 +544,9 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
-            // Önce reroll perk'ler, sonra buff perk'ler çalışsın
             perksToProcess.Sort((a, b) =>
             {
-                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); // true önce
+                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk);
                 return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority);
             });
 
@@ -527,7 +567,6 @@ public class TurnManager : MonoBehaviour
                 {
                     if (perk.isRerollPerk)
                     {
-                        // Reroll perk: "!" göster, spin animasyonu, sonra yeni değer
                         foreach (int idx in changedIndices)
                         {
                             if (idx < spawnedDiceUI.Count)
@@ -553,7 +592,6 @@ public class TurnManager : MonoBehaviour
                     }
                     else
                     {
-                        // Buff perk: direkt yeni değeri göster (animasyonsuz geçiş)
                         foreach (int idx in changedIndices)
                         {
                             currentRolls[idx] = payload.diceRolls[idx];
@@ -589,7 +627,24 @@ public class TurnManager : MonoBehaviour
         HideDiceResults();
 
         int finalDamage = payload.GetFinalDamage();
+
+        if (RunManager.instance.doubleDamageNextCombat)
+        {
+            finalDamage *= 2;
+            RunManager.instance.doubleDamageNextCombat = false;
+        }
+
         int damagePerEnemy = finalDamage / targets.Count;
+
+        // ========================================================
+        // İŞTE YENİ SİSTEM: ZARLAR HESAPLANDI, KILICI KALDIR VE VUR!
+        // ========================================================
+        if (player != null) player.TriggerAttackAnimation();
+
+        // Bu süre kılıcın havadayken düşmana inene kadar geçen süredir.
+        // Eğer kılıç erken inip adam geç uçuyorsa bu süreyi uzat (Örn: 0.4f).
+        yield return new WaitForSeconds(0.3f);
+        // ========================================================
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>();
         List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
@@ -599,7 +654,7 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
 
             bool dies = enemy.health.currentHP <= damagePerEnemy;
-            enemy.health.TakeDamage(damagePerEnemy);
+            enemy.health.TakeDamage(damagePerEnemy); // Kan çıkma ve hasar tam bu anda gerçekleşir
 
             knockedEnemies.Add(enemy);
             if (dies) deadEnemiesThisTurn.Add(enemy);
@@ -654,7 +709,12 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
         {
-            int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+            if (RunManager.instance.doubleGoldNextKill)
+            {
+                coinDrop *= 2;
+                RunManager.instance.doubleGoldNextKill = false;
+            }
             RunManager.instance.currentGold += coinDrop;
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }
@@ -664,8 +724,15 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0)
         {
-            ClearWarningMap(); 
-            if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
+            ClearWarningMap();
+            if (Shopmanager.instance != null)
+            {
+                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+                if (isBossLevel)
+                    Shopmanager.instance.OnBossCleared();
+                else
+                    Shopmanager.instance.OnDungeonCleared();
+            }
             else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
@@ -710,7 +777,12 @@ public class TurnManager : MonoBehaviour
         deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
         {
-            int coinDrop = Random.Range(1, 6) + RunManager.instance.bonusGold;
+            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+            if (RunManager.instance.doubleGoldNextKill)
+            {
+                coinDrop *= 2;
+                RunManager.instance.doubleGoldNextKill = false;
+            }
             RunManager.instance.currentGold += coinDrop;
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }
@@ -720,8 +792,15 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0)
         {
-            ClearWarningMap(); 
-            if (Shopmanager.instance != null) Shopmanager.instance.OnDungeonCleared();
+            ClearWarningMap();
+            if (Shopmanager.instance != null)
+            {
+                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+                if (isBossLevel)
+                    Shopmanager.instance.OnBossCleared();
+                else
+                    Shopmanager.instance.OnDungeonCleared();
+            }
             else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
             yield break;
         }
@@ -768,7 +847,7 @@ public class TurnManager : MonoBehaviour
         {
             foreach (var perk in RunManager.instance.activePerks)
             {
-                if (perk is HolyAegisPerk aegis)
+                if (perk is BioBarrierPerk aegis)
                 {
                     aegis.BreakShield();
                     break;
@@ -799,7 +878,7 @@ public class TurnManager : MonoBehaviour
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis)
+                    if (perk is BioBarrierPerk aegis)
                     {
                         aegis.BreakShield();
                         break;
@@ -1097,14 +1176,14 @@ public class TurnManager : MonoBehaviour
     private IEnumerator SmoothWarningFadeIn(Vector3Int cell)
     {
         warningMap.SetTile(cell, warningTile);
-        warningMap.SetTileFlags(cell, TileFlags.None); 
+        warningMap.SetTileFlags(cell, TileFlags.None);
 
-        Color startColor = new Color(1f, 1f, 1f, 0f);   
-        Color endColor = new Color(1f, 1f, 1f, 0.5f);   
+        Color startColor = new Color(1f, 1f, 1f, 0f);
+        Color endColor = new Color(1f, 1f, 1f, 0.5f);
 
         warningMap.SetColor(cell, startColor);
 
-        float duration = 0.3f; 
+        float duration = 0.3f;
         float elapsed = 0f;
 
         while (elapsed < duration)

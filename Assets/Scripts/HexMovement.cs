@@ -15,8 +15,12 @@ public class HexMovement : MonoBehaviour
     [Header("Görsel Ayarlar")]
     public float playerVisualOffsetY = 0.25f;
 
-    // YENİ: Karakterin görselini döndürmek için
+    // YENİ: Karakterin görselini alt objeden (Child) alacak
     public SpriteRenderer visualRenderer;
+    
+    // YENİ: Animatörü alt objeden (Child) alacak
+    [Header("Animasyonlar")]
+    public Animator animator;
 
     private const float MOVEMENT_SPEED = 8f;
 
@@ -37,7 +41,11 @@ public class HexMovement : MonoBehaviour
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
 
-        if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
+        // ==========================================
+        // DÜZELTME: Artık Sprite ve Animatör Child objeden çekiliyor!
+        // ==========================================
+        if (visualRenderer == null) visualRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (animator == null) animator = GetComponentInChildren<Animator>();
 
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
@@ -62,7 +70,6 @@ public class HexMovement : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            // DÜZELTME: Perspektif kamerada farenin nereye tıkladığını doğru bulmak için Raycast Plane kullanıyoruz!
             Vector3 worldPoint = GetMousePositionOnZPlane();
             Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
 
@@ -81,18 +88,17 @@ public class HexMovement : MonoBehaviour
         }
     }
 
-    // YENİ: Perspektif Kamera için milimetrik farenin dünyadaki yerini hesaplayan o mükemmel fonksiyon
     private Vector3 GetMousePositionOnZPlane()
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        Plane zPlane = new Plane(Vector3.forward, Vector3.zero); // Z=0 düzeyinde bir zemin
+        Plane zPlane = new Plane(Vector3.forward, Vector3.zero); 
 
         if (zPlane.Raycast(ray, out float distance))
         {
             return ray.GetPoint(distance);
         }
 
-        return Vector3.zero; // Hata olursa merkeze döner
+        return Vector3.zero; 
     }
 
     private void HandleMovement()
@@ -239,9 +245,6 @@ public class HexMovement : MonoBehaviour
         float duration = 0.2f;
         float elapsed = 0f;
 
-        // ==========================================
-        // DÜZELTME: Maksimum parlaklığı 1f yerine 0.5f (%50 Opacity) yaptık!
-        // ==========================================
         float maxAlpha = 0.5f;
         float startAlpha = fadeIn ? 0f : maxAlpha;
         float endAlpha = fadeIn ? maxAlpha : 0f;
@@ -283,4 +286,15 @@ public class HexMovement : MonoBehaviour
     }
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;
+
+    // ==========================================
+    // YENİ: SALDIRI ANİMASYONUNU TETİKLEYEN FONKSİYON
+    // ==========================================
+    public void TriggerAttackAnimation()
+    {
+        if (animator != null)
+        {
+            animator.SetTrigger("Attack"); // Unity Animator içindeki Trigger parametresi ile TAM AYNI isim olmalı!
+        }
+    }
 }

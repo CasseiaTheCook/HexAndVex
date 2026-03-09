@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class MercenarysRestPerk : BasePerk
+public class PassiveEnzymePerk : BasePerk
 {
     // YENİ: Kart tekrar seçilirse sadece seviyeyi artır (Matematiği OnSkip içinde halledeceğiz)
     public override void Upgrade()
@@ -12,7 +12,7 @@ public class MercenarysRestPerk : BasePerk
     public override void OnSkip()
     {
         // Seviye 1'de 3 altın, Seviye 2'de 6 altın, Seviye 3'te 9 altın verir!
-        RunManager.instance.currentGold += (3 * currentLevel);
+        RunManager.instance.currentGold += (1 * currentLevel);
         TriggerVisualPop();
     }
 }
