@@ -20,7 +20,14 @@ public class LevelUpManager : MonoBehaviour
 
     [Header("UI Elemanları (3 Buton)")]
     public Button[] choiceButtons;
-    public TMP_Text[] choiceTexts;
+    
+    // ==========================================
+    // YENİ: Ayrı ayrı Text dizileri (Unity'den atamayı unutma!)
+    // ==========================================
+    public TMP_Text[] choiceTitleTexts;       // Sadece başlık için (Örn: "Swift Action")
+    public TMP_Text[] choiceLevelTexts;       // Sadece level için (Örn: "Lv 2")
+    public TMP_Text[] choiceDescriptionTexts; // Sadece açıklama için (Örn: "Grants extra moves...")
+    
     public Image[] choiceIcons;
 
     private List<GameObject> currentChoices = new List<GameObject>();
@@ -49,14 +56,12 @@ public class LevelUpManager : MonoBehaviour
             GameObject randomPerk = null;
             int safetyBreak = 0;
 
-            // DEBUG: Forced perk varsa ilk slota yerleştir
             if (i == 0 && forcedPerk != null && !IsPerkMaxedOut(forcedPerk))
             {
                 randomPerk = forcedPerk;
-                forcedPerk = null; // Bir kez kullanıldıktan sonra sıfırla
+                forcedPerk = null; 
             }
 
-            // DÜZELTME: Kart zaten seçili mi VEYA Max seviyeye ulaştı mı kontrolü eklendi!
             while (randomPerk == null || currentChoices.Contains(randomPerk) || IsPerkMaxedOut(randomPerk))
             {
                 randomPerk = GetRandomPerkByRarity(isBossReward);
@@ -73,11 +78,20 @@ public class LevelUpManager : MonoBehaviour
                 currentChoices.Add(randomPerk);
                 BasePerk perkScript = randomPerk.GetComponent<BasePerk>();
                 
-                // VİZYON DETAYI: Ekranda kaçıncı seviyeye yükseleceğini gösterelim (Örn: Swift Action (Lv 2))
                 BasePerk existing = RunManager.instance.activePerks.Find(p => p.GetType() == perkScript.GetType());
                 int displayLevel = (existing != null) ? existing.currentLevel + 1 : 1;
 
-                choiceTexts[i].text = perkScript.perkName + $" (Lv {displayLevel})\n" + perkScript.description;
+                // ==========================================
+                // YENİ: Yazıları kendi özel Text'lerine aktarıyoruz
+                // ==========================================
+                if (choiceTitleTexts.Length > i && choiceTitleTexts[i] != null)
+                    choiceTitleTexts[i].text = perkScript.perkName;
+
+                if (choiceLevelTexts.Length > i && choiceLevelTexts[i] != null)
+                    choiceLevelTexts[i].text = "Lv " + displayLevel.ToString();
+
+                if (choiceDescriptionTexts.Length > i && choiceDescriptionTexts[i] != null)
+                    choiceDescriptionTexts[i].text = perkScript.description;
 
                 int index = i;
                 choiceButtons[i].onClick.RemoveAllListeners();
@@ -94,7 +108,6 @@ public class LevelUpManager : MonoBehaviour
         StartCoroutine(FadeInAndPopRoutine()); 
     }
 
-    // YENİ: Perk Max Seviyeye Ulaştı mı Dedektörü
     private bool IsPerkMaxedOut(GameObject perkPrefab)
     {
         if (perkPrefab == null || RunManager.instance == null) return true;
@@ -104,7 +117,7 @@ public class LevelUpManager : MonoBehaviour
         
         if (existing != null && existing.currentLevel >= existing.maxLevel)
         {
-            return true; // Max seviyede, havuza bir daha girme!
+            return true; 
         }
         return false;
     }
@@ -122,7 +135,6 @@ public class LevelUpManager : MonoBehaviour
     private GameObject GetAnyValidFallback()
     {
         List<GameObject> allAvailable = new List<GameObject>();
-        // Max seviye olanları ve o an ekranda olanları ayıkla
         allAvailable.AddRange(epicPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
         allAvailable.AddRange(rarePerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
         allAvailable.AddRange(commonPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
@@ -138,13 +150,9 @@ public class LevelUpManager : MonoBehaviour
         GameObject chosenPerk = currentChoices[index];
         List<BasePerk> existingPerks = new List<BasePerk>(RunManager.instance.activePerks);
         
-        // Perk'i Ekle veya Yükselt (Bunu RunManager kendi içinde hallediyor)
         RunManager.instance.AddPerk(chosenPerk);
         RunManager.instance.currentLevel++;
 
-        // =========================================================
-        // YENİ: KART YIRTMA SİSTEMİ (SADECE MAX SEVİYEYSE SİLİNİR)
-        // =========================================================
         BasePerk checkScript = chosenPerk.GetComponent<BasePerk>();
         BasePerk activeInstance = RunManager.instance.activePerks.Find(p => p.GetType() == checkScript.GetType());
         
