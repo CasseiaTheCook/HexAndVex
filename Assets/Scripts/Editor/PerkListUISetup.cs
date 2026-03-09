@@ -38,6 +38,12 @@ public class PerkListUISetup : EditorWindow
         GameObject buttonObj = new GameObject("PerkListButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(PerkListUI));
         buttonObj.transform.SetParent(mainCanvas.transform, false);
 
+        // Kendi Canvas'ı olsun ki LevelUpCanvas (sorting 15) üstünde kalsın
+        Canvas btnCanvas = buttonObj.AddComponent<Canvas>();
+        btnCanvas.overrideSorting = true;
+        btnCanvas.sortingOrder = 20;
+        buttonObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
         RectTransform btnRect = buttonObj.GetComponent<RectTransform>();
         btnRect.anchorMin = new Vector2(1, 1);
         btnRect.anchorMax = new Vector2(1, 1);
@@ -62,7 +68,7 @@ public class PerkListUISetup : EditorWindow
         btnTMP.text = "PERKS";
         btnTMP.fontSize = 24;
         btnTMP.alignment = TextAlignmentOptions.Center;
-        btnTMP.color = new Color(1f, 0.84f, 0f, 1f); // Altın sarısı
+        btnTMP.color = Color.white;
         if (font != null) btnTMP.font = font;
 
         // 4. Perk listesi paneli (hover'da açılacak)

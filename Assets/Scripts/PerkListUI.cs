@@ -21,6 +21,16 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     void Start()
     {
+        // Kendi Canvas'ı yoksa ekle — LevelUpCanvas üstünde kalsın
+        Canvas ownCanvas = GetComponent<Canvas>();
+        if (ownCanvas == null)
+        {
+            ownCanvas = gameObject.AddComponent<Canvas>();
+            ownCanvas.overrideSorting = true;
+            ownCanvas.sortingOrder = 20;
+            gameObject.AddComponent<GraphicRaycaster>();
+        }
+
         if (perkListPanel != null)
         {
             panelCanvasGroup = perkListPanel.GetComponent<CanvasGroup>();
@@ -135,7 +145,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         RectTransform textRT = textObj.GetComponent<RectTransform>();
         textRT.sizeDelta = new Vector2(260f, iconSize + 16f);
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
-        tmp.text = $"<color=#FFD700>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>\n<size=70%>{perk.description}</size>";
+        tmp.text = $"<color=#FFFFFF>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>\n<size=70%>{perk.description}</size>";
         tmp.fontSize = 18;
         tmp.alignment = TextAlignmentOptions.TopLeft;
         tmp.color = Color.white;
