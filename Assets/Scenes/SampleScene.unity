@@ -7578,6 +7578,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 377144456676575921, guid: 5240a9081f270534a978d0729793271d, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.068
+      objectReference: {fileID: 0}
     - target: {fileID: 1210666129484737756, guid: 5240a9081f270534a978d0729793271d, type: 3}
       propertyPath: m_Name
       value: Player
@@ -7634,6 +7638,10 @@ PrefabInstance:
       propertyPath: damageTextPrefab
       value: 
       objectReference: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
+    - target: {fileID: 6944295022401407228, guid: 5240a9081f270534a978d0729793271d, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -333.77582
+      objectReference: {fileID: 0}
     - target: {fileID: 8821926101173592961, guid: 5240a9081f270534a978d0729793271d, type: 3}
       propertyPath: groundMap
       value: 
