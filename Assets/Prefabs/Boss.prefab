@@ -167,7 +167,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -1.049, y: -0.023, z: 0}
-  m_LocalScale: {x: 2, y: 2, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5245103691642538496}
@@ -201,7 +201,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 49b0ff9c05cb759bc8723e972c94a3e3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -225,7 +225,7 @@ SpriteRenderer:
   m_SortingOrder: 2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -923902760, guid: e68de5a49a86ab445ab1bca233580ce4, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.3160377, g: 1, b: 0.94662005, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -253,11 +253,12 @@ MonoBehaviour:
   aoeAttackRange: 3
   aoeCooldown: 2
   warningMap: {fileID: 0}
-  warningTile: {fileID: 11400000, guid: 25c4e2f3083975546a162f5d78863fcd, type: 2}
+  warningTile: {fileID: 11400000, guid: 3137f168ca8c8594e8ae498f267c29fb, type: 2}
   intentArrow: {fileID: 3621328375706932076}
   stunEffectObj: {fileID: 0}
   arrowAngleOffset: -90
   isBumping: 0
+  isFading: 0
   lockedTargetCell: {x: 0, y: 0, z: 0}
   hasLockedTarget: 0
   skipTurns: 0
@@ -278,6 +279,7 @@ MonoBehaviour:
   maxHP: 3
   currentHP: 0
   hptext: {fileID: 3984692308681975835}
+  damageTextPrefab: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
 --- !u!114 &7680526482516364707
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -293,8 +295,9 @@ MonoBehaviour:
   activeTotems: 4
   isShielded: 1
   shieldVisual: {fileID: 1025509460811380604}
-  aoeCooldown: 3
+  aoeCycleStep: 0
   summonedMinions: []
+  warningTile: {fileID: 0}
 --- !u!1 &1025509460811380604
 GameObject:
   m_ObjectHideFlags: 0

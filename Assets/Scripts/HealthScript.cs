@@ -19,12 +19,15 @@ public class HealthScript : MonoBehaviour
 
     private SpriteRenderer spriteRenderer;
     private Color originalColor = Color.white;
-    private Coroutine flashCoroutine; 
+    private Coroutine flashCoroutine;
     private Coroutine alphaFadeCoroutine; // YENİ: Saydamlığın yavaşça değişmesini sağlayan animasyon
-    private bool isDead = false; 
-    
-    private bool isDeepStunnedAlpha = false; 
+    private bool isDead = false;
 
+    private bool isDeepStunnedAlpha = false;
+    [Header("VFX")]
+    public GameObject damageTextPrefab; // Hazırladığın prefabı buraya sürükle
+
+    public GameObject deathMenuUI; // Ölme ekranını buraya da sürükle
     void Start()
     {
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
@@ -50,12 +53,21 @@ public class HealthScript : MonoBehaviour
         if (isDead) return;
 
         currentHP -= dmg;
-        
+
+        if (damageTextPrefab != null)
+        {
+            // Sayıyı tam düşmanın merkezinde oluştur
+            GameObject dmgObj = Instantiate(damageTextPrefab, transform.position, Quaternion.identity);
+
+            // Setup fonksiyonunu çağırarak içindeki rakamı yazdır
+            dmgObj.GetComponent<DamageNumber>().Setup(dmg);
+        }
+
         EnemyAI enemy = GetComponentInParent<EnemyAI>();
         if (enemy != null)
         {
             enemy.skipTurns = Mathf.Max(enemy.skipTurns, 1);
-            enemy.SetStunVisual(true); 
+            enemy.SetStunVisual(true);
         }
 
         OnDamaged?.Invoke(currentHP);
@@ -78,8 +90,8 @@ public class HealthScript : MonoBehaviour
     private IEnumerator DamageFlash()
     {
         spriteRenderer.color = Color.red;
-        
-        float duration = 0.35f; 
+
+        float duration = 0.35f;
         float elapsed = 0f;
 
         while (elapsed < duration)
@@ -89,9 +101,9 @@ public class HealthScript : MonoBehaviour
             spriteRenderer.color = Color.Lerp(Color.red, originalColor, elapsed / duration);
             yield return null;
         }
-        
+
         spriteRenderer.color = originalColor;
-        flashCoroutine = null; 
+        flashCoroutine = null;
     }
 
     // --- YENİ: YUMUŞAK SAYDAMLAŞMA (FADE IN / FADE OUT) ---
@@ -100,7 +112,7 @@ public class HealthScript : MonoBehaviour
         if (isDeepStunnedAlpha == deepStun || spriteRenderer == null || isDead) return;
 
         isDeepStunnedAlpha = deepStun;
-        float targetAlpha = deepStun ? 0.45f : 1f; 
+        float targetAlpha = deepStun ? 0.45f : 1f;
 
         // Eğer halihazırda bir saydamlaşma animasyonu varsa durdur, yenisini başlat
         if (alphaFadeCoroutine != null) StopCoroutine(alphaFadeCoroutine);
@@ -117,7 +129,7 @@ public class HealthScript : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float newAlpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
-            
+
             // Orijinal rengin hafızasını güncelle
             originalColor = new Color(originalColor.r, originalColor.g, originalColor.b, newAlpha);
 
@@ -148,12 +160,23 @@ public class HealthScript : MonoBehaviour
 
     private void Die()
     {
-        isDead = true; 
-        Debug.Log($"{gameObject.name} öldü!");
+        isDead = true;
         OnDeath?.Invoke();
-        
-        if (hptext != null) hptext.gameObject.SetActive(false); 
 
+        if (hptext != null) hptext.gameObject.SetActive(false);
+
+        if (gameObject.CompareTag("Player"))
+        {
+            if (deathMenuUI != null)
+            {
+                deathMenuUI.SetActive(true);
+                Time.timeScale = 0f;
+            }
+            return;
+        }
+
+        // Düşman: DeathAnimation ile yok et (TurnManager gold verene kadar hayatta kalır)
+        Debug.Log(gameObject.name + " öldü.");
         if (gameObject.activeInHierarchy)
         {
             StartCoroutine(DeathAnimation());
@@ -166,9 +189,9 @@ public class HealthScript : MonoBehaviour
 
     private IEnumerator DeathAnimation()
     {
-        float duration = 0.4f; 
+        float duration = 0.4f;
         float elapsed = 0f;
-        
+
         Vector3 startScale = transform.localScale;
         Color startColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
 

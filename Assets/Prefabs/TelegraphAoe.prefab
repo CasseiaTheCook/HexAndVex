@@ -199,7 +199,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 49b0ff9c05cb759bc8723e972c94a3e3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -246,14 +246,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   groundMap: {fileID: 0}
   health: {fileID: 4205142481590582313}
+  visualRenderer: {fileID: 0}
   enemyBehavior: 1
   aoeAttackRange: 3
+  aoeCooldown: 2
   warningMap: {fileID: 0}
   warningTile: {fileID: 11400000, guid: 25c4e2f3083975546a162f5d78863fcd, type: 2}
   intentArrow: {fileID: 3621328375706932076}
   stunEffectObj: {fileID: 0}
   arrowAngleOffset: -90
   isBumping: 0
+  isFading: 0
   lockedTargetCell: {x: 0, y: 0, z: 0}
   hasLockedTarget: 0
   skipTurns: 0
@@ -274,6 +277,7 @@ MonoBehaviour:
   maxHP: 3
   currentHP: 0
   hptext: {fileID: 3984692308681975835}
+  damageTextPrefab: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
 --- !u!1 &1595757694749280500
 GameObject:
   m_ObjectHideFlags: 0

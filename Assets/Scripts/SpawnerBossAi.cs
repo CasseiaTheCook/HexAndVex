@@ -26,11 +26,12 @@ public class SpawnerBossAI : MonoBehaviour
     private int previousHP; 
 
     private Tilemap groundMap;
-    private Tilemap warningMap;
+    private Tilemap bossWarningMap; 
+    
+    [Header("BOSS'A ÖZEL UYARI KAROSU (BUNU ATAMALISIN!)")]
     public TileBase warningTile; 
     
     private EnemyAI myEnemyAI;
-    private Coroutine telegraphCoroutine;
 
     void Awake() { instance = this; }
 
@@ -39,13 +40,27 @@ public class SpawnerBossAI : MonoBehaviour
         myEnemyAI = GetComponent<EnemyAI>();
         groundMap = LevelGenerator.instance.groundMap;
 
-        GameObject warnObj = GameObject.Find("WarningMap");
-        if (warnObj != null) warningMap = warnObj.GetComponent<Tilemap>();
-
-        if (warningTile == null)
+        GameObject warnObj = GameObject.Find("BossWarningMap");
+        if (warnObj != null) 
         {
-            warningTile = LevelGenerator.instance.groundTile; 
+            bossWarningMap = warnObj.GetComponent<Tilemap>();
         }
+        else
+        {
+            Debug.LogError("🚨 KANKA DİKKAT: 'BossWarningMap' bulunamadı! Yedek olarak normal WarningMap kullanılıyor.");
+            if (TurnManager.instance != null) bossWarningMap = TurnManager.instance.warningMap;
+        }
+
+        // ==========================================
+        // DÜZELTME: BOSS KENDİ ÖZEL TILE'INI KULLANIR!
+        // ZORLA BAŞKA BİR ŞEYE ÇEVİRME KODUNU SİLDİK.
+        // ==========================================
+        if (warningTile == null && myEnemyAI != null)
+            warningTile = myEnemyAI.warningTile;
+        if (warningTile == null && TurnManager.instance != null)
+            warningTile = TurnManager.instance.warningTile;
+        if (warningTile == null)
+            Debug.LogError("🚨 KANKA DİKKAT: Boss'un 'Warning Tile' boş kalmış! Lütfen Inspector'dan boss'un özel uyarı karosunu ata.");
 
         activeTotems = 4;
         isShielded = true;
@@ -77,7 +92,6 @@ public class SpawnerBossAI : MonoBehaviour
         }
         else
         {
-            // KALKAN İNDİKTEN SONRA VURULMA KONTROLÜ
             if (myEnemyAI.health.currentHP > 0 && myEnemyAI.health.currentHP < previousHP && !isTransitioning)
             {
                 previousHP = myEnemyAI.health.currentHP;
@@ -92,9 +106,6 @@ public class SpawnerBossAI : MonoBehaviour
 
         TriggerHitSpawn();
 
-        // ==========================================
-        // YENİ: BOSS'A ÖZEL KUSURSUZ FADE-OUT (YOK OLMA)
-        // ==========================================
         yield return StartCoroutine(BossTeleportFade(1f, 0f, 0.25f));
 
         List<Vector3Int> farCells = new List<Vector3Int>();
@@ -131,15 +142,11 @@ public class SpawnerBossAI : MonoBehaviour
             myEnemyAI.TeleportTo(randomCell);
         }
 
-        // ==========================================
-        // YENİ: BOSS'A ÖZEL KUSURSUZ FADE-IN (BELİRME)
-        // ==========================================
         yield return StartCoroutine(BossTeleportFade(0f, 1f, 0.25f));
 
         isTransitioning = false; 
     }
 
-    // YENİ: Boss'un saydamlığını yöneten ana animasyon
     private IEnumerator BossTeleportFade(float startAlpha, float endAlpha, float duration)
     {
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
@@ -149,7 +156,6 @@ public class SpawnerBossAI : MonoBehaviour
         Color c = sr.color;
         float elapsed = 0f;
 
-        // Işınlanırken boss'un boyutu da hafif esnesin (Süzülme hissi verir)
         Vector3 normalScale = Vector3.one;
         Vector3 stretchedScale = new Vector3(0.5f, 1.5f, 1f); 
         Vector3 startScale = startAlpha > endAlpha ? normalScale : stretchedScale;
@@ -225,15 +231,42 @@ public class SpawnerBossAI : MonoBehaviour
             }
         }
 
-        if (telegraphCoroutine != null) StopCoroutine(telegraphCoroutine);
-        
-        if (TurnManager.instance != null)
+        if (bossWarningMap != null)
         {
             foreach (var wCell in aoeWarningCells)
             {
-                TurnManager.instance.DrawWarningTile(wCell);
+                StartCoroutine(SmoothBossWarningFadeIn(wCell));
             }
         }
+    }
+
+    private IEnumerator SmoothBossWarningFadeIn(Vector3Int cell)
+    {
+        bossWarningMap.SetTile(cell, warningTile);
+        bossWarningMap.SetTileFlags(cell, TileFlags.None); 
+
+        // ==========================================
+        // DÜZELTME: Rengini bozmasın diye BEYAZ YAPTIK! (Sadece saydamlığı değişir)
+        // Senin kendi uyarı karon ne renkse o renk çıkar.
+        // ==========================================
+        Color startColor = new Color(1f, 1f, 1f, 0f);   
+        Color endColor = new Color(1f, 1f, 1f, 0.8f); // %80 Görünür   
+
+        bossWarningMap.SetColor(cell, startColor);
+
+        float duration = 0.3f; 
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            t = t * t * (3f - 2f * t);
+
+            bossWarningMap.SetColor(cell, Color.Lerp(startColor, endColor, t));
+            yield return null;
+        }
+        bossWarningMap.SetColor(cell, endColor);
     }
 
     private IEnumerator ExecuteCheckerboardAoE()
@@ -242,24 +275,22 @@ public class SpawnerBossAI : MonoBehaviour
         aoeWarningCells.Clear();
         isAoEWarningActive = false;
 
-        if (warningMap != null && cellsToExplode.Count > 0)
+        if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            Color intenseRed = new Color(1f, 0f, 0f, 1f); 
+            // Patlama anında Kendi orijinal rengini %100 parlak yapar!
+            Color intenseBright = new Color(1f, 1f, 1f, 1f); 
             
             foreach (var c in cellsToExplode)
             {
-                if (warningMap.HasTile(c))
-                {
-                    warningMap.SetColor(c, intenseRed);
-                }
+                if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseBright);
             }
 
             yield return new WaitForSeconds(0.1f); 
 
             float fadeDur = 0.5f; 
             float elapsed = 0f;
-            Color startFadeColor = intenseRed;
-            Color endFadeColor = new Color(1f, 0f, 0f, 0f); 
+            Color startFadeColor = intenseBright;
+            Color endFadeColor = new Color(1f, 1f, 1f, 0f); 
 
             while (elapsed < fadeDur)
             {
@@ -271,7 +302,7 @@ public class SpawnerBossAI : MonoBehaviour
                 
                 foreach (var c in cellsToExplode)
                 {
-                    if (warningMap.HasTile(c)) warningMap.SetColor(c, current);
+                    if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, current);
                 }
                 yield return null;
             }
@@ -285,9 +316,9 @@ public class SpawnerBossAI : MonoBehaviour
 
         foreach (var c in cellsToExplode)
         {
-            if (warningMap.HasTile(c) && !IsCellTargetedByNormalEnemy(c))
+            if (bossWarningMap != null && bossWarningMap.HasTile(c))
             {
-                warningMap.SetTile(c, null);
+                bossWarningMap.SetTile(c, null);
             }
         }
 
@@ -352,8 +383,6 @@ public class SpawnerBossAI : MonoBehaviour
     public void OnTotemDestroyed()
     {
         activeTotems--;
-        Debug.Log($"💥 Totem Kırıldı! Kalan Totem: {activeTotems}");
-        
         StartCoroutine(TotemDestroySequence());
     }
 
@@ -375,14 +404,10 @@ public class SpawnerBossAI : MonoBehaviour
         if (activeTotems <= 0)
         {
             isShielded = false;
-            Debug.Log("🛡️ BOSS KALKANI DÜŞTÜ! SALDIR!");
-            
-            // ==========================================
-            // YENİ: KALKAN PATLAMA EFEKTİNİ BAŞLAT!
-            // ==========================================
             StartCoroutine(ShatterShieldVisual());
-
             previousHP = myEnemyAI.health.currentHP;
+            
+            yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
         }
         else
         {
@@ -392,22 +417,19 @@ public class SpawnerBossAI : MonoBehaviour
         isTransitioning = false; 
     }
 
-    // ==========================================
-    // YENİ: KALKANIN CAM GİBİ DAĞILMA (SHATTER) ANİMASYONU
-    // ==========================================
     private IEnumerator ShatterShieldVisual()
     {
         if (shieldVisual == null) yield break;
 
-        // TurnManager'daki nükleer patlama prefabını boss'un üstünde patlat!
         if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
         {
-            Instantiate(TurnManager.instance.explosionPrefab, transform.position, Quaternion.identity);
+            GameObject fx = Instantiate(TurnManager.instance.explosionPrefab, transform.position, Quaternion.identity);
+            StartCoroutine(FadeAndDestroyExplosion(fx)); 
         }
 
         SpriteRenderer shieldSr = shieldVisual.GetComponent<SpriteRenderer>();
         Vector3 startScale = shieldVisual.transform.localScale;
-        Vector3 targetScale = startScale * 2.5f; // Kalkan patlayarak büyüsün
+        Vector3 targetScale = startScale * 2.5f; 
 
         float duration = 0.3f;
         float elapsed = 0f;
@@ -417,10 +439,8 @@ public class SpawnerBossAI : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
 
-            // Büyüme
             shieldVisual.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
             
-            // Saydamlaşarak yok olma
             if (shieldSr != null)
             {
                 Color c = shieldSr.color;
@@ -431,8 +451,6 @@ public class SpawnerBossAI : MonoBehaviour
         }
 
         shieldVisual.SetActive(false);
-        
-        // Obje kapanınca arkada ayarları eski haline getir ki diğer boss'larda bozuk çıkmasın
         shieldVisual.transform.localScale = startScale; 
         if (shieldSr != null)
         {
@@ -442,10 +460,38 @@ public class SpawnerBossAI : MonoBehaviour
         }
     }
 
+    private IEnumerator FadeAndDestroyExplosion(GameObject fx)
+    {
+        SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
+        Vector3 startScale = Vector3.one * 0.5f; 
+        Vector3 endScale = Vector3.one * 3f;    
+        
+        float duration = 0.3f; 
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+
+            fx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
+
+            foreach (var sr in renderers)
+            {
+                Color c = sr.color;
+                c.a = Mathf.Lerp(0.8f, 0f, t); 
+                sr.color = c;
+            }
+            yield return null;
+        }
+        
+        Destroy(fx);
+    }
+
     public void OnBossDied()
     {
-        Debug.Log("💀 BOSS ÖLDÜ! ARENA TEMİZLENİYOR!");
-        
+        if (bossWarningMap != null) bossWarningMap.ClearAllTiles(); 
+
         foreach (var minion in summonedMinions)
         {
             if (minion != null && minion.health.currentHP > 0)
@@ -457,16 +503,6 @@ public class SpawnerBossAI : MonoBehaviour
             if (e != null && e.enemyBehavior == EnemyAI.EnemyBehavior.Totem && e.health.currentHP > 0)
                 StartCoroutine(e.FadeDieCoroutine());
         }
-    }
-
-    private bool IsCellTargetedByNormalEnemy(Vector3Int targetCell)
-    {
-        if (TurnManager.instance == null) return false;
-        foreach (var e in TurnManager.instance.enemies)
-        {
-            if (e != null && e.isChargingAttack && e.warningCells.Contains(targetCell)) return true;
-        }
-        return false;
     }
 
     public bool IsCellTargetedByBoss(Vector3Int cell)

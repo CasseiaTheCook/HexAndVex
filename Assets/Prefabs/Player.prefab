@@ -61,7 +61,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 49b0ff9c05cb759bc8723e972c94a3e3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -110,6 +110,8 @@ MonoBehaviour:
   highlightMap: {fileID: 0}
   highlightTile: {fileID: 0}
   health: {fileID: 4506777465803296374}
+  playerVisualOffsetY: 0.25
+  visualRenderer: {fileID: 0}
 --- !u!114 &4506777465803296374
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -125,6 +127,7 @@ MonoBehaviour:
   maxHP: 3
   currentHP: 0
   hptext: {fileID: 6574944102724484960}
+  damageTextPrefab: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
 --- !u!1 &4517455139496262463
 GameObject:
   m_ObjectHideFlags: 0
