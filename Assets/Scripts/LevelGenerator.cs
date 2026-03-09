@@ -10,6 +10,10 @@ public class LevelGenerator : MonoBehaviour
     [Header("Tilemaps")]
     public Tilemap groundMap;
     public Tilemap backgroundMap;
+    // ==========================================
+    // YENİ: DİKENLER İÇİN AYRI TİLEMAP
+    // ==========================================
+    public Tilemap hazardMap;
 
     [Header("Tiles (Üst Zemin)")]
     public TileBase groundTile;
@@ -50,20 +54,26 @@ public class LevelGenerator : MonoBehaviour
             GameObject bgObj = GameObject.Find("BackgroundMap");
             if (bgObj != null) backgroundMap = bgObj.GetComponent<Tilemap>();
         }
+        
+        // ==========================================
+        // YENİ: Hazard Map'i otomatik bul (Eğer Unity'den atanmamışsa)
+        // ==========================================
+        if (hazardMap == null)
+        {
+            GameObject hzObj = GameObject.Find("HazardMap");
+            if (hzObj != null) hazardMap = hzObj.GetComponent<Tilemap>();
+        }
     }
 
     void Start()
     {
-        // Direkt çalıştırmak yerine bir yardımcı (Coroutine) çağırıyoruz
         StartCoroutine(LevelBaslatmaSırası());
     }
 
     System.Collections.IEnumerator LevelBaslatmaSırası()
     {
-        // 1. Adım: ScreenFader hazır olana kadar bir kare bekle
         yield return null; 
 
-        // 2. Adım: ScreenFader sahnede var mı kontrol et
         if (ScreenFader.instance != null)
         {
             Debug.Log("Fader bulundu, karartma başlıyor...");
@@ -94,6 +104,7 @@ public class LevelGenerator : MonoBehaviour
 
         groundMap.ClearAllTiles();
         if (backgroundMap != null) backgroundMap.ClearAllTiles();
+        if (hazardMap != null) hazardMap.ClearAllTiles(); // YENİ: Eski dikenleri temizle
 
         validCells.Clear();
         hazardCells.Clear();
@@ -116,15 +127,18 @@ public class LevelGenerator : MonoBehaviour
 
                     if (Random.value > 0.15f)
                     {
+                        // Her halükarda normal bir zemin döşe
+                        groundMap.SetTile(cell, groundTile);
+                        
                         if (Random.value < 0.10f)
                         {
-                            groundMap.SetTile(cell, hazardTile);
+                            // ==========================================
+                            // YENİ: Eğer burası dikenliyse, dikeni hazardMap'e çiz
+                            // ==========================================
+                            if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
                             hazardCells.Add(cell);
                         }
-                        else
-                        {
-                            groundMap.SetTile(cell, groundTile);
-                        }
+                        
                         validCells.Add(cell);
                     }
                 }
@@ -234,13 +248,9 @@ public class LevelGenerator : MonoBehaviour
 
             float randomMultiplier = Random.Range(0.8f, 1.25f);
             
-            // ==========================================
-            // DÜZELTME BURADA: ELİT DÜŞMAN BOYUTU SABİT KALDI
-            // ==========================================
             if (Random.value < 0.10f)
             {
-                randomMultiplier *= 2.0f; // Sadece canı katlanır
-                // SİLDİM -> newEnemyObj.transform.localScale *= 1.2f;
+                randomMultiplier *= 2.0f; 
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
@@ -266,6 +276,7 @@ public class LevelGenerator : MonoBehaviour
         Debug.Log("🔥 BOSS BÖLÜMÜ YÜKLENİYOR! 🔥");
         groundMap.ClearAllTiles();
         if (backgroundMap != null) backgroundMap.ClearAllTiles();
+        if (hazardMap != null) hazardMap.ClearAllTiles(); // YENİ
         validCells.Clear();
         hazardCells.Clear();
 
@@ -287,15 +298,14 @@ public class LevelGenerator : MonoBehaviour
 
                     if (Random.value > 0.05f)
                     {
+                        groundMap.SetTile(cell, groundTile);
+                        
                         if (Random.value < 0.05f && Vector3Int.zero != cell)
                         {
-                            groundMap.SetTile(cell, hazardTile);
+                            if (hazardMap != null) hazardMap.SetTile(cell, hazardTile); // YENİ
                             hazardCells.Add(cell);
                         }
-                        else
-                        {
-                            groundMap.SetTile(cell, groundTile);
-                        }
+                        
                         validCells.Add(cell);
                     }
                 }
@@ -373,57 +383,11 @@ public class LevelGenerator : MonoBehaviour
     private void GenerateColumns()
     {
         if (backgroundMap == null || columnTile == null) return;
-
-        HashSet<Vector3Int> validSet = new HashSet<Vector3Int>(validCells);
+        backgroundMap.ClearAllTiles();
 
         foreach (var cell in validCells)
         {
-            Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
-
-            bool isExposedEdge = false;
-            foreach (var off in offsets)
-            {
-                if (!validSet.Contains(cell + off))
-                {
-                    isExposedEdge = true;
-                    break;
-                }
-            }
-
-            if (isExposedEdge)
-            {
-                backgroundMap.SetTile(cell, columnTile);
-            }
-        }
-
-        HashSet<Vector3Int> holeFills = new HashSet<Vector3Int>();
-        foreach (var cell in validCells)
-        {
-            Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
-            foreach (var off in offsets)
-            {
-                Vector3Int neighbor = cell + off;
-                if (!validSet.Contains(neighbor) && !holeFills.Contains(neighbor))
-                {
-                    Vector3Int[] nOffsets = (neighbor.y % 2 != 0) ? evenOffsets : oddOffsets;
-                    int validNeighborCount = 0;
-                    foreach (var nOff in nOffsets)
-                    {
-                        if (validSet.Contains(neighbor + nOff)) validNeighborCount++;
-                    }
-
-                    if (validNeighborCount >= 4)
-                        holeFills.Add(neighbor);
-                }
-            }
-        }
-
-        foreach (var hole in holeFills)
-        {
-            if (!backgroundMap.HasTile(hole))
-            {
-                backgroundMap.SetTile(hole, columnTile);
-            }
+            backgroundMap.SetTile(cell, columnTile);
         }
     }
 
@@ -494,6 +458,7 @@ public class LevelGenerator : MonoBehaviour
         foreach (var cell in cellsToRemove)
         {
             groundMap.SetTile(cell, null);
+            if (hazardMap != null) hazardMap.SetTile(cell, null); // YENİ
             validCells.Remove(cell);
             hazardCells.Remove(cell);
         }
@@ -550,6 +515,7 @@ public class LevelGenerator : MonoBehaviour
             if (!largestIsland.Contains(cell))
             {
                 groundMap.SetTile(cell, null);
+                if (hazardMap != null) hazardMap.SetTile(cell, null); // YENİ
                 toRemove.Add(cell);
             }
         }
