@@ -44,5 +44,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e3de827ee4f27e499a4b74087ada5b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MastersFocusPerk
-  perkName: Masters Focus
+  perkName: Neural Reboot
   description: Reroll dice if the result is lower than 3.

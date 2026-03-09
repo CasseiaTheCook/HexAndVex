@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &7578640038350188942
+--- !u!1 &1109346846490427701
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,22 +8,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6501532706214097375}
-  - component: {fileID: 3872639428386983986}
+  - component: {fileID: 8374518320430469224}
+  - component: {fileID: 8073043340210625464}
   m_Layer: 0
-  m_Name: VanguardRearguard
+  m_Name: LoneKnight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6501532706214097375
+--- !u!4 &8374518320430469224
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7578640038350188942}
+  m_GameObject: {fileID: 1109346846490427701}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 464.60696, y: 338.6852, z: 0}
@@ -32,18 +32,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3872639428386983986
+--- !u!114 &8073043340210625464
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7578640038350188942}
+  m_GameObject: {fileID: 1109346846490427701}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e4078e4e3676ba54588d6ad7d185bf31, type: 3}
+  m_Script: {fileID: 11500000, guid: 2fffdd089117edf4aa0c69539591d569, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VanguardRearguardPerk
-  perkName: Vanguard & Rearguard
-  description: +4 to the first and last dice.
-  priority: 1
+  m_EditorClassIdentifier: Assembly-CSharp::LoneKnightPerk
+  perkName: Apex Predator
+  description: 6x total dice multiplier, but -1x for each dice you can roll.
+  priority: 2

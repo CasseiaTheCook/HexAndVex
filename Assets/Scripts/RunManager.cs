@@ -65,7 +65,7 @@ public class RunManager : MonoBehaviour
     {
         BasePerk prefabScript = perkPrefab.GetComponent<BasePerk>();
 
-        // Oyuncunun elinde bu perk tipinden (Örn: SwiftActionPerk) zaten var mı kontrol et
+        // Oyuncunun elinde bu perk tipinden (Örn: ReflexFiberPerk) zaten var mı kontrol et
         BasePerk existingPerk = activePerks.Find(p => p.GetType() == prefabScript.GetType());
 
         if (existingPerk != null)

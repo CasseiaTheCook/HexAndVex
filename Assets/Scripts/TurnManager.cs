@@ -369,7 +369,7 @@ public class TurnManager : MonoBehaviour
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis) { aegis.BreakShield(); break; }
+                    if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
                 }
                 RunManager.instance.hasHolyAegis = false;
             }
@@ -524,7 +524,7 @@ public class TurnManager : MonoBehaviour
         int extraDices = 0;
         foreach (var p in RunManager.instance.activePerks)
         {
-            if (p is CalculatedAmbushPerk ambushPerk)
+            if (p is DormantSporePerk ambushPerk)
             {
                 extraDices += ambushPerk.storedExtraDices;
                 ambushPerk.storedExtraDices = 0; 
@@ -542,7 +542,7 @@ public class TurnManager : MonoBehaviour
 
         CombatPayload payload = new CombatPayload(currentRolls);
 
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SwordDancePerk"))
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk"))
         {
             payload.multiplyInsteadOfAdd = true;
         }
@@ -852,7 +852,7 @@ public class TurnManager : MonoBehaviour
         {
             foreach (var perk in RunManager.instance.activePerks)
             {
-                if (perk is HolyAegisPerk aegis)
+                if (perk is BioBarrierPerk aegis)
                 {
                     aegis.BreakShield();
                     break;
@@ -883,7 +883,7 @@ public class TurnManager : MonoBehaviour
             {
                 foreach (var perk in RunManager.instance.activePerks)
                 {
-                    if (perk is HolyAegisPerk aegis)
+                    if (perk is BioBarrierPerk aegis)
                     {
                         aegis.BreakShield();
                         break;
