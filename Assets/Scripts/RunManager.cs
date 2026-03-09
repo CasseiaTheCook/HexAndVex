@@ -22,7 +22,7 @@ public class RunManager : MonoBehaviour
     [Header("Perk Değişkenleri")]
     public int bonusGold = 0;        // Bounty Hunter için
     public float dodgeChance = 0f;   // Knight's Plating için
-    public bool hasHolyAegis = false; // Holy Aegis kalkanı için
+    public bool hasBioBarrier = false; // Bio-Barrier kalkanı için
     public int skipBonusGold = 0;    // Mercenary's Rest için
 
     [Header("Combat Stats")]
@@ -65,7 +65,7 @@ public class RunManager : MonoBehaviour
     {
         BasePerk prefabScript = perkPrefab.GetComponent<BasePerk>();
 
-        // Oyuncunun elinde bu perk tipinden (Örn: SwiftActionPerk) zaten var mı kontrol et
+        // Oyuncunun elinde bu perk tipinden (Örn: ReflexFiberPerk) zaten var mı kontrol et
         BasePerk existingPerk = activePerks.Find(p => p.GetType() == prefabScript.GetType());
 
         if (existingPerk != null)
