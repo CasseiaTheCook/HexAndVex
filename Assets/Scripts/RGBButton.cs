@@ -21,7 +21,7 @@ public class RGBButton : BaseMeshEffect
             // Butonun genişliğine göre renk geçişini ayarla
             float offset = (v.position.x) * dalgaSikligi;
             
-            float hue = (Time.time * hiz + (offset * 0.01f)) % 1f;
+            float hue = Mathf.Repeat(Time.time * hiz + (offset * 0.01f), 1f);
             
             v.color = Color.HSVToRGB(hue, 0.8f, 1f); // Buton çok göz yormasın diye doygunluğu 0.8 yaptım
             vertices[i] = v;
