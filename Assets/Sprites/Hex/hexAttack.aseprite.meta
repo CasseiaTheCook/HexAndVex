@@ -277,7 +277,7 @@ ScriptedImporter:
   spriteSheetImportData:
   - name: hexAttack_0
     originalName: 
-    pivot: {x: 0.54398394, y: 0.38082045}
+    pivot: {x: 0.5312339, y: 0.38106996}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -298,7 +298,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_1
     originalName: 
-    pivot: {x: 0.21891518, y: 0.34374008}
+    pivot: {x: 0.20616493, y: 0.34373933}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -319,7 +319,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_2
     originalName: 
-    pivot: {x: 0.51866066, y: 0.44353026}
+    pivot: {x: 0.5061606, y: 0.44352952}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -340,7 +340,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_3
     originalName: 
-    pivot: {x: 0.25650674, y: 0.36856955}
+    pivot: {x: 0.24400635, y: 0.3685692}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -361,7 +361,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_4
     originalName: 
-    pivot: {x: 0.33100218, y: 0.45098728}
+    pivot: {x: 0.3162963, y: 0.4506586}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -382,7 +382,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_5
     originalName: 
-    pivot: {x: 0.3381916, y: 0.34657854}
+    pivot: {x: 0.32854506, y: 0.3465789}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -403,7 +403,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_6
     originalName: 
-    pivot: {x: 0.41930774, y: 0.4333785}
+    pivot: {x: 0.40920675, y: 0.43337798}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
