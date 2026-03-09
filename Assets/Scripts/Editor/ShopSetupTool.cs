@@ -178,8 +178,17 @@ public static class ShopSetupTool
         rerollRT.sizeDelta        = new Vector2(100f, 28f);
 
         Image rerollBg = rerollGO.AddComponent<Image>();
-        rerollBg.color = new Color(0.25f, 0.25f, 0.55f, 0.9f);
+        rerollBg.color = Color.white; // ColorBlock kontrol edecek
         Button rerollBtn = rerollGO.AddComponent<Button>();
+        rerollBtn.targetGraphic = rerollBg;
+        ColorBlock rerollCB = rerollBtn.colors;
+        rerollCB.normalColor      = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
+        rerollCB.highlightedColor = new Color32(0x00, 0x08, 0x41, 0xFF); // #000841
+        rerollCB.pressedColor     = new Color32(0x00, 0x93, 0xBC, 0xFF); // #0093BC
+        rerollCB.selectedColor    = new Color32(0x00, 0x05, 0x0C, 0xFF);
+        rerollCB.disabledColor    = new Color32(0x00, 0x05, 0x0C, 0xFF);
+        rerollCB.colorMultiplier  = 1f;
+        rerollBtn.colors = rerollCB;
 
         // Reroll fiyat texti — butonun icinde
         GameObject rerollTxtGO = new GameObject("RerollPriceText", typeof(RectTransform));
