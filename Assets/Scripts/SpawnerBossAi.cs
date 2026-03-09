@@ -15,7 +15,8 @@ public class SpawnerBossAI : MonoBehaviour
 
     [Header("AoE Saldırı Ayarları (4 Adımlı Döngü)")]
     public int aoeCycleStep = 0; 
-    private bool isAoEWarningActive = false;
+    public bool isAoEWarningActive = false; 
+    public bool readyToExplodeThisTurn = false; // YENİ: Patlamayı bir tur bekleten kilit!
     private List<Vector3Int> aoeWarningCells = new List<Vector3Int>();
 
     [Header("Summon Ayarları")]
@@ -47,7 +48,6 @@ public class SpawnerBossAI : MonoBehaviour
         }
         else
         {
-            Debug.LogError("🚨 KANKA DİKKAT: 'BossWarningMap' bulunamadı! Yedek olarak normal WarningMap kullanılıyor.");
             if (TurnManager.instance != null) bossWarningMap = TurnManager.instance.warningMap;
         }
 
@@ -55,8 +55,6 @@ public class SpawnerBossAI : MonoBehaviour
             warningTile = myEnemyAI.warningTile;
         if (warningTile == null && TurnManager.instance != null)
             warningTile = TurnManager.instance.warningTile;
-        if (warningTile == null)
-            Debug.LogError("🚨 KANKA DİKKAT: Boss'un 'Warning Tile' boş kalmış! Lütfen Inspector'dan boss'un özel uyarı karosunu ata.");
 
         activeTotems = 4;
         isShielded = true;
@@ -100,6 +98,19 @@ public class SpawnerBossAI : MonoBehaviour
     {
         isTransitioning = true; 
 
+        if (isAoEWarningActive)
+        {
+            isAoEWarningActive = false;
+            readyToExplodeThisTurn = false; // YENİ
+            aoeCycleStep = 0; 
+            
+            if (bossWarningMap != null)
+            {
+                foreach (var c in aoeWarningCells) bossWarningMap.SetTile(c, null);
+            }
+            aoeWarningCells.Clear();
+        }
+
         TriggerHitSpawn();
 
         yield return StartCoroutine(BossTeleportFade(1f, 0f, 0.25f));
@@ -113,7 +124,7 @@ public class SpawnerBossAI : MonoBehaviour
             for (int y = -radius; y <= radius; y++)
             {
                 Vector3Int c = new Vector3Int(x, y, 0);
-                if (groundMap.HasTile(c) && !TurnManager.instance.IsEnemyAtCell(c) && myEnemyAI.Distance(c, playerCell) >= 4f)
+                if (groundMap.HasTile(c) && !TurnManager.instance.IsEnemyAtCell(c) && myEnemyAI.Distance(c, playerCell) >= 4f && !LevelGenerator.instance.hazardCells.Contains(c))
                 {
                     farCells.Add(c);
                 }
@@ -125,7 +136,7 @@ public class SpawnerBossAI : MonoBehaviour
             for (int x = -radius; x <= radius; x++) {
                 for (int y = -radius; y <= radius; y++) {
                     Vector3Int c = new Vector3Int(x, y, 0);
-                    if (groundMap.HasTile(c) && !TurnManager.instance.IsEnemyAtCell(c) && myEnemyAI.Distance(c, playerCell) >= 3f) {
+                    if (groundMap.HasTile(c) && !TurnManager.instance.IsEnemyAtCell(c) && myEnemyAI.Distance(c, playerCell) >= 3f && !LevelGenerator.instance.hazardCells.Contains(c)) {
                         farCells.Add(c);
                     }
                 }
@@ -186,12 +197,13 @@ public class SpawnerBossAI : MonoBehaviour
         else if (aoeCycleStep == 2)
         {
             ShowCheckerboardWarning();
-            aoeCycleStep++;
+            aoeCycleStep = 3; // Uyarı verildi, 3'e geçti
         }
         else if (aoeCycleStep == 3)
         {
-            yield return StartCoroutine(ExecuteCheckerboardAoE());
-            aoeCycleStep = 0;
+            // YENİ: Sadece 3'üncü adımda "Patlamaya Hazırım" bayrağını çekiyoruz.
+            // TurnManager bunu görüp patlatacak.
+            readyToExplodeThisTurn = true; 
         }
     }
 
@@ -241,12 +253,8 @@ public class SpawnerBossAI : MonoBehaviour
         bossWarningMap.SetTile(cell, warningTile);
         bossWarningMap.SetTileFlags(cell, TileFlags.None); 
 
-        // ==========================================
-        // DÜZELTME: BOSS ALANI ARTIK SİBER MAVİ!
-        // ==========================================
-        // RGB kodları (Red: 0, Green: 0.5, Blue: 1) -> Parlak Mavi
         Color startColor = new Color(0f, 0.5f, 1f, 0f);   
-        Color endColor = new Color(0f, 0.5f, 1f, 0.8f); // %80 Görünür Mavi 
+        Color endColor = new Color(0f, 0.5f, 1f, 0.8f); 
 
         bossWarningMap.SetColor(cell, startColor);
 
@@ -265,18 +273,19 @@ public class SpawnerBossAI : MonoBehaviour
         bossWarningMap.SetColor(cell, endColor);
     }
 
-    private IEnumerator ExecuteCheckerboardAoE()
+    public IEnumerator ExecuteCheckerboardAoE()
     {
+        // YENİ: Patladıktan sonra her şeyi anında sıfırla ki takılıp kalmasın
+        readyToExplodeThisTurn = false;
+        aoeCycleStep = 0; 
+        isAoEWarningActive = false;
+
         List<Vector3Int> cellsToExplode = new List<Vector3Int>(aoeWarningCells);
         aoeWarningCells.Clear();
-        isAoEWarningActive = false;
 
         if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            // ==========================================
-            // DÜZELTME: PATLAMA ANI KESKİN PARLAK MAVİ!
-            // ==========================================
-            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f); // Elektrik Mavisi
+            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f); 
             
             foreach (var c in cellsToExplode)
             {
@@ -288,7 +297,7 @@ public class SpawnerBossAI : MonoBehaviour
             float fadeDur = 0.5f; 
             float elapsed = 0f;
             Color startFadeColor = intenseBright;
-            Color endFadeColor = new Color(0f, 0.5f, 1f, 0f); // Eriyen mavi
+            Color endFadeColor = new Color(0f, 0.5f, 1f, 0f); 
 
             while (elapsed < fadeDur)
             {
@@ -337,7 +346,8 @@ public class SpawnerBossAI : MonoBehaviour
             for (int y = -radius; y <= radius; y++)
             {
                 Vector3Int cell = new Vector3Int(x, y, 0);
-                if (groundMap.HasTile(cell) && !TurnManager.instance.IsEnemyAtCell(cell) && myEnemyAI.Distance(cell, playerCell) >= 2f)
+                if (groundMap.HasTile(cell) && !TurnManager.instance.IsEnemyAtCell(cell) && 
+                    myEnemyAI.Distance(cell, playerCell) >= 2f && !LevelGenerator.instance.hazardCells.Contains(cell))
                 {
                     availableCells.Add(cell);
                 }
@@ -488,6 +498,10 @@ public class SpawnerBossAI : MonoBehaviour
 
     public void OnBossDied()
     {
+        isAoEWarningActive = false;
+        readyToExplodeThisTurn = false;
+        aoeWarningCells.Clear();
+
         if (bossWarningMap != null) bossWarningMap.ClearAllTiles(); 
 
         foreach (var minion in summonedMinions)
