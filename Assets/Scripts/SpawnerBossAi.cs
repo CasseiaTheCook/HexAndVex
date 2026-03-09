@@ -51,10 +51,6 @@ public class SpawnerBossAI : MonoBehaviour
             if (TurnManager.instance != null) bossWarningMap = TurnManager.instance.warningMap;
         }
 
-        // ==========================================
-        // DÜZELTME: BOSS KENDİ ÖZEL TILE'INI KULLANIR!
-        // ZORLA BAŞKA BİR ŞEYE ÇEVİRME KODUNU SİLDİK.
-        // ==========================================
         if (warningTile == null && myEnemyAI != null)
             warningTile = myEnemyAI.warningTile;
         if (warningTile == null && TurnManager.instance != null)
@@ -246,11 +242,11 @@ public class SpawnerBossAI : MonoBehaviour
         bossWarningMap.SetTileFlags(cell, TileFlags.None); 
 
         // ==========================================
-        // DÜZELTME: Rengini bozmasın diye BEYAZ YAPTIK! (Sadece saydamlığı değişir)
-        // Senin kendi uyarı karon ne renkse o renk çıkar.
+        // DÜZELTME: BOSS ALANI ARTIK SİBER MAVİ!
         // ==========================================
-        Color startColor = new Color(1f, 1f, 1f, 0f);   
-        Color endColor = new Color(1f, 1f, 1f, 0.8f); // %80 Görünür   
+        // RGB kodları (Red: 0, Green: 0.5, Blue: 1) -> Parlak Mavi
+        Color startColor = new Color(0f, 0.5f, 1f, 0f);   
+        Color endColor = new Color(0f, 0.5f, 1f, 0.8f); // %80 Görünür Mavi 
 
         bossWarningMap.SetColor(cell, startColor);
 
@@ -277,8 +273,10 @@ public class SpawnerBossAI : MonoBehaviour
 
         if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            // Patlama anında Kendi orijinal rengini %100 parlak yapar!
-            Color intenseBright = new Color(1f, 1f, 1f, 1f); 
+            // ==========================================
+            // DÜZELTME: PATLAMA ANI KESKİN PARLAK MAVİ!
+            // ==========================================
+            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f); // Elektrik Mavisi
             
             foreach (var c in cellsToExplode)
             {
@@ -290,7 +288,7 @@ public class SpawnerBossAI : MonoBehaviour
             float fadeDur = 0.5f; 
             float elapsed = 0f;
             Color startFadeColor = intenseBright;
-            Color endFadeColor = new Color(1f, 1f, 1f, 0f); 
+            Color endFadeColor = new Color(0f, 0.5f, 1f, 0f); // Eriyen mavi
 
             while (elapsed < fadeDur)
             {
