@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7e460eff13eb5842a2c2e889496a99e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VeteransVitalityPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Veterans Vitality
-  description: Gain +1 health each level.
+  description: Gain a health point at the start of each level. (+1 each LVL)
+  priority: 0
+  isRerollPerk: 0

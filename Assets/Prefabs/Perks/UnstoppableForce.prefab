@@ -44,6 +44,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 046cb7dc8bab2f848aaf7c42e2afe151, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UnstoppableForcePerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Unstoppable Force
-  description: Gain extra multiplier based on your total dice count.
+  description: Gain extra multiplier based on your total dice count. (1.25X each
+    level)
   priority: 2
+  isRerollPerk: 0

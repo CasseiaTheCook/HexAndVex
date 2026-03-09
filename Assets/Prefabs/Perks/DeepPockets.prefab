@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd0642fbe8bc0bc438d65c26d861a801, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DeepPocketsPerk
+  currentLevel: 1
+  maxLevel: 2
   perkName: Deep Pockets
-  description: +1 collectible slot.
+  description: Get an additional shop slot.
+  priority: 0
+  isRerollPerk: 0

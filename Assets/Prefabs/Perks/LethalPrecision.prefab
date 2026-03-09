@@ -44,6 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c866b30954774b45882c1de17386853, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LethalPrecisionPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Lethal Precision
-  description: +25% Critical chance.
+  description: +25% Critical chance each LVL.
   priority: 0
+  isRerollPerk: 0

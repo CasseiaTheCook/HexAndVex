@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 242c9bf8458f4ed458ef2d159664d29b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SwiftActionPerk
+  currentLevel: 1
+  maxLevel: 1
   perkName: Swift Action
-  description: +1 turn.
+  description: You can move one more time before enemies turn.
+  priority: 0
+  isRerollPerk: 0

@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bb275226c01c964faa1574e62834557, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MercenarysRestPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Mercenarys Rest
-  description: Get gold every skip.
+  description: Get a gold every skip. (+1 each level)
+  priority: 0
+  isRerollPerk: 0

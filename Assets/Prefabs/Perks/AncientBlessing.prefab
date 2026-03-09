@@ -44,5 +44,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85c6e89dcd7a2db4291356b3fa7f480d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AncientBlessingPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Ancient Blessing
-  description: +1 level to a random perk.
+  description: Levels up random perk.
+  priority: 0
+  isRerollPerk: 0

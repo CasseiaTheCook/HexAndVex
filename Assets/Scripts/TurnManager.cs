@@ -72,8 +72,6 @@ public class TurnManager : MonoBehaviour
     #if UNITY_EDITOR
     void Update()
     {
-        // DEBUG: F9 ile tüm TelegraphAoE düşmanlarını aynı anda saldırıya zorla (çakışma testi)
-        // DEBUG: F8 ile oyuncunun iki yanına 2 AoE düşman spawnla (çakışma senaryosu)
         if (Input.GetKeyDown(KeyCode.F8))
         {
             SpawnDebugAoEEnemies();
@@ -101,7 +99,6 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // Debug yardımcı: EnemyAI.GetLineOfCells private olduğu için burada kopyası
     private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
     {
         List<Vector3Int> line = new List<Vector3Int>();
@@ -125,6 +122,7 @@ public class TurnManager : MonoBehaviour
         }
         return line;
     }
+
     private void SpawnDebugAoEEnemies()
     {
         if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null)
@@ -137,11 +135,9 @@ public class TurnManager : MonoBehaviour
         Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
         Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
 
-        // Oyuncunun karşılıklı iki komşusuna spawn et (warningleri çakışsın)
         Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
         List<Vector3Int> spawnCells = new List<Vector3Int>();
 
-        // Birbirine zıt iki yön seç (0-3, 1-4, 2-5)
         int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
         foreach (var pair in pairs)
         {
@@ -149,7 +145,6 @@ public class TurnManager : MonoBehaviour
             Vector3Int c2 = playerCell + offsets[pair[1]];
             if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2))
             {
-                // Bir hex daha uzaklaştır ki arada oyuncu kalsın
                 Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff;
                 Vector3Int far1 = c1 + off1[pair[0]];
                 Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff;
@@ -161,7 +156,6 @@ public class TurnManager : MonoBehaviour
                     spawnCells.Add(far2);
                     break;
                 }
-                // Yakına spawn et
                 spawnCells.Add(c1);
                 spawnCells.Add(c2);
                 break;
@@ -244,6 +238,11 @@ public class TurnManager : MonoBehaviour
     {
         if (!isNecroShotTargeting || target == null) return;
         isNecroShotTargeting = false;
+
+        // ==========================================
+        // YENİ: NECRO SHOT ATARKEN ANİMASYON OYNAT
+        // ==========================================
+        if (player != null) player.TriggerAttackAnimation();
 
         target.health.TakeDamage(target.health.maxHP + 999);
 
@@ -334,7 +333,7 @@ public class TurnManager : MonoBehaviour
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
 
         Vector3 startScale = Vector3.one * 0.5f; 
-        Vector3 endScale = Vector3.one * 2f;    
+        Vector3 endScale = Vector3.one * 1.3f;    
 
         float duration = 0.15f; 
         float elapsed = 0f;
@@ -390,9 +389,6 @@ public class TurnManager : MonoBehaviour
                 isPlayerTurn = true;
                 player.UpdateHighlights();
                 
-                // ==========================================
-                // YENİ: OKLARI GERİ GETİR (Tuzağa basıp sekse bile oklar gelsin)
-                // ==========================================
                 ShowAllEnemyIntents(); 
             }
             else if (player != null && player.health.currentHP > 0)
@@ -421,9 +417,6 @@ public class TurnManager : MonoBehaviour
             isPlayerTurn = true;
             player.UpdateHighlights();
 
-            // ==========================================
-            // YENİ: OKLARI GERİ GETİR (Normal hareket veya saldırı sonrası oklar geri gelsin)
-            // ==========================================
             ShowAllEnemyIntents(); 
         }
         else
@@ -502,20 +495,21 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // ==========================================
-    // YENİ: DÜŞMANIN OKLARINI GERİ ÇAĞIRAN FONKSİYON
-    // ==========================================
     public void ShowAllEnemyIntents()
     {
         foreach (var e in enemies)
         {
-            // Eğer adam sersemlemiş değilse (skipTurns <= 0) ve okları varsa görünür yap
             if (e != null && e.skipTurns <= 0) e.SetArrowVisibility(true);
         }
     }
 
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
+        // ==========================================
+        // YENİ: SALDIRI ANİMASYONUNU OYNAT!
+        // ==========================================
+        if (player != null) player.TriggerAttackAnimation();
+
         yield return new WaitForSeconds(0.3f);
 
         List<int> currentRolls = new List<int>();
@@ -531,7 +525,6 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        // SynthStim item buffı: +1 zar
         if (RunManager.instance.bonusDiceNextCombat > 0)
         {
             extraDices += RunManager.instance.bonusDiceNextCombat;
@@ -555,10 +548,9 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
             List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
-            // Önce reroll perk'ler, sonra buff perk'ler çalışsın
             perksToProcess.Sort((a, b) =>
             {
-                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); // true önce
+                int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); 
                 return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority);
             });
 
@@ -579,7 +571,6 @@ public class TurnManager : MonoBehaviour
                 {
                     if (perk.isRerollPerk)
                     {
-                        // Reroll perk: "!" göster, spin animasyonu, sonra yeni değer
                         foreach (int idx in changedIndices)
                         {
                             if (idx < spawnedDiceUI.Count)
@@ -605,7 +596,6 @@ public class TurnManager : MonoBehaviour
                     }
                     else
                     {
-                        // Buff perk: direkt yeni değeri göster (animasyonsuz geçiş)
                         foreach (int idx in changedIndices)
                         {
                             currentRolls[idx] = payload.diceRolls[idx];
@@ -642,7 +632,6 @@ public class TurnManager : MonoBehaviour
 
         int finalDamage = payload.GetFinalDamage();
 
-        // OverClok item buffı: 2x hasar
         if (RunManager.instance.doubleDamageNextCombat)
         {
             finalDamage *= 2;
