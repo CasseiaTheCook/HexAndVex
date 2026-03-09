@@ -93,6 +93,20 @@ public class LevelUpManager : MonoBehaviour
                 if (choiceDescriptionTexts.Length > i && choiceDescriptionTexts[i] != null)
                     choiceDescriptionTexts[i].text = perkScript.description;
 
+                if (choiceIcons != null && choiceIcons.Length > i && choiceIcons[i] != null)
+                {
+                    if (perkScript.icon != null)
+                    {
+                        choiceIcons[i].sprite = perkScript.icon;
+                        choiceIcons[i].color = Color.white;
+                    }
+                    else
+                    {
+                        choiceIcons[i].sprite = null;
+                        choiceIcons[i].color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+                    }
+                }
+
                 int index = i;
                 choiceButtons[i].onClick.RemoveAllListeners();
                 choiceButtons[i].onClick.AddListener(() => SelectPerk(index));

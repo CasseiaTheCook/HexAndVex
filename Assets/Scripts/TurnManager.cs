@@ -154,7 +154,13 @@ public class TurnManager : MonoBehaviour
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
-        isPlayerTurn = true; hasAttackedThisTurn = false;
+        
+        isPlayerTurn = true; 
+        hasAttackedThisTurn = false;
+        
+        // Tur bizde, tam parlak ol!
+        player.SetVisualAlpha(1f);
+
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
@@ -222,6 +228,12 @@ public class TurnManager : MonoBehaviour
         
         isPlayerTurn = false;
         if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
+        
+        // ========================================================
+        // DÜZELTME: SKİP YAPINCA YERDEKİ MAVİ TILE'LARI ANINDA SİL VE KARAKTERİ SOLUKLAŞTIR
+        // ========================================================
+        player.ClearHighlights();
+        player.SetVisualAlpha(0.5f);
         
         StartCoroutine(HandleSkipPhase());
     }
@@ -311,7 +323,14 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-            hasAttackedThisTurn = true; yield return StartCoroutine(MultiAttack(adjacentEnemies));
+            hasAttackedThisTurn = true; 
+            
+            // ========================================================
+            // YENİ: VURDUĞUMUZ AN ŞEFFAFLAŞIYORUZ! (Ekstra hak olsa bile)
+            // ========================================================
+            if (player != null) player.SetVisualAlpha(0.5f);
+
+            yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
 
         if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
@@ -335,6 +354,9 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator EnemyPhase()
     {
+        // Garanti olsun: Düşman sırasındayken kesinlikle soluğuz
+        if (player != null) player.SetVisualAlpha(0.5f);
+
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         
@@ -377,16 +399,12 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
-        // ========================================================
-        // EN BÜYÜK DÜZELTME BURADA: DÜZ ADAM YOKSA BİLE TURU BİTİR!
-        // ========================================================
         if (readyToMeleeAttack.Count > 0)
         {
             yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
         }
         else 
         {
-            // Eğer melee saldıran adam yoksa, oyun donmasın diye her halükarda turu bize sal!
             EndTurnAndDecreaseStuns();
         }
     }

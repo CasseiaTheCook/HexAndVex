@@ -2,20 +2,35 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
+using System.Collections.Generic;
 
 public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Referanslar")]
     public GameObject perkListPanel;
-    public TMP_Text perkListText;
+    public TMP_Text perkListText; // fallback: ikon yoksa eski sistem
     public TMP_Text buttonText;
 
     private CanvasGroup panelCanvasGroup;
     private Coroutine fadeCoroutine;
     private const float fadeDuration = 0.15f;
+    private const float iconSize = 36f;
+    private const float rowSpacing = 6f;
+
+    private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
     void Start()
     {
+        // Kendi Canvas'ı yoksa ekle — LevelUpCanvas üstünde kalsın
+        Canvas ownCanvas = GetComponent<Canvas>();
+        if (ownCanvas == null)
+        {
+            ownCanvas = gameObject.AddComponent<Canvas>();
+            ownCanvas.overrideSorting = true;
+            ownCanvas.sortingOrder = 20;
+            gameObject.AddComponent<GraphicRaycaster>();
+        }
+
         if (perkListPanel != null)
         {
             panelCanvasGroup = perkListPanel.GetComponent<CanvasGroup>();
@@ -63,25 +78,82 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     private void RefreshPerkList()
     {
-        if (perkListText == null || RunManager.instance == null) return;
+        if (perkListPanel == null || RunManager.instance == null) return;
+
+        // Eski satırları temizle
+        foreach (var row in spawnedRows) Destroy(row);
+        spawnedRows.Clear();
 
         var perks = RunManager.instance.activePerks;
 
+        // Eski text'i gizle (artık dinamik satırlar kullanıyoruz)
+        if (perkListText != null) perkListText.gameObject.SetActive(false);
+
         if (perks.Count == 0)
         {
-            perkListText.text = "No perks yet.";
+            if (perkListText != null)
+            {
+                perkListText.gameObject.SetActive(true);
+                perkListText.text = "No perks yet.";
+            }
             return;
         }
 
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        TMP_FontAsset font = perkListText != null ? perkListText.font : null;
+
         for (int i = 0; i < perks.Count; i++)
         {
             BasePerk p = perks[i];
-            sb.Append($"<color=#FFD700>{p.perkName}</color>  <color=#AAAAAA>Lv {p.currentLevel}</color>\n");
-            sb.Append($"<size=70%>{p.description}</size>");
-            if (i < perks.Count - 1) sb.Append("\n\n");
+            GameObject row = CreatePerkRow(p, font);
+            row.transform.SetParent(perkListPanel.transform, false);
+            spawnedRows.Add(row);
+        }
+    }
+
+    private GameObject CreatePerkRow(BasePerk perk, TMP_FontAsset font)
+    {
+        // Row: HorizontalLayoutGroup
+        GameObject row = new GameObject("PerkRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        HorizontalLayoutGroup hlg = row.GetComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 8f;
+        hlg.childAlignment = TextAnchor.UpperLeft;
+        hlg.childControlWidth = false;
+        hlg.childControlHeight = false;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+
+        // İkon
+        GameObject iconObj = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        iconObj.transform.SetParent(row.transform, false);
+        RectTransform iconRT = iconObj.GetComponent<RectTransform>();
+        iconRT.sizeDelta = new Vector2(iconSize, iconSize);
+        Image iconImg = iconObj.GetComponent<Image>();
+        if (perk.icon != null)
+        {
+            iconImg.sprite = perk.icon;
+            iconImg.color = Color.white;
+        }
+        else
+        {
+            // Placeholder: koyu kare
+            iconImg.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
         }
 
-        perkListText.text = sb.ToString();
+        // Metin
+        GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        textObj.transform.SetParent(row.transform, false);
+        RectTransform textRT = textObj.GetComponent<RectTransform>();
+        textRT.sizeDelta = new Vector2(260f, iconSize + 16f);
+        TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
+        tmp.text = $"<color=#FFFFFF>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>\n<size=70%>{perk.description}</size>";
+        tmp.fontSize = 18;
+        tmp.alignment = TextAlignmentOptions.TopLeft;
+        tmp.color = Color.white;
+        tmp.richText = true;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.raycastTarget = false;
+        if (font != null) tmp.font = font;
+
+        return row;
     }
 }

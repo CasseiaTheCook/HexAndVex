@@ -15,10 +15,8 @@ public class HexMovement : MonoBehaviour
     [Header("Görsel Ayarlar")]
     public float playerVisualOffsetY = 0.25f;
 
-    // YENİ: Karakterin görselini alt objeden (Child) alacak
     public SpriteRenderer visualRenderer;
     
-    // YENİ: Animatörü alt objeden (Child) alacak
     [Header("Animasyonlar")]
     public Animator animator;
 
@@ -31,6 +29,7 @@ public class HexMovement : MonoBehaviour
 
     private List<Vector3Int> activeHighlightCells = new List<Vector3Int>();
     private Coroutine highlightFadeCoroutine;
+    private Coroutine alphaFadeCoroutine; // YENİ: Pürüzsüz saydamlık için
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -41,15 +40,11 @@ public class HexMovement : MonoBehaviour
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
 
-        // ==========================================
-        // DÜZELTME: Artık Sprite ve Animatör Child objeden çekiliyor!
-        // ==========================================
         if (visualRenderer == null) visualRenderer = GetComponentInChildren<SpriteRenderer>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
-        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
         transform.position = targetWorldPosition;
 
@@ -117,7 +112,6 @@ public class HexMovement : MonoBehaviour
                 isMoving = false;
 
                 Vector3 checkPos = transform.position;
-                checkPos.y -= playerVisualOffsetY;
 
                 Vector3Int newCell = groundMap.WorldToCell(checkPos);
                 if (newCell != currentCellPosition)
@@ -140,7 +134,6 @@ public class HexMovement : MonoBehaviour
     private void MoveCharacter(Vector3Int targetCell)
     {
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
-        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
 
         if (visualRenderer != null)
@@ -287,14 +280,40 @@ public class HexMovement : MonoBehaviour
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;
 
-    // ==========================================
-    // YENİ: SALDIRI ANİMASYONUNU TETİKLEYEN FONKSİYON
-    // ==========================================
     public void TriggerAttackAnimation()
     {
         if (animator != null)
         {
-            animator.SetTrigger("Attack"); // Unity Animator içindeki Trigger parametresi ile TAM AYNI isim olmalı!
+            animator.SetTrigger("Attack"); 
         }
+    }
+
+    // ========================================================
+    // YENİ: PÜRÜZSÜZ SAYDAMLIK KONTROLÜ
+    // ========================================================
+    public void SetVisualAlpha(float targetAlpha)
+    {
+        if (visualRenderer == null) return;
+        if (alphaFadeCoroutine != null) StopCoroutine(alphaFadeCoroutine);
+        alphaFadeCoroutine = StartCoroutine(SmoothAlphaCoroutine(targetAlpha));
+    }
+
+    private IEnumerator SmoothAlphaCoroutine(float targetAlpha)
+    {
+        Color c = visualRenderer.color;
+        float startA = c.a;
+        float elapsed = 0f;
+        float dur = 0.25f; // Çeyrek saniyede yavaşça solacak veya parlayacak
+
+        while (elapsed < dur)
+        {
+            elapsed += Time.deltaTime;
+            c.a = Mathf.Lerp(startA, targetAlpha, elapsed / dur);
+            visualRenderer.color = c;
+            yield return null;
+        }
+        
+        c.a = targetAlpha;
+        visualRenderer.color = c;
     }
 }

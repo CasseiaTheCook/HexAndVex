@@ -5,11 +5,12 @@ public abstract class BasePerk : MonoBehaviour
 {
     [Header("Seviye Sistemi")]
     public int currentLevel = 1;
-    public int maxLevel = 3; // Unity'den her yetenek için bunu değiştirebilirsin (Örn: SwiftAction max 2 olsun gibi)
+    public int maxLevel = 3;
     public string perkName;
     [TextArea] public string description;
+    public Sprite icon;
     public int priority = 0;
-    public bool isRerollPerk = false; // true ise zar değişiminde "!" re-roll animasyonu oynar
+    public bool isRerollPerk = false;
 
     // 1. Perk satın alındığında / seçildiğinde 1 kez çalışır
     public virtual void OnAcquire() { }
