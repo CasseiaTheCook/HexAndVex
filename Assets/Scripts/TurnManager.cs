@@ -35,6 +35,11 @@ public class TurnManager : MonoBehaviour
     public bool isPlayerTurn = true;
 
     public bool hasAttackedThisTurn = false;
+    
+    // ========================================================
+    // YENİ: Kılıç havadayken parlak kalması için zamanlayıcı bayrak
+    // ========================================================
+    public bool isAttackAnimationPlaying = false; 
 
     [HideInInspector] public bool isNecroShotTargeting = false;
 
@@ -154,7 +159,11 @@ public class TurnManager : MonoBehaviour
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
-        isPlayerTurn = true; hasAttackedThisTurn = false;
+        
+        isPlayerTurn = true; 
+        hasAttackedThisTurn = false;
+        isAttackAnimationPlaying = false; 
+
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
@@ -185,7 +194,9 @@ public class TurnManager : MonoBehaviour
     {
         if (!isNecroShotTargeting || target == null) return;
         isNecroShotTargeting = false;
+        
         if (player != null) player.TriggerAttackAnimation();
+        
         target.health.TakeDamage(target.health.maxHP + 999);
         int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
         if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
@@ -219,11 +230,34 @@ public class TurnManager : MonoBehaviour
     public void SkipTurn()
     {
         if (!isPlayerTurn) return;
+        
+        isPlayerTurn = false;
+        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
+        
+        // ========================================================
+        // SKİP YAPILDIĞINDA GİDEBİLECEĞİMİZ MAVİ YERLERİ ANINDA SİL
+        // ========================================================
+        if (player != null) player.ClearHighlights();
+        
+        StartCoroutine(HandleSkipPhase());
+    }
+
+    private IEnumerator HandleSkipPhase()
+    {
+        List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
+        if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
+        {
+            hasAttackedThisTurn = true; 
+            isAttackAnimationPlaying = true; 
+            yield return StartCoroutine(MultiAttack(adjacentEnemies));
+        }
+
+        if (enemies.Count <= 0) yield break;
+
         foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
-        isPlayerTurn = false;
-        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
+        
         StartCoroutine(EnemyPhase());
     }
 
@@ -287,14 +321,20 @@ public class TurnManager : MonoBehaviour
             {
                 RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
             }
-            else if (player != null && player.health.currentHP > 0) StartCoroutine(EnemyPhase());
+            else if (player != null && player.health.currentHP > 0) 
+            {
+                player.ClearHighlights(); // Tur bitiyorsa highlightları kazı
+                StartCoroutine(EnemyPhase());
+            }
             yield break;
         }
 
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-            hasAttackedThisTurn = true; yield return StartCoroutine(MultiAttack(adjacentEnemies));
+            hasAttackedThisTurn = true; 
+            isAttackAnimationPlaying = true; // Kılıç inene kadar rengi parlak tutacak bayrağı çek!
+            yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
 
         if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
@@ -302,7 +342,11 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.remainingMoves--;
             isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
         }
-        else if (player != null && player.health.currentHP > 0) StartCoroutine(EnemyPhase());
+        else if (player != null && player.health.currentHP > 0) 
+        {
+            player.ClearHighlights(); // Ekstra hak bitti, mavi okları temizle
+            StartCoroutine(EnemyPhase());
+        }
     }
 
     private Vector3Int GetSafeNeighbor(Vector3Int centerCell)
@@ -320,30 +364,54 @@ public class TurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        
         foreach (var e in enemies) if (e != null && e.skipTurns <= 0) e.ExecuteLockedMove();
-
         yield return new WaitUntil(() =>
         {
             foreach (var e in enemies) if (e != null && e.IsMoving()) return false;
             return true;
         });
-
         yield return new WaitForSeconds(0.2f);
-        List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
+
+        List<EnemyAI> readyToBossAttack = new List<EnemyAI>();
         List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
+        List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
 
         foreach (var e in enemies)
         {
             if (e != null && e.skipTurns <= 0)
             {
-                if (e.isChargingAttack) readyToAoEAttack.Add(e);
-                else if (IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) readyToMeleeAttack.Add(e);
+                if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) 
+                    readyToBossAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) 
+                    readyToAoEAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) 
+                    readyToMeleeAttack.Add(e);
             }
         }
 
-        if (readyToAoEAttack.Count > 0) foreach (var aoeEnemy in readyToAoEAttack) yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
-        if (readyToMeleeAttack.Count > 0) yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
-        else EndTurnAndDecreaseStuns();
+        if (readyToBossAttack.Count > 0)
+        {
+            foreach (var boss in readyToBossAttack)
+                yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        if (readyToAoEAttack.Count > 0)
+        {
+            foreach (var aoeEnemy in readyToAoEAttack)
+                yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        if (readyToMeleeAttack.Count > 0)
+        {
+            yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
+        }
+        else 
+        {
+            EndTurnAndDecreaseStuns();
+        }
     }
 
     public void HideAllEnemyIntents()
@@ -423,7 +491,16 @@ public class TurnManager : MonoBehaviour
         int damagePerEnemy = finalDamage / targets.Count;
 
         if (player != null) player.TriggerAttackAnimation();
+        
+        // ========================================================
+        // KILIÇ HAVADA SALLANIYOR, BEKLE...
+        // ========================================================
         yield return new WaitForSeconds(0.3f);
+        
+        // ========================================================
+        // KILIÇ İNDİ! Artık şeffaflaşabilir. (Update fonksiyonu bunu anlayacak)
+        // ========================================================
+        isAttackAnimationPlaying = false; 
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
         foreach (var enemy in targets)
@@ -560,6 +637,7 @@ public class TurnManager : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
         yield return new WaitForSeconds(0.3f);
+        
         EndTurnAndDecreaseStuns();
     }
 
@@ -713,15 +791,12 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator FlashHazardTileCoroutine(Vector3Int cell)
     {
-        // ========================================================
-        // DÜZELTME: ARTIK HAZARD MAP'İ PARLATIYORUZ!
-        // ========================================================
-        Tilemap targetMap = LevelGenerator.instance.hazardMap; // groundMap yerine bunu kullan!
+        Tilemap targetMap = LevelGenerator.instance.hazardMap; 
         if (targetMap == null) yield break;
 
         targetMap.SetTileFlags(cell, TileFlags.None);
         Color originalColor = Color.white;
-        Color flashColor = new Color(0.2f, 1f, 0.2f, 1f); // Bio-punk yeşili
+        Color flashColor = new Color(0.2f, 1f, 0.2f, 1f); 
         float duration = 0.15f;
         float elapsed = 0f;
 

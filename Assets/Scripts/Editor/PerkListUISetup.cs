@@ -38,6 +38,12 @@ public class PerkListUISetup : EditorWindow
         GameObject buttonObj = new GameObject("PerkListButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(PerkListUI));
         buttonObj.transform.SetParent(mainCanvas.transform, false);
 
+        // Kendi Canvas'ı olsun ki LevelUpCanvas (sorting 15) üstünde kalsın
+        Canvas btnCanvas = buttonObj.AddComponent<Canvas>();
+        btnCanvas.overrideSorting = true;
+        btnCanvas.sortingOrder = 20;
+        buttonObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
         RectTransform btnRect = buttonObj.GetComponent<RectTransform>();
         btnRect.anchorMin = new Vector2(1, 1);
         btnRect.anchorMax = new Vector2(1, 1);
@@ -46,7 +52,7 @@ public class PerkListUISetup : EditorWindow
         btnRect.sizeDelta = new Vector2(160, 45);
 
         Image btnImage = buttonObj.GetComponent<Image>();
-        btnImage.color = new Color(0.12f, 0.12f, 0.18f, 0.85f);
+        btnImage.color = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
 
         // 3. Buton metni
         GameObject btnTextObj = new GameObject("ButtonText", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -62,7 +68,7 @@ public class PerkListUISetup : EditorWindow
         btnTMP.text = "PERKS";
         btnTMP.fontSize = 24;
         btnTMP.alignment = TextAlignmentOptions.Center;
-        btnTMP.color = new Color(1f, 0.84f, 0f, 1f); // Altın sarısı
+        btnTMP.color = Color.white;
         if (font != null) btnTMP.font = font;
 
         // 4. Perk listesi paneli (hover'da açılacak)
@@ -77,12 +83,13 @@ public class PerkListUISetup : EditorWindow
         panelRect.sizeDelta = new Vector2(320, 200);
 
         Image panelImage = panelObj.GetComponent<Image>();
-        panelImage.color = new Color(0.08f, 0.08f, 0.14f, 0.92f);
+        panelImage.color = Color.black; // #000000
 
         VerticalLayoutGroup vlg = panelObj.GetComponent<VerticalLayoutGroup>();
-        vlg.padding = new RectOffset(14, 14, 10, 10);
+        vlg.padding = new RectOffset(10, 10, 10, 10);
+        vlg.spacing = 6f;
         vlg.childControlWidth = true;
-        vlg.childControlHeight = true;
+        vlg.childControlHeight = false;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
 
@@ -113,11 +120,11 @@ public class PerkListUISetup : EditorWindow
 
         // Outline ekle
         Outline btnOutline = buttonObj.AddComponent<Outline>();
-        btnOutline.effectColor = new Color(1f, 0.84f, 0f, 0.5f);
+        btnOutline.effectColor = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
         btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         Outline panelOutline = panelObj.AddComponent<Outline>();
-        panelOutline.effectColor = new Color(1f, 0.84f, 0f, 0.3f);
+        panelOutline.effectColor = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
         panelOutline.effectDistance = new Vector2(1, -1);
 
         Selection.activeGameObject = buttonObj;

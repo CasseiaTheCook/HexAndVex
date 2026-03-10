@@ -15,10 +15,8 @@ public class HexMovement : MonoBehaviour
     [Header("Görsel Ayarlar")]
     public float playerVisualOffsetY = 0.25f;
 
-    // YENİ: Karakterin görselini alt objeden (Child) alacak
     public SpriteRenderer visualRenderer;
     
-    // YENİ: Animatörü alt objeden (Child) alacak
     [Header("Animasyonlar")]
     public Animator animator;
 
@@ -41,15 +39,11 @@ public class HexMovement : MonoBehaviour
         if (highlightMap == null) highlightMap = GameObject.Find("HighlightMap").GetComponent<Tilemap>();
         if (health == null) health = GetComponent<HealthScript>();
 
-        // ==========================================
-        // DÜZELTME: Artık Sprite ve Animatör Child objeden çekiliyor!
-        // ==========================================
         if (visualRenderer == null) visualRenderer = GetComponentInChildren<SpriteRenderer>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
-        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
         transform.position = targetWorldPosition;
 
@@ -63,6 +57,29 @@ public class HexMovement : MonoBehaviour
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
         {
             HandleMovementInput();
+        }
+
+        // ========================================================
+        // EN BÜYÜK DÜZELTME BURADA: ANIMATORÜN KAFASINA VURUYORUZ
+        // ========================================================
+        if (visualRenderer != null && TurnManager.instance != null)
+        {
+            // Eğer tur bizdeyse VE bu tur henüz vurmadıysak saldırabiliriz
+            bool canAttack = TurnManager.instance.isPlayerTurn && !TurnManager.instance.hasAttackedThisTurn;
+            
+            // Eğer tam şu an kılıç sallama animasyonu oynuyorsa, şeffaflaşmayı bekle (tam vurana kadar parlak kal)
+            if (TurnManager.instance.isAttackAnimationPlaying)
+            {
+                canAttack = true; 
+            }
+
+            // Vurabiliyorsak Alpha 1, vuramıyorsak 0.5 (Şeffaf)
+            float targetAlpha = canAttack ? 1f : 0.5f;
+            Color c = visualRenderer.color;
+            
+            // Saniyesinde pürüzsüz geçiş yap (MoveTowards)
+            c.a = Mathf.MoveTowards(c.a, targetAlpha, 3f * Time.deltaTime);
+            visualRenderer.color = c;
         }
     }
 
@@ -117,7 +134,6 @@ public class HexMovement : MonoBehaviour
                 isMoving = false;
 
                 Vector3 checkPos = transform.position;
-                checkPos.y -= playerVisualOffsetY;
 
                 Vector3Int newCell = groundMap.WorldToCell(checkPos);
                 if (newCell != currentCellPosition)
@@ -140,7 +156,6 @@ public class HexMovement : MonoBehaviour
     private void MoveCharacter(Vector3Int targetCell)
     {
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
-        targetWorldPosition.y += playerVisualOffsetY;
         targetWorldPosition.z = 0;
 
         if (visualRenderer != null)
@@ -287,14 +302,11 @@ public class HexMovement : MonoBehaviour
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;
 
-    // ==========================================
-    // YENİ: SALDIRI ANİMASYONUNU TETİKLEYEN FONKSİYON
-    // ==========================================
     public void TriggerAttackAnimation()
     {
         if (animator != null)
         {
-            animator.SetTrigger("Attack"); // Unity Animator içindeki Trigger parametresi ile TAM AYNI isim olmalı!
+            animator.SetTrigger("Attack"); 
         }
     }
 }
