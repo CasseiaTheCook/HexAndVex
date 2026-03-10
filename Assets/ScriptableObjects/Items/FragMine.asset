@@ -16,4 +16,4 @@ MonoBehaviour:
   description: Place a bomb on any hex. Rolls dice and deals damage to all enemies
     within 1 hex radius
   price: 8
-  icon: {fileID: 0}
+  icon: {fileID: -5966973863815126347, guid: c467d5c19838b6d4ebdcd9d36cb8db7f, type: 3}
