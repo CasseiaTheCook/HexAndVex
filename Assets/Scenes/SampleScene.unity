@@ -3025,7 +3025,7 @@ MonoBehaviour:
   - {fileID: 164953103}
   - {fileID: 833440338}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 575377947375056754, guid: 19a8e2458f31e9844aea1d7486c8bad8, type: 3}
+  forcedPerk: {fileID: 5068179257304331724, guid: cdc2662d0656276448b616cfefe9c9d1, type: 3}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0

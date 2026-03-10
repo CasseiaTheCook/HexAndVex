@@ -25,7 +25,12 @@ public class EnemyAI : MonoBehaviour
 
     [Header("UI Settings")]
     public GameObject intentArrow;
-    public GameObject stunEffectObj;
+    
+    public GameObject stunEffectPrefab; 
+    private GameObject spawnedStunEffect; 
+    private SpriteRenderer stunRenderer; 
+    private Coroutine stunFadeCoroutine;
+    private bool isStunVisualActive = false; 
 
     public float arrowAngleOffset = 0f;
     private SpriteRenderer arrowRenderer;
@@ -79,7 +84,18 @@ public class EnemyAI : MonoBehaviour
         if (TurnManager.instance != null) TurnManager.instance.RegisterEnemy(this);
         targetWorldPos = groundMap.GetCellCenterWorld(cell);
 
-        SetStunVisual(false);
+        if (stunEffectPrefab != null)
+        {
+            spawnedStunEffect = Instantiate(stunEffectPrefab, this.transform);
+            spawnedStunEffect.transform.localPosition = new Vector3(0f, 0.05f, 0f); 
+            stunRenderer = spawnedStunEffect.GetComponent<SpriteRenderer>();
+            
+            if (stunRenderer != null) 
+            {
+                Color c = stunRenderer.color; c.a = 0f; stunRenderer.color = c;
+            }
+            spawnedStunEffect.SetActive(false);
+        }
 
         if (intentArrow != null)
         {
@@ -129,19 +145,8 @@ public class EnemyAI : MonoBehaviour
 
         if (health != null && health.currentHP > 0 && !isFading)
         {
-            bool isStunned = skipTurns > 0;
-            if (stunEffectObj != null)
-            {
-                if (stunEffectObj.activeSelf != isStunned) stunEffectObj.SetActive(isStunned);
-            }
-            health.SetStunnedAlpha(isStunned);
-
-            if (isStunned && isChargingAttack)
-            {
-                isChargingAttack = false;
-                currentCooldown = 0; 
-                ForceClearWarningCells();
-            }
+            // Health barı soluklaşması her türlü sersemletmede çalışsın
+            health.SetStunnedAlpha(skipTurns > 0);
         }
     }
 
@@ -166,9 +171,88 @@ public class EnemyAI : MonoBehaviour
         transform.position = targetWorldPos;
     }
 
+    // ========================================================
+    // YENİ: TEK NOKTADAN STUN YÖNETİMİ
+    // ========================================================
+    public void ApplyStun(int turns, bool showEffect)
+    {
+        skipTurns = Mathf.Max(skipTurns, turns);
+        
+        // Eğer ağır stunsak (duvara çarptıysak) efekti aç
+        if (showEffect && !isStunVisualActive)
+        {
+            isStunVisualActive = true;
+            if (spawnedStunEffect != null)
+            {
+                spawnedStunEffect.SetActive(true);
+                if (stunFadeCoroutine != null) StopCoroutine(stunFadeCoroutine);
+                stunFadeCoroutine = StartCoroutine(FadeStunEffect(1f));
+            }
+        }
+        
+        // Saldırı hazırlığındaysa iptal et
+        if (isChargingAttack)
+        {
+            isChargingAttack = false;
+            currentCooldown = 0; 
+            ForceClearWarningCells();
+        }
+    }
+
+    // TurnManager her turun sonunda bunu çağırır
+    public void DecreaseStunTurn()
+    {
+        if (skipTurns > 0)
+        {
+            skipTurns--;
+            
+            // Eğer süre TAMAMEN SIFIRLANDIYSA efekti kapat
+            if (skipTurns <= 0)
+            {
+                if (isStunVisualActive)
+                {
+                    isStunVisualActive = false;
+                    if (stunFadeCoroutine != null) StopCoroutine(stunFadeCoroutine);
+                    stunFadeCoroutine = StartCoroutine(FadeStunEffect(0f));
+                }
+            }
+        }
+    }
+
+    // ========================================================
+    // HealthScript'in Hata Vermemesi İçin Köprü (Sadece kapatma için kullanılır)
+    // ========================================================
     public void SetStunVisual(bool state)
     {
-        if (stunEffectObj != null) stunEffectObj.SetActive(state);
+        if (!state && isStunVisualActive)
+        {
+            isStunVisualActive = false;
+            if (spawnedStunEffect != null) spawnedStunEffect.SetActive(false); // Anında kapat
+        }
+    }
+
+    private IEnumerator FadeStunEffect(float targetAlpha)
+    {
+        float startAlpha = stunRenderer.color.a;
+        float elapsed = 0f;
+        float duration = 0.25f; 
+        Color c = stunRenderer.color;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            c.a = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+            stunRenderer.color = c;
+            yield return null;
+        }
+
+        c.a = targetAlpha;
+        stunRenderer.color = c;
+
+        if (targetAlpha <= 0.01f)
+        {
+            spawnedStunEffect.SetActive(false);
+        }
     }
 
     public void StartWallBump(Vector3 direction)
@@ -396,8 +480,9 @@ public class EnemyAI : MonoBehaviour
         }
 
         health.currentHP = 0;
-        skipTurns = 99;
+        skipTurns = 0;
         SetArrowVisibility(false);
+        SetStunVisual(false); 
         hasLockedTarget = false;
 
         SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
@@ -444,9 +529,6 @@ public class EnemyAI : MonoBehaviour
         return line;
     }
 
-    // ========================================================
-    // DÜZELTME: Sadece HAYATTA OLAN ve AKTİF SALDIRAN düşmanları say!
-    // ========================================================
     private bool IsCellTargetedByOtherEnemy(Vector3Int targetCell)
     {
         if (SpawnerBossAI.instance != null && SpawnerBossAI.instance.IsCellTargetedByBoss(targetCell)) return true;
@@ -454,7 +536,6 @@ public class EnemyAI : MonoBehaviour
         if (TurnManager.instance == null) return false;
         foreach (var e in TurnManager.instance.enemies)
         {
-            // Ölen (isFading) veya canı 0 olan adamı hesaba katma!
             if (e != null && e != this && e.health.currentHP > 0 && !e.isFading && e.isChargingAttack)
             {
                 if (e.warningCells.Contains(targetCell)) return true;
@@ -565,7 +646,7 @@ public class EnemyAI : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
 
-        isChargingAttack = false; // Temizlemeden ÖNCE bayrağı indiriyoruz ki diğerleri bizi aktif sanmasın!
+        isChargingAttack = false; 
         ForceClearWarningCells();
         currentCooldown = aoeCooldown;
         yield return new WaitForSeconds(0.2f);

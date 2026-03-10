@@ -253,7 +253,7 @@ MonoBehaviour:
   warningMap: {fileID: 0}
   warningTile: {fileID: 11400000, guid: 25c4e2f3083975546a162f5d78863fcd, type: 2}
   intentArrow: {fileID: 3621328375706932076}
-  stunEffectObj: {fileID: 0}
+  stunEffectPrefab: {fileID: 5546807656280123771, guid: 5aeab8da5ed81be4f851677c173398bd, type: 3}
   arrowAngleOffset: -90
   isBumping: 0
   isFading: 0

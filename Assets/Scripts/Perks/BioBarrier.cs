@@ -5,6 +5,12 @@ public class BioBarrierPerk : BasePerk
 {
     [Header("Obje Ayarları")]
     public GameObject shieldPrefab; // Kalkan objen
+    
+    // ========================================================
+    // YENİ: Kalkanın Y eksenindeki yüksekliği (Inspector'dan ayarla)
+    // ========================================================
+    public float shieldOffsetY = 0.07f; 
+    
     private GameObject currentShieldInstance;
 
     public override void OnAcquire()
@@ -30,14 +36,18 @@ public class BioBarrierPerk : BasePerk
         {
             Transform playerTransform = TurnManager.instance.player.transform;
             currentShieldInstance = Instantiate(shieldPrefab, playerTransform.position, Quaternion.identity, playerTransform);
-            currentShieldInstance.transform.localPosition = Vector3.zero; // Karakterin tam ortasına oturt
+            
+            // ========================================================
+            // DÜZELTME: Kalkanı karakterin merkezinden offset değeri kadar yukarı taşıyoruz
+            // ========================================================
+            currentShieldInstance.transform.localPosition = new Vector3(0f, shieldOffsetY, 0f); 
             
             // Kalkan ilk doğduğunda görünürlüğünü normale çek (eğer önceden saydam kaldıysa diye)
             SpriteRenderer[] renderers = currentShieldInstance.GetComponentsInChildren<SpriteRenderer>();
             foreach (var sr in renderers)
             {
                 Color c = sr.color;
-                c.a = 0.5f; // Normalde kalkanın saydamlığı (istersen 1f yapabilirsin)
+                c.a = 0.3f; // Normalde kalkanın saydamlığı (istersen 1f yapabilirsin)
                 sr.color = c;
             }
         }

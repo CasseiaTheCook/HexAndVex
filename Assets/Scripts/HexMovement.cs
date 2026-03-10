@@ -30,6 +30,9 @@ public class HexMovement : MonoBehaviour
     private List<Vector3Int> activeHighlightCells = new List<Vector3Int>();
     private Coroutine highlightFadeCoroutine;
 
+    // YENİ: Saydamlık kilidi
+    private float targetAlphaValue = 1f;
+
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
@@ -58,29 +61,39 @@ public class HexMovement : MonoBehaviour
         {
             HandleMovementInput();
         }
+    }
 
-        // ========================================================
-        // EN BÜYÜK DÜZELTME BURADA: ANIMATORÜN KAFASINA VURUYORUZ
-        // ========================================================
-        if (visualRenderer != null && TurnManager.instance != null)
+    void LateUpdate()
+    {
+        if (visualRenderer != null)
         {
-            // Eğer tur bizdeyse VE bu tur henüz vurmadıysak saldırabiliriz
-            bool canAttack = TurnManager.instance.isPlayerTurn && !TurnManager.instance.hasAttackedThisTurn;
+            // TurnManager'dan kontrol et: Bizim sıramız değilse VEYA bu el zaten vurduysak soluklaş
+            bool canAttack = false;
             
-            // Eğer tam şu an kılıç sallama animasyonu oynuyorsa, şeffaflaşmayı bekle (tam vurana kadar parlak kal)
-            if (TurnManager.instance.isAttackAnimationPlaying)
+            if (TurnManager.instance != null)
             {
-                canAttack = true; 
+                canAttack = TurnManager.instance.isPlayerTurn && !TurnManager.instance.hasAttackedThisTurn;
+                
+                // Kılıç inene kadar parlak kalsın
+                if (TurnManager.instance.isAttackAnimationPlaying)
+                {
+                    canAttack = true; 
+                }
             }
 
-            // Vurabiliyorsak Alpha 1, vuramıyorsak 0.5 (Şeffaf)
-            float targetAlpha = canAttack ? 1f : 0.5f;
+            // Gidilecek saydamlığı belirle (Vurabiliyorsa 1f, vuramıyorsa veya sıra onda değilse 0.5f)
+            targetAlphaValue = canAttack ? 1f : 0.5f;
+
             Color c = visualRenderer.color;
-            
-            // Saniyesinde pürüzsüz geçiş yap (MoveTowards)
-            c.a = Mathf.MoveTowards(c.a, targetAlpha, 3f * Time.deltaTime);
+            c.a = Mathf.MoveTowards(c.a, targetAlphaValue, 3f * Time.deltaTime);
             visualRenderer.color = c;
         }
+    }
+
+    // TurnManager.cs eskiden bu fonksiyonu arıyordu, artık sadece LateUpdate içindeki mantığı destekleyecek kadar bıraktık
+    public void SetVisualAlpha(float targetAlpha)
+    {
+        targetAlphaValue = targetAlpha;
     }
 
     private void HandleMovementInput()
