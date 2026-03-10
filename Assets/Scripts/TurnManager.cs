@@ -10,21 +10,30 @@ public class TurnManager : MonoBehaviour
 {
     public static TurnManager instance;
 
+    [Header("Düşman Uyarı (Warning) Karosu")]
     public Tilemap warningMap;
     public UnityEngine.Tilemaps.TileBase warningTile;
 
+    [Header("Efektler")]
     public GameObject explosionPrefab;
     public GameObject dodgeEffectPrefab;
+    
+    // ========================================================
+    // YENİ: VAKUM EFEKTİ PREFABI BURAYA GELECEK
+    // ========================================================
+    public GameObject vacuumVfxPrefab; 
 
     public HexMovement player;
     public Tilemap groundMap;
 
+    [Header("Dinamik Zar UI Sistemi")]
     public GameObject dieUIPrefab;
     public Transform diceUIContainer;
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
     public GameObject criticalText;
 
+    [Header("Coin UI")]
     public TMP_Text coinText;
     public Sprite coinSprite;
 
@@ -35,9 +44,6 @@ public class TurnManager : MonoBehaviour
     public bool isAttackAnimationPlaying = false;
     public bool isNecroShotTargeting = false;
 
-    // ========================================================
-    // MOMENTUM SAYAÇ DEĞİŞKENİ (Artık tur bitince değil, vurunca sıfırlanacak)
-    // ========================================================
     public int hexesMovedThisTurn = 0; 
     public Vector3Int phantomShadowCell = new Vector3Int(-999, -999, -999); 
 
@@ -70,9 +76,6 @@ public class TurnManager : MonoBehaviour
         hasAttackedThisTurn = false;
         isAttackAnimationPlaying = false;
         
-        // DİKKAT: hexesMovedThisTurn = 0; BURADAN SİLİNDİ! 
-        // ARTIK SAVAŞMADAN SIFIRLANMAYACAK!
-
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
@@ -232,8 +235,51 @@ public class TurnManager : MonoBehaviour
         Destroy(fx);
     }
 
+    // ========================================================
+    // YENİ: VAKUM (İÇE ÇEKME) EFEKTİ KORUTİNİ
+    // ========================================================
+    private IEnumerator VacuumVFXCoroutine(Vector3 pos)
+    {
+        if (vacuumVfxPrefab == null) yield break;
+        
+        GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
+        SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
+        
+        float duration = 0.4f; 
+        float elapsed = 0f;
+        
+        // Büyük başlayıp küçülecek
+        Vector3 startScale = Vector3.one * 2f; 
+        Vector3 endScale = Vector3.one * 0.2f; 
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            
+            // Hızlıca belirginleşip, yavaşça kaybolacak
+            float alpha = 0.4f;
+            if (t < 0.2f) alpha = Mathf.Lerp(0f, 0.4f, t / 0.2f);
+            else alpha = Mathf.Lerp(0.4f, 0f, (t - 0.2f) / 0.8f);
+            
+            vfx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
+            
+            foreach (var sr in renderers) {
+                if (sr != null) {
+                    Color c = sr.color;
+                    c.a = alpha;
+                    sr.color = c;
+                }
+            }
+            yield return null;
+        }
+        Destroy(vfx);
+    }
+
     private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
     {
+        hexesMovedThisTurn++;
+
         if (LevelGenerator.instance.hazardCells.Contains(playerCell))
         {
             yield return new WaitForSeconds(0.15f);
@@ -331,29 +377,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
-        bool hasBioMag = RunManager.instance.activePerks.Exists(p => p is BioMagnetismPerk);
-        if (hasBioMag)
-        {
-            List<EnemyAI> pullTargets = new List<EnemyAI>();
-            foreach (var e in enemies) {
-                if (e != null && DistanceCube(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()) == 2) pullTargets.Add(e);
-            }
-            bool pulled = false;
-            foreach (var e in pullTargets) {
-                Vector3Int pullCell = GetRandomSafeNeighbor(player.GetCurrentCellPosition());
-                if (pullCell != player.GetCurrentCellPosition()) {
-                    e.StartKnockbackMovement(pullCell);
-                    e.health.TakeDamage(1); 
-                    pulled = true;
-                }
-            }
-            if (pulled) {
-                yield return new WaitUntil(() => pullTargets.All(e => e == null || !e.IsMoving()));
-                targets = GetAdjacentEnemies(player.GetCurrentCellPosition()); 
-                if (targets.Count == 0) yield break;
-            }
-        }
-
+        // 1. ZARLARI AT VE PERKLERİ HESAPLA
         yield return new WaitForSeconds(0.3f);
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
@@ -410,15 +434,77 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.4f); HideDiceResults();
         int finalDamage = payload.GetFinalDamage();
         if (RunManager.instance.doubleDamageNextCombat) { finalDamage *= 2; RunManager.instance.doubleDamageNextCombat = false; }
-        int damagePerEnemy = finalDamage / targets.Count;
+
+        // ========================================================
+        // 2. YENİ ZAMANLAMA: BIO-MAGNETISM (Animasyondan Hemen Önce!)
+        // ========================================================
+        bool hasBioMag = RunManager.instance.activePerks.Exists(p => p is BioMagnetismPerk);
+        if (hasBioMag)
+        {
+            Vector3Int pCell = player.GetCurrentCellPosition();
+            List<EnemyAI> pullTargets = new List<EnemyAI>();
+            
+            foreach (var e in enemies) {
+                if (e != null && e.health.currentHP > 0 && DistanceCube(e.GetCurrentCellPosition(), pCell) == 2f) {
+                    pullTargets.Add(e);
+                }
+            }
+
+            bool anyonePulled = false;
+            
+            // Eğer çekilecek düşman varsa, VFX'i oynat!
+            if (pullTargets.Count > 0)
+            {
+                if (vacuumVfxPrefab != null) StartCoroutine(VacuumVFXCoroutine(player.transform.position));
+            }
+
+            foreach (var e in pullTargets) {
+                Vector3Int eCell = e.GetCurrentCellPosition();
+                Vector3Int bestPullCell = eCell;
+                
+                Vector3Int[] pOffsets = (pCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+                foreach(var off in pOffsets) {
+                    Vector3Int neighborToPlayer = pCell + off;
+                    if (IsNeighbor(neighborToPlayer, eCell)) {
+                        if (groundMap.HasTile(neighborToPlayer) && 
+                            !IsEnemyAtCell(neighborToPlayer) && 
+                            (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(neighborToPlayer))) 
+                        {
+                            bestPullCell = neighborToPlayer;
+                            break; 
+                        }
+                    }
+                }
+                
+                if (bestPullCell != eCell) {
+                    e.StartKnockbackMovement(bestPullCell);
+                    anyonePulled = true;
+                }
+            }
+
+            if (anyonePulled) {
+                yield return new WaitUntil(() => pullTargets.All(e => e == null || !e.IsMoving()));
+                yield return new WaitForSeconds(0.1f); // Çekilme sonrası minik es
+                
+                // HEDEFLERİ GÜNCELLE (Yeni gelenler de hasar yesin diye)
+                targets = GetAdjacentEnemies(pCell); 
+                
+                var perk = RunManager.instance.activePerks.Find(p => p is BioMagnetismPerk);
+                if (perk != null) perk.TriggerVisualPop();
+            }
+        }
+
+        // ========================================================
+        // 3. HASARI BÖLÜŞTÜR VE VUR!
+        // ========================================================
+        
+        // Dikkat: Hedef sayısı az önce çekilen adamlarla artmış olabilir!
+        int damagePerEnemy = targets.Count > 0 ? finalDamage / targets.Count : 0;
 
         if (player != null) player.TriggerAttackAnimation();
         yield return new WaitForSeconds(0.3f);
         isAttackAnimationPlaying = false;
 
-        // ========================================================
-        // SAVAŞ BİTTİ: MOMENTUM SAYACINI SIFIRLA!
-        // ========================================================
         hexesMovedThisTurn = 0; 
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
@@ -552,7 +638,7 @@ public class TurnManager : MonoBehaviour
             foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
             RunManager.instance.hasBioBarrier = false;
         }
-        else player.health.TakeDamage(1);
+        else PlayerTakeDamage(1);
 
         Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
         Vector3Int playerTarget = GetOppositeCell(playerOriginalCell, attackers[0].GetCurrentCellPosition());
@@ -567,7 +653,7 @@ public class TurnManager : MonoBehaviour
                 foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
                 RunManager.instance.hasBioBarrier = false;
             }
-            else player.health.TakeDamage(1);
+            else PlayerTakeDamage(1);
 
             StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
             player.StartKnockbackMovement(playerOriginalCell);
