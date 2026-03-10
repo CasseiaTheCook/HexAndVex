@@ -24,6 +24,9 @@ public class TurnManager : MonoBehaviour
     // ========================================================
     public GameObject phantomMinePrefab;
 
+    [Header("Frag-Mine")]
+    public GameObject fragMinePlaceholderPrefab;
+
     public HexMovement player;
     public Tilemap groundMap;
 
@@ -78,9 +81,24 @@ public class TurnManager : MonoBehaviour
         Invoke("StartPlayerTurn", 0.5f);
     }
 
-#if UNITY_EDITOR
     void Update()
     {
+        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        {
+            Vector3 mousePos = Input.mousePosition;
+            mousePos.z = Mathf.Abs(Camera.main.transform.position.z);
+            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(mousePos);
+            worldPoint.z = 0;
+            Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
+
+            if (groundMap.HasTile(clickedCell))
+            {
+                if (isBombPlacementTargeting) StartCoroutine(ExecuteBombAt(clickedCell));
+                else if (isThornPlacementTargeting) ExecuteThornAt(clickedCell);
+            }
+        }
+
+#if UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.F7))
         {
             RunManager.instance.currentGold += 10000;
@@ -102,21 +120,10 @@ public class TurnManager : MonoBehaviour
                 }
             }
         }
-
-        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
-        {
-            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            worldPoint.z = 0;
-            Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
-
-            if (groundMap.HasTile(clickedCell))
-            {
-                if (isBombPlacementTargeting) ExecuteBombAt(clickedCell);
-                else if (isThornPlacementTargeting) ExecuteThornAt(clickedCell);
-            }
-        }
+#endif
     }
 
+#if UNITY_EDITOR
     private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
     {
         List<Vector3Int> line = new List<Vector3Int>();
@@ -336,19 +343,43 @@ public class TurnManager : MonoBehaviour
     }
 
     public void StartBombPlacement() { isBombPlacementTargeting = true; }
-    private void ExecuteBombAt(Vector3Int cell)
+    private IEnumerator ExecuteBombAt(Vector3Int cell)
     {
         isBombPlacementTargeting = false;
+
+        // Placeholder'ı hemen koy, patlamadan önce göster
+        GameObject placeholderObj = null;
+        if (fragMinePlaceholderPrefab != null)
+        {
+            Vector3 placeholderPos = groundMap.GetCellCenterWorld(cell);
+            placeholderPos.z = 0;
+            placeholderObj = Instantiate(fragMinePlaceholderPrefab, placeholderPos, Quaternion.identity);
+        }
+
+        // Zar animasyonunu göster (sadece baseDiceCount, bonus zar yok)
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
+        List<int> rolls = new List<int>();
+        for (int i = 0; i < diceCount; i++) rolls.Add(Random.Range(1, 7));
+
+        yield return StartCoroutine(ShowDiceSequence(rolls));
+
         int totalDamage = 0;
-        for (int i = 0; i < diceCount; i++) totalDamage += Random.Range(1, 7);
+        foreach (var r in rolls) totalDamage += r;
+        UpdateTotalDamageDisplay(totalDamage);
+        yield return new WaitForSeconds(0.6f);
 
-        if (explosionPrefab != null) { Vector3 worldPos = groundMap.GetCellCenterWorld(cell); Instantiate(explosionPrefab, worldPos, Quaternion.identity); }
+        // Placeholder'ı kaldır ve patlama efektini çal
+        if (placeholderObj != null) Destroy(placeholderObj);
+        StartCoroutine(AnimateExplosionFX(groundMap.GetCellCenterWorld(cell)));
 
+        HideDiceResults();
+
+        // Patlama alanı: bombadaki hex + 1 mesafe komşular
         Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
         List<Vector3Int> blastCells = new List<Vector3Int> { cell };
         foreach (var off in offsets) blastCells.Add(cell + off);
 
+        // Her düşmana aynı zarı ver (paylaştırma yok)
         List<EnemyAI> hitEnemies = new List<EnemyAI>();
         foreach (var bc in blastCells) { EnemyAI enemy = GetEnemyAtCell(bc); if (enemy != null && !hitEnemies.Contains(enemy)) hitEnemies.Add(enemy); }
 
@@ -367,7 +398,9 @@ public class TurnManager : MonoBehaviour
                 foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
             }
         }
-        UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        UpdateCoinUI();
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
     }
 
