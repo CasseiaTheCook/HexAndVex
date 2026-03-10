@@ -22,7 +22,7 @@ public class Shopmanager : MonoBehaviour
     public TMP_Text rerollPriceText;
 
     [Header("Reroll Ayarlari")]
-    public float rerollBaseCost = 2f;
+    public float rerollBaseCost = 10f;
     public float rerollMultiplier = 1.5f;
 
     private List<ShopSlot> spawnedSlots = new List<ShopSlot>();
