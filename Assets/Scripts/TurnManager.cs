@@ -29,6 +29,7 @@ public class TurnManager : MonoBehaviour
 
     [Header("Coin UI")]
     public TMP_Text coinText;
+    public Sprite coinSprite;
 
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
@@ -69,6 +70,7 @@ public class TurnManager : MonoBehaviour
     void Start()
     {
         HideDiceResults();
+        SetupCoinIcon();
         UpdateCoinUI();
         Invoke("StartPlayerTurn", 0.5f);
     }
@@ -162,12 +164,7 @@ public class TurnManager : MonoBehaviour
         
         isPlayerTurn = true; 
         hasAttackedThisTurn = false;
-<<<<<<< HEAD
-        
-        player.SetVisualAlpha(1f);
-=======
-        isAttackAnimationPlaying = false; 
->>>>>>> e9b8d0af1847cddb32d38e5c10dd7aa6e3e147c5
+        isAttackAnimationPlaying = false;
 
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
@@ -179,9 +176,53 @@ public class TurnManager : MonoBehaviour
         if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
     }
 
+    private void SetupCoinIcon()
+    {
+        if (coinSprite == null)
+        {
+            var vfx = FindFirstObjectByType<CoinDropVFX>();
+            if (vfx != null) coinSprite = vfx.coinSprite;
+        }
+        if (coinText == null || coinSprite == null) return;
+        Transform parent = coinText.transform.parent;
+        if (parent == null) return;
+
+        // Zaten varsa tekrar oluşturma
+        if (parent.Find("CoinIcon") != null) return;
+
+        HorizontalLayoutGroup hlg = parent.GetComponent<HorizontalLayoutGroup>();
+        if (hlg == null)
+        {
+            hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 4f;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = false;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+        }
+
+        GameObject iconGO = new GameObject("CoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        iconGO.transform.SetParent(parent, false);
+        iconGO.transform.SetAsFirstSibling();
+
+        RectTransform iconRT = iconGO.GetComponent<RectTransform>();
+        float size = coinText.fontSize + 2f;
+        iconRT.sizeDelta = new Vector2(size, size);
+
+        LayoutElement le = iconGO.AddComponent<LayoutElement>();
+        le.preferredWidth = size;
+        le.preferredHeight = size;
+
+        Image img = iconGO.GetComponent<Image>();
+        img.sprite = coinSprite;
+        img.preserveAspect = true;
+        img.raycastTarget = false;
+    }
+
     public void UpdateCoinUI()
     {
-        if (coinText != null && RunManager.instance != null) coinText.text = "Coins: " + RunManager.instance.currentGold;
+        if (coinText != null && RunManager.instance != null) coinText.text = RunManager.instance.currentGold.ToString();
         if (Shopmanager.instance != null) Shopmanager.instance.RefreshAffordability();
     }
 
@@ -201,12 +242,7 @@ public class TurnManager : MonoBehaviour
         if (target.enemyBehavior == EnemyAI.EnemyBehavior.Boss) return;
         isNecroShotTargeting = false;
         
-<<<<<<< HEAD
-        if (player != null) 
-        {
-            player.TriggerAttackAnimation();
-            player.SetVisualAlpha(0.5f);
-        }
+        if (player != null) player.TriggerAttackAnimation();
         
         target.health.TakeDamage(9999);
         if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
@@ -214,15 +250,8 @@ public class TurnManager : MonoBehaviour
             int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
             if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
             RunManager.instance.currentGold += coinDrop;
+            if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
         }
-=======
-        if (player != null) player.TriggerAttackAnimation();
-        
-        target.health.TakeDamage(target.health.maxHP + 999);
-        int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-        if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-        RunManager.instance.currentGold += coinDrop;
->>>>>>> e9b8d0af1847cddb32d38e5c10dd7aa6e3e147c5
         foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -256,15 +285,7 @@ public class TurnManager : MonoBehaviour
         isPlayerTurn = false;
         if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
         
-<<<<<<< HEAD
-        player.ClearHighlights();
-        player.SetVisualAlpha(0.5f);
-=======
-        // ========================================================
-        // SKİP YAPILDIĞINDA GİDEBİLECEĞİMİZ MAVİ YERLERİ ANINDA SİL
-        // ========================================================
         if (player != null) player.ClearHighlights();
->>>>>>> e9b8d0af1847cddb32d38e5c10dd7aa6e3e147c5
         
         StartCoroutine(HandleSkipPhase());
     }
@@ -359,13 +380,9 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-<<<<<<< HEAD
-            hasAttackedThisTurn = true; yield return StartCoroutine(MultiAttack(adjacentEnemies));
-=======
             hasAttackedThisTurn = true; 
-            isAttackAnimationPlaying = true; // Kılıç inene kadar rengi parlak tutacak bayrağı çek!
+            isAttackAnimationPlaying = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
->>>>>>> e9b8d0af1847cddb32d38e5c10dd7aa6e3e147c5
         }
 
         if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
@@ -393,11 +410,6 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator EnemyPhase()
     {
-<<<<<<< HEAD
-        if (player != null) player.SetVisualAlpha(0.5f);
-
-=======
->>>>>>> e9b8d0af1847cddb32d38e5c10dd7aa6e3e147c5
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         
@@ -533,14 +545,7 @@ public class TurnManager : MonoBehaviour
         // ========================================================
         yield return new WaitForSeconds(0.3f);
         
-<<<<<<< HEAD
-        if (player != null) player.SetVisualAlpha(0.5f); 
-=======
-        // ========================================================
-        // KILIÇ İNDİ! Artık şeffaflaşabilir. (Update fonksiyonu bunu anlayacak)
-        // ========================================================
-        isAttackAnimationPlaying = false; 
->>>>>>> e9b8d0af1847cddb32d38e5c10dd7aa6e3e147c5
+        isAttackAnimationPlaying = false;
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
         foreach (var enemy in targets)
@@ -583,6 +588,7 @@ public class TurnManager : MonoBehaviour
                 int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                 if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
                 RunManager.instance.currentGold += coinDrop;
+                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }
@@ -621,6 +627,7 @@ public class TurnManager : MonoBehaviour
                 int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                 if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
                 RunManager.instance.currentGold += coinDrop;
+                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
         }

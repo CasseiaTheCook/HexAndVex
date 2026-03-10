@@ -118,6 +118,7 @@ public class LevelUpManager : MonoBehaviour
             }
         }
         
+        Time.timeScale = 0f;
         StopAllCoroutines();
         StartCoroutine(FadeInAndPopRoutine()); 
     }
@@ -243,6 +244,8 @@ public class LevelUpManager : MonoBehaviour
         levelUpPanel.SetActive(false);
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(false);
         foreach (var btn in choiceButtons) btn.interactable = true;
+
+        Time.timeScale = 1f;
 
         if (ScreenFader.instance != null)
         {

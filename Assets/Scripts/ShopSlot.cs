@@ -10,6 +10,7 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     public Button buyButton;
     public TMP_FontAsset customFont;
     public GameObject soldOutOverlay;
+    public Sprite coinSprite;
 
     // Tooltip verileri (Shopmanager tarafından set edilir)
     [HideInInspector] public string tooltipName;
@@ -137,23 +138,71 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         descText.enableWordWrapping = true;
 
         // ==========================================
-        // İÇERİK: FİYAT (Altına, Renkli ve Büyük)
+        // İÇERİK: FİYAT (Coin ikonu + Fiyat)
         // ==========================================
+        GameObject priceRowGO = new GameObject("TooltipPriceRow", typeof(RectTransform));
+        priceRowGO.transform.SetParent(tooltipObj.transform, false);
+        priceRowGO.layer = gameObject.layer;
+        HorizontalLayoutGroup priceHlg = priceRowGO.AddComponent<HorizontalLayoutGroup>();
+        priceHlg.spacing = 4f;
+        priceHlg.childAlignment = TextAnchor.MiddleRight;
+        priceHlg.childControlWidth = false;
+        priceHlg.childControlHeight = false;
+        priceHlg.childForceExpandWidth = false;
+        priceHlg.childForceExpandHeight = false;
+
+        LayoutElement priceRowLE = priceRowGO.AddComponent<LayoutElement>();
+        priceRowLE.preferredHeight = 22f;
+        priceRowLE.minHeight = 22f;
+
+        // Spacer (fiyatı sağa itmek için)
+        GameObject spacer = new GameObject("Spacer", typeof(RectTransform));
+        spacer.transform.SetParent(priceRowGO.transform, false);
+        LayoutElement spacerLE = spacer.AddComponent<LayoutElement>();
+        spacerLE.flexibleWidth = 1f;
+
+        // Coin icon
+        if (coinSprite == null)
+        {
+            var tm = TurnManager.instance;
+            if (tm != null && tm.coinSprite != null) coinSprite = tm.coinSprite;
+        }
+        if (coinSprite != null)
+        {
+            GameObject coinIconGO = new GameObject("CoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            coinIconGO.transform.SetParent(priceRowGO.transform, false);
+            coinIconGO.layer = gameObject.layer;
+            RectTransform coinRT = coinIconGO.GetComponent<RectTransform>();
+            coinRT.sizeDelta = new Vector2(18f, 18f);
+            LayoutElement coinLE = coinIconGO.AddComponent<LayoutElement>();
+            coinLE.preferredWidth = 18f;
+            coinLE.preferredHeight = 18f;
+            Image coinImg = coinIconGO.GetComponent<Image>();
+            coinImg.sprite = coinSprite;
+            coinImg.preserveAspect = true;
+            coinImg.raycastTarget = false;
+        }
+
+        // Price text
         GameObject priceGO = new GameObject("TooltipPrice", typeof(RectTransform));
-        priceGO.transform.SetParent(tooltipObj.transform, false);
+        priceGO.transform.SetParent(priceRowGO.transform, false);
         priceGO.layer = gameObject.layer;
         priceText = priceGO.AddComponent<TextMeshProUGUI>();
         if (customFont != null) priceText.font = customFont;
-        priceText.fontSize = 16; // FİYAT 16 PUNTO!
-        priceText.alignment = TextAlignmentOptions.Right; // Sağ alt köşede dursun
-        priceText.color = new Color(1f, 0.85f, 0.2f, 1f); // Parlak Coin Sarısı
+        priceText.fontSize = 16;
+        priceText.alignment = TextAlignmentOptions.Right;
+        priceText.color = new Color(1f, 0.85f, 0.2f, 1f);
         priceText.fontStyle = FontStyles.Bold;
         priceText.raycastTarget = false;
+
+        LayoutElement priceLE = priceGO.AddComponent<LayoutElement>();
+        priceLE.preferredWidth = 60f;
+        priceLE.preferredHeight = 20f;
 
         // Verileri doldur
         titleText.text = tooltipName.ToUpper(); // Başlık hep BÜYÜK HARF
         descText.text = tooltipDesc;
-        priceText.text = tooltipPrice + " COIN";
+        priceText.text = tooltipPrice.ToString();
 
         // Tooltip'i en üste çıkar (diğer slotların üstünde görünsün)
         Canvas tooltipCanvas = tooltipObj.AddComponent<Canvas>();

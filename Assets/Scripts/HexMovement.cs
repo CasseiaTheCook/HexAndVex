@@ -54,7 +54,7 @@ public class HexMovement : MonoBehaviour
     {
         HandleMovement();
 
-        if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
+        if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn && !TurnManager.instance.isNecroShotTargeting)
         {
             HandleMovementInput();
         }
