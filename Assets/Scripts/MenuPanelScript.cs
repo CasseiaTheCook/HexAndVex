@@ -23,7 +23,7 @@ public class MenuPanelScript : BaseMeshEffect
             float offset = (v.position.x + v.position.y) * dalgaBoyu * 0.01f;
             
             // Hue değerini zaman + köşe pozisyonuna göre hesapla
-            float hue = (Time.time * hiz + offset) % 1f;
+            float hue = Mathf.Repeat(Time.time * hiz + (offset * 0.01f), 1f);
             
             // Renk kodunu oluştur (Doygunluk ve Parlaklık 1)
             Color renk = Color.HSVToRGB(hue, 1f, 1f);

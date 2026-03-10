@@ -1,41 +1,56 @@
 using UnityEngine;
-using UnityEngine.UI;
-using System.Collections.Generic;
+using TMPro; // TextMeshPro için bu satır şart!
 
-public class RGBText : BaseMeshEffect
+public class RGBText : MonoBehaviour
 {
-    public float hiz = 1.5f;        // Renklerin akış hızı
-    public float dalgaBoyu = 0.8f;  // Harfler arasındaki renk farkı
+    public float hiz = 2.0f;        // Renklerin akış hızı
+    public float dalgaAraligi = 0.2f; // Harfler arası renk farkı
+    
+    private TMP_Text textBileseni;
+    private Mesh mesh;
+    private Vector3[] vertices;
+    private Color32[] colors;
 
-    public override void ModifyMesh(VertexHelper vh)
+    void Start()
     {
-        if (!IsActive()) return;
-
-        List<UIVertex> vertices = new List<UIVertex>();
-        vh.GetUIVertexStream(vertices);
-
-        for (int i = 0; i < vertices.Count; i++)
-        {
-            UIVertex v = vertices[i];
-
-            // Yazının her bir harfinin köşesine göre bir kayma hesaplıyoruz
-            float offset = (v.position.x + v.position.y) * dalgaBoyu;
-            
-            // Zaman + Pozisyon = Dalga Efekti
-            float hue = (Time.time * hiz + (offset * 0.01f)) % 1f;
-            
-            // Rengi ata
-            v.color = Color.HSVToRGB(hue, 1f, 1f);
-            vertices[i] = v;
-        }
-
-        vh.Clear();
-        vh.AddUIVertexTriangleStream(vertices);
+        textBileseni = GetComponent<TMP_Text>();
     }
 
     void Update()
     {
-        if (graphic != null)
-            graphic.SetVerticesDirty();
+        // Yazının mesh verilerini güncelle (Her karede harflere ulaşmak için)
+        textBileseni.ForceMeshUpdate();
+        mesh = textBileseni.mesh;
+        vertices = mesh.vertices;
+        colors = new Color32[vertices.Length];
+
+        // Harf bilgilerini alıyoruz
+        TMP_TextInfo textInfo = textBileseni.textInfo;
+
+        for (int i = 0; i < textInfo.characterCount; i++)
+        {
+            TMP_CharacterInfo charInfo = textInfo.characterInfo[i];
+
+            // Eğer karakter boşluksa veya görünmezse atla
+            if (!charInfo.isVisible) continue;
+
+            // Her harf 4 köşeden (vertex) oluşur
+            int vertexIndex = charInfo.vertexIndex;
+
+            // Harfin pozisyonuna göre bir renk zamanlaması oluştur
+            float offset = charInfo.origin * dalgaAraligi;
+            float hue = Mathf.Repeat(Time.time * hiz + offset, 1f);
+            Color32 yeniRenk = Color.HSVToRGB(hue, 1f, 1f);
+
+            // Harfin 4 köşesini de aynı renge boya
+            colors[vertexIndex + 0] = yeniRenk;
+            colors[vertexIndex + 1] = yeniRenk;
+            colors[vertexIndex + 2] = yeniRenk;
+            colors[vertexIndex + 3] = yeniRenk;
+        }
+
+        // Yeni renkleri yazıya uygula
+        mesh.colors32 = colors;
+        textBileseni.canvasRenderer.SetMesh(mesh);
     }
 }
