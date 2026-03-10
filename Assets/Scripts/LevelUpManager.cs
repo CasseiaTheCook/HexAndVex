@@ -28,6 +28,7 @@ public class LevelUpManager : MonoBehaviour
     public TMP_Text[] choiceTitleTexts;       // Sadece başlık için (Örn: "Swift Action")
     public TMP_Text[] choiceLevelTexts;       // Sadece level için (Örn: "Lv 2")
     public TMP_Text[] choiceDescriptionTexts; // Sadece açıklama için (Örn: "Grants extra moves...")
+    public TMP_Text[] choiceRarityTexts;      // Rarity etiketi (Örn: "COMMON", "RARE", "EPIC", "LEGENDARY")
     
     public Image[] choiceIcons;
 
@@ -98,6 +99,13 @@ public class LevelUpManager : MonoBehaviour
                 if (choiceDescriptionTexts.Length > i && choiceDescriptionTexts[i] != null)
                     choiceDescriptionTexts[i].text = perkScript.description;
 
+                if (choiceRarityTexts != null && choiceRarityTexts.Length > i && choiceRarityTexts[i] != null)
+                {
+                    PerkRarity detectedRarity = GetRarityFromList(randomPerk);
+                    choiceRarityTexts[i].text = detectedRarity.ToString().ToUpper();
+                    choiceRarityTexts[i].color = GetRarityColor(detectedRarity);
+                }
+
                 if (choiceIcons != null && choiceIcons.Length > i && choiceIcons[i] != null)
                 {
                     if (perkScript.icon != null)
@@ -154,6 +162,26 @@ public class LevelUpManager : MonoBehaviour
         else if (roll < 40f && rarePerks.Count > 0) return rarePerks[Random.Range(0, rarePerks.Count)]; 
         else if (commonPerks.Count > 0) return commonPerks[Random.Range(0, commonPerks.Count)]; 
         return null;
+    }
+
+    private PerkRarity GetRarityFromList(GameObject perk)
+    {
+        if (legendaryPerks.Contains(perk)) return PerkRarity.Legendary;
+        if (epicPerks.Contains(perk))      return PerkRarity.Epic;
+        if (rarePerks.Contains(perk))      return PerkRarity.Rare;
+        return PerkRarity.Common;
+    }
+
+    private Color GetRarityColor(PerkRarity rarity)
+    {
+        switch (rarity)
+        {
+            case PerkRarity.Common:    return new Color(0.8f, 0.8f, 0.8f); // Gri
+            case PerkRarity.Rare:      return new Color(0.2f, 0.5f, 1f);   // Mavi
+            case PerkRarity.Epic:      return new Color(0.6f, 0.2f, 1f);   // Mor
+            case PerkRarity.Legendary: return new Color(1f, 0.6f, 0f);     // Turuncu/Altın
+            default:                   return Color.white;
+        }
     }
 
     private GameObject GetAnyValidFallback()
