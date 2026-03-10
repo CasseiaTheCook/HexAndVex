@@ -17,11 +17,11 @@ public class TurnManager : MonoBehaviour
     [Header("Efektler")]
     public GameObject explosionPrefab;
     public GameObject dodgeEffectPrefab;
-    
+
     // ========================================================
     // YENİ: VAKUM EFEKTİ PREFABI BURAYA GELECEK
     // ========================================================
-    public GameObject vacuumVfxPrefab; 
+    public GameObject vacuumVfxPrefab;
 
     public HexMovement player;
     public Tilemap groundMap;
@@ -42,10 +42,19 @@ public class TurnManager : MonoBehaviour
     public bool isPlayerTurn = true;
     public bool hasAttackedThisTurn = false;
     public bool isAttackAnimationPlaying = false;
-    public bool isNecroShotTargeting = false;
 
-    public int hexesMovedThisTurn = 0; 
-    public Vector3Int phantomShadowCell = new Vector3Int(-999, -999, -999); 
+
+    [HideInInspector] public bool isNecroShotTargeting = false;
+    [HideInInspector] public bool isBombPlacementTargeting = false;
+    [HideInInspector] public bool isPhaseShiftTargeting = false;
+    [HideInInspector] public bool isThornPlacementTargeting = false;
+
+    public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
+
+    // Momentum sayaç değişkeni
+
+    public int hexesMovedThisTurn = 0;
+    public Vector3Int phantomShadowCell = new Vector3Int(-999, -999, -999);
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -68,14 +77,113 @@ public class TurnManager : MonoBehaviour
         Invoke("StartPlayerTurn", 0.5f);
     }
 
+#if UNITY_EDITOR
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.F8)) SpawnDebugAoEEnemies();
+        if (Input.GetKeyDown(KeyCode.F9))
+        {
+            foreach (var e in enemies)
+            {
+                if (e != null && e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.health.currentHP > 0 && e.skipTurns <= 0)
+                {
+                    e.isChargingAttack = true;
+                    e.warningCells = e.GetComponent<EnemyAI>().warningCells;
+                    Vector3Int playerCell = player.GetCurrentCellPosition();
+                    var cells = GetLineOfCells_Debug(e.GetCurrentCellPosition(), playerCell, e.aoeAttackRange, e);
+                    e.warningCells = cells;
+                    foreach (var wCell in cells) DrawWarningTile(wCell);
+                }
+            }
+        }
+
+        // Ground-click targeting (Bomb / Thorn)
+        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        {
+            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            worldPoint.z = 0;
+            Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
+
+            if (groundMap.HasTile(clickedCell))
+            {
+                if (isBombPlacementTargeting)
+                    ExecuteBombAt(clickedCell);
+                else if (isThornPlacementTargeting)
+                    ExecuteThornAt(clickedCell);
+            }
+        }
+    }
+
+    private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
+    {
+        List<Vector3Int> line = new List<Vector3Int>();
+        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+
+        int bestDir = 0; float minDist = float.MaxValue;
+        Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOff : oddOff;
+        for (int i = 0; i < 6; i++)
+        {
+            float d = enemy.Distance(startCell + startOffsets[i], targetCell);
+            if (d < minDist) { minDist = d; bestDir = i; }
+        }
+        Vector3Int cur = startCell;
+        for (int i = 0; i < length; i++)
+        {
+            Vector3Int[] offs = (cur.y % 2 != 0) ? evenOff : oddOff;
+            cur += offs[bestDir];
+            if (groundMap.HasTile(cur)) line.Add(cur);
+        }
+        return line;
+    }
+
+    private void SpawnDebugAoEEnemies()
+    {
+        if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null) return;
+        Vector3Int playerCell = player.GetCurrentCellPosition();
+        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
+        List<Vector3Int> spawnCells = new List<Vector3Int>();
+
+        int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
+        foreach (var pair in pairs)
+        {
+            Vector3Int c1 = playerCell + offsets[pair[0]];
+            Vector3Int c2 = playerCell + offsets[pair[1]];
+            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2))
+            {
+                Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff;
+                Vector3Int far1 = c1 + off1[pair[0]];
+                Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff;
+                Vector3Int far2 = c2 + off2[pair[1]];
+                if (groundMap.HasTile(far1) && groundMap.HasTile(far2) && !IsEnemyAtCell(far1) && !IsEnemyAtCell(far2))
+                {
+                    spawnCells.Add(far1); spawnCells.Add(far2); break;
+                }
+                spawnCells.Add(c1); spawnCells.Add(c2); break;
+            }
+        }
+        if (spawnCells.Count < 2) return;
+        foreach (var spawnCell in spawnCells)
+        {
+            Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell); spawnPos.z = 0;
+            GameObject obj = Instantiate(LevelGenerator.instance.aoeEnemyPrefab, spawnPos, Quaternion.identity);
+            EnemyAI ai = obj.GetComponent<EnemyAI>(); ai.groundMap = groundMap;
+            ai.health.maxHP = 50; ai.health.currentHP = 50; ai.health.updateHealth();
+            RegisterEnemy(ai); StartCoroutine(ai.FadeSpawnCoroutine());
+        }
+    }
+#endif
+
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
-        
+
         isPlayerTurn = true;
         hasAttackedThisTurn = false;
         isAttackAnimationPlaying = false;
-        
+
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
@@ -97,15 +205,15 @@ public class TurnManager : MonoBehaviour
             {
                 RunManager.instance.currentGold = 0;
                 UpdateCoinUI();
-                player.health.Heal(9999); 
+                player.health.Heal(9999);
                 RunManager.instance.activePerks.Remove(bribe);
-                Destroy(bribe.gameObject); 
-                
+                Destroy(bribe.gameObject);
+
                 if (dodgeEffectPrefab != null) Instantiate(dodgeEffectPrefab, player.transform.position, Quaternion.identity);
-                return; 
+                return;
             }
         }
-        player.health.TakeDamage(amt); 
+        player.health.TakeDamage(amt);
     }
 
     private IEnumerator WaitAndTriggerLevelClear()
@@ -114,7 +222,8 @@ public class TurnManager : MonoBehaviour
         if (CoinDropVFX.instance != null) while (CoinDropVFX.instance.activeCoinCount > 0) yield return null;
         yield return new WaitForSeconds(0.3f);
 
-        if (Shopmanager.instance != null) {
+        if (Shopmanager.instance != null)
+        {
             bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
             if (isBossLevel) Shopmanager.instance.OnBossCleared(); else Shopmanager.instance.OnDungeonCleared();
         }
@@ -129,7 +238,8 @@ public class TurnManager : MonoBehaviour
         if (parent == null || parent.Find("CoinIcon") != null) return;
 
         HorizontalLayoutGroup hlg = parent.GetComponent<HorizontalLayoutGroup>();
-        if (hlg == null) {
+        if (hlg == null)
+        {
             hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
             hlg.spacing = 4f; hlg.childAlignment = TextAnchor.MiddleLeft;
             hlg.childControlWidth = false; hlg.childControlHeight = false;
@@ -159,7 +269,8 @@ public class TurnManager : MonoBehaviour
         if (player != null) player.TriggerAttackAnimation();
 
         target.health.TakeDamage(9999);
-        if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem) {
+        if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+        {
             int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
             if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
             RunManager.instance.currentGold += coinDrop;
@@ -171,6 +282,118 @@ public class TurnManager : MonoBehaviour
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
     }
 
+    // ── Bomb Placement (Frag-Mine) ──────────────────────────────────
+    public void StartBombPlacement()
+    {
+        isBombPlacementTargeting = true;
+    }
+
+    private void ExecuteBombAt(Vector3Int cell)
+    {
+        isBombPlacementTargeting = false;
+
+        // Roll dice for bomb damage
+        int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
+        int totalDamage = 0;
+        for (int i = 0; i < diceCount; i++)
+            totalDamage += Random.Range(1, 7);
+
+        Debug.Log($"Frag-Mine explodes at {cell} for {totalDamage} damage!");
+
+        if (explosionPrefab != null)
+        {
+            Vector3 worldPos = groundMap.GetCellCenterWorld(cell);
+            Instantiate(explosionPrefab, worldPos, Quaternion.identity);
+        }
+
+        // Get all neighbors + center
+        Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        List<Vector3Int> blastCells = new List<Vector3Int> { cell };
+        foreach (var off in offsets)
+            blastCells.Add(cell + off);
+
+        // Damage all enemies in blast radius
+        List<EnemyAI> hitEnemies = new List<EnemyAI>();
+        foreach (var bc in blastCells)
+        {
+            EnemyAI enemy = GetEnemyAtCell(bc);
+            if (enemy != null && !hitEnemies.Contains(enemy))
+                hitEnemies.Add(enemy);
+        }
+
+        foreach (var enemy in hitEnemies)
+        {
+            enemy.health.TakeDamage(totalDamage);
+            if (enemy.health.currentHP <= 0)
+            {
+                if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+                {
+                    int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                    if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                    RunManager.instance.currentGold += coinDrop;
+                    if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
+                }
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
+            }
+        }
+
+        UpdateCoinUI();
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        if (enemies.Count <= 0)
+        {
+            ClearWarningMap();
+            StartCoroutine(WaitAndTriggerLevelClear());
+        }
+    }
+
+    // ── Phase-Shift (swap positions with enemy) ─────────────────────
+    public void StartPhaseShiftTargeting()
+    {
+        isPhaseShiftTargeting = true;
+    }
+
+    public void TryPhaseShift(EnemyAI target)
+    {
+        if (!isPhaseShiftTargeting || target == null) return;
+        isPhaseShiftTargeting = false;
+
+        Vector3Int playerCell = player.GetCurrentCellPosition();
+        Vector3Int enemyCell = target.GetCurrentCellPosition();
+
+        // Swap positions
+        Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerCell);
+        Vector3 enemyWorldPos = groundMap.GetCellCenterWorld(enemyCell);
+
+        player.ForceSetPosition(enemyCell);
+        target.ForceSetPosition(playerCell);
+
+        Debug.Log($"Phase-Shift: Swapped player and {target.name}!");
+    }
+
+    // ── Thorn Placement (Hex-Thorn) ─────────────────────────────────
+    public void StartThornPlacement()
+    {
+        isThornPlacementTargeting = true;
+    }
+
+    private void ExecuteThornAt(Vector3Int cell)
+    {
+        if (LevelGenerator.instance == null) { isThornPlacementTargeting = false; return; }
+
+        // Don't place on player, enemy, or existing hazard
+        if (player.GetCurrentCellPosition() == cell) return;
+        if (IsEnemyAtCell(cell)) return;
+        if (LevelGenerator.instance.hazardCells.Contains(cell)) return;
+
+        isThornPlacementTargeting = false;
+
+        LevelGenerator.instance.hazardCells.Add(cell);
+        if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null)
+            LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
+
+        Debug.Log($"Hex-Thorn placed at {cell}!");
+    }
+
     public void LockAllEnemyIntents()
     {
         if (player == null || player.health.currentHP <= 0) return;
@@ -178,7 +401,12 @@ public class TurnManager : MonoBehaviour
         foreach (var e in enemies) if (e != null) { bool isStunned = e.skipTurns > 0; e.LockNextMove(pCell, isStunned); }
     }
 
-    public void PlayerFinishedMove(Vector3Int playerCell) { StartCoroutine(HandlePlayerPhase(playerCell)); }
+    public void PlayerFinishedMove(Vector3Int playerCell)
+    {
+        // Consume Surge-Boot after moving
+        if (RunManager.instance != null) RunManager.instance.surgeBootNextTurn = false;
+        StartCoroutine(HandlePlayerPhase(playerCell));
+    }
 
     public void SkipTurn()
     {
@@ -192,7 +420,8 @@ public class TurnManager : MonoBehaviour
     private IEnumerator HandleSkipPhase()
     {
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
-        if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn) {
+        if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
+        {
             hasAttackedThisTurn = true; isAttackAnimationPlaying = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
@@ -209,10 +438,13 @@ public class TurnManager : MonoBehaviour
         Vector3 spawnPos = groundMap.GetCellCenterWorld(centerCell); spawnPos.z = 0;
         StartCoroutine(AnimateExplosionFX(spawnPos));
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
-        foreach (var off in offsets) {
+        foreach (var off in offsets)
+        {
             Vector3Int neighbor = centerCell + off;
-            foreach (var e in enemies) {
-                if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == neighbor) {
+            foreach (var e in enemies)
+            {
+                if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == neighbor)
+                {
                     int explosionDamage = Mathf.Max(1, e.health.maxHP / 2);
                     e.health.TakeDamage(explosionDamage);
                 }
@@ -226,7 +458,8 @@ public class TurnManager : MonoBehaviour
         GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
         float duration = 0.15f; float elapsed = 0f;
-        while (elapsed < duration) {
+        while (elapsed < duration)
+        {
             elapsed += Time.deltaTime; float t = elapsed / duration;
             fx.transform.localScale = Vector3.Lerp(Vector3.one * 0.5f, Vector3.one * 1.3f, t);
             foreach (var sr in renderers) { Color c = sr.color; c.a = Mathf.Lerp(0.8f, 0f, t); sr.color = c; }
@@ -241,31 +474,33 @@ public class TurnManager : MonoBehaviour
     private IEnumerator VacuumVFXCoroutine(Vector3 pos)
     {
         if (vacuumVfxPrefab == null) yield break;
-        
+
         GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
-        
-        float duration = 0.4f; 
+
+        float duration = 0.4f;
         float elapsed = 0f;
-        
+
         // Büyük başlayıp küçülecek
-        Vector3 startScale = Vector3.one * 2f; 
-        Vector3 endScale = Vector3.one * 0.2f; 
-        
+        Vector3 startScale = Vector3.one * 2f;
+        Vector3 endScale = Vector3.one * 0.2f;
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            
+
             // Hızlıca belirginleşip, yavaşça kaybolacak
             float alpha = 0.4f;
             if (t < 0.2f) alpha = Mathf.Lerp(0f, 0.4f, t / 0.2f);
             else alpha = Mathf.Lerp(0.4f, 0f, (t - 0.2f) / 0.8f);
-            
+
             vfx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
-            
-            foreach (var sr in renderers) {
-                if (sr != null) {
+
+            foreach (var sr in renderers)
+            {
+                if (sr != null)
+                {
                     Color c = sr.color;
                     c.a = alpha;
                     sr.color = c;
@@ -284,18 +519,23 @@ public class TurnManager : MonoBehaviour
         {
             yield return new WaitForSeconds(0.15f);
             StartCoroutine(FlashHazardTileCoroutine(playerCell));
-            if (RunManager.instance.hasBioBarrier) {
+            if (RunManager.instance.hasBioBarrier)
+            {
                 foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
                 RunManager.instance.hasBioBarrier = false;
-            } else PlayerTakeDamage(1);
+            }
+            else PlayerTakeDamage(1);
 
             yield return new WaitForSeconds(0.15f);
             player.StartKnockbackMovement(GetSafeNeighbor(playerCell));
             yield return new WaitUntil(() => !player.IsMoving());
 
-            if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0) {
+            if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0)
+            {
                 RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
-            } else if (player != null && player.health.currentHP > 0) {
+            }
+            else if (player != null && player.health.currentHP > 0)
+            {
                 player.ClearHighlights(); yield return new WaitForSeconds(0.1f); StartCoroutine(EnemyPhase());
             }
             yield break;
@@ -307,11 +547,14 @@ public class TurnManager : MonoBehaviour
             hasAttackedThisTurn = true; isAttackAnimationPlaying = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
-        else yield return new WaitForSeconds(0.05f); 
+        else yield return new WaitForSeconds(0.05f);
 
-        if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0) {
+        if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
+        {
             RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
-        } else if (player != null && player.health.currentHP > 0) {
+        }
+        else if (player != null && player.health.currentHP > 0)
+        {
             player.ClearHighlights(); yield return new WaitForSeconds(0.1f); StartCoroutine(EnemyPhase());
         }
     }
@@ -319,7 +562,8 @@ public class TurnManager : MonoBehaviour
     private Vector3Int GetSafeNeighbor(Vector3Int centerCell)
     {
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
-        foreach (var off in offsets) {
+        foreach (var off in offsets)
+        {
             Vector3Int n = centerCell + off;
             if (groundMap.HasTile(n) && !IsEnemyAtCell(n) && !LevelGenerator.instance.hazardCells.Contains(n)) return n;
         }
@@ -330,9 +574,11 @@ public class TurnManager : MonoBehaviour
     {
         if (phantomShadowCell.y != -999)
         {
-            foreach (var e in enemies.ToList()) {
-                if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == phantomShadowCell) {
-                    e.health.TakeDamage(10); 
+            foreach (var e in enemies.ToList())
+            {
+                if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == phantomShadowCell)
+                {
+                    e.health.TakeDamage(10);
                     TriggerExplosion(phantomShadowCell);
                 }
             }
@@ -350,20 +596,24 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
         List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
 
-        foreach (var e in enemies) {
-            if (e != null && e.skipTurns <= 0) {
+        foreach (var e in enemies)
+        {
+            if (e != null && e.skipTurns <= 0)
+            {
                 if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) readyToBossAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) readyToAoEAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) readyToMeleeAttack.Add(e);
             }
         }
 
-        if (readyToBossAttack.Count > 0) {
+        if (readyToBossAttack.Count > 0)
+        {
             foreach (var boss in readyToBossAttack) yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
             yield return new WaitForSeconds(0.2f);
         }
 
-        if (readyToAoEAttack.Count > 0) {
+        if (readyToAoEAttack.Count > 0)
+        {
             foreach (var aoeEnemy in readyToAoEAttack) yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
             yield return new WaitForSeconds(0.2f);
         }
@@ -402,21 +652,26 @@ public class TurnManager : MonoBehaviour
                 for (int i = 0; i < currentRolls.Count; i++) if (currentRolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
                 if (changedIndices.Count > 0)
                 {
-                    if (perk.isRerollPerk) {
-                        foreach (int idx in changedIndices) {
-                            if (idx < spawnedDiceUI.Count) {
+                    if (perk.isRerollPerk)
+                    {
+                        foreach (int idx in changedIndices)
+                        {
+                            if (idx < spawnedDiceUI.Count)
+                            {
                                 Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
                                 if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
                             }
                         }
                         yield return new WaitForSeconds(0.5f);
-                        foreach (int idx in changedIndices) {
+                        foreach (int idx in changedIndices)
+                        {
                             currentRolls[idx] = payload.diceRolls[idx];
                             if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
                             AnimateSpecificDie(idx, currentRolls[idx]);
                         }
                     }
-                    else {
+                    else
+                    {
                         foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, currentRolls[idx]); }
                     }
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
@@ -426,7 +681,8 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        if (Random.value < RunManager.instance.criticalChance) {
+        if (Random.value < RunManager.instance.criticalChance)
+        {
             payload.isCriticalHit = true; UpdateTotalDamageDisplay(payload.GetFinalDamage());
             if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return new WaitForSeconds(0.5f);
         }
@@ -434,6 +690,7 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.4f); HideDiceResults();
         int finalDamage = payload.GetFinalDamage();
         if (RunManager.instance.doubleDamageNextCombat) { finalDamage *= 2; RunManager.instance.doubleDamageNextCombat = false; }
+
 
         // ========================================================
         // 2. YENİ ZAMANLAMA: BIO-MAGNETISM (Animasyondan Hemen Önce!)
@@ -443,52 +700,59 @@ public class TurnManager : MonoBehaviour
         {
             Vector3Int pCell = player.GetCurrentCellPosition();
             List<EnemyAI> pullTargets = new List<EnemyAI>();
-            
-            foreach (var e in enemies) {
-                if (e != null && e.health.currentHP > 0 && DistanceCube(e.GetCurrentCellPosition(), pCell) == 2f) {
+
+            foreach (var e in enemies)
+            {
+                if (e != null && e.health.currentHP > 0 && DistanceCube(e.GetCurrentCellPosition(), pCell) == 2f)
+                {
                     pullTargets.Add(e);
                 }
             }
 
             bool anyonePulled = false;
-            
+
             // Eğer çekilecek düşman varsa, VFX'i oynat!
             if (pullTargets.Count > 0)
             {
                 if (vacuumVfxPrefab != null) StartCoroutine(VacuumVFXCoroutine(player.transform.position));
             }
 
-            foreach (var e in pullTargets) {
+            foreach (var e in pullTargets)
+            {
                 Vector3Int eCell = e.GetCurrentCellPosition();
                 Vector3Int bestPullCell = eCell;
-                
+
                 Vector3Int[] pOffsets = (pCell.y % 2 != 0) ? evenOffsets : oddOffsets;
-                foreach(var off in pOffsets) {
+                foreach (var off in pOffsets)
+                {
                     Vector3Int neighborToPlayer = pCell + off;
-                    if (IsNeighbor(neighborToPlayer, eCell)) {
-                        if (groundMap.HasTile(neighborToPlayer) && 
-                            !IsEnemyAtCell(neighborToPlayer) && 
-                            (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(neighborToPlayer))) 
+                    if (IsNeighbor(neighborToPlayer, eCell))
+                    {
+                        if (groundMap.HasTile(neighborToPlayer) &&
+                            !IsEnemyAtCell(neighborToPlayer) &&
+                            (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(neighborToPlayer)))
                         {
                             bestPullCell = neighborToPlayer;
-                            break; 
+                            break;
                         }
                     }
                 }
-                
-                if (bestPullCell != eCell) {
+
+                if (bestPullCell != eCell)
+                {
                     e.StartKnockbackMovement(bestPullCell);
                     anyonePulled = true;
                 }
             }
 
-            if (anyonePulled) {
+            if (anyonePulled)
+            {
                 yield return new WaitUntil(() => pullTargets.All(e => e == null || !e.IsMoving()));
                 yield return new WaitForSeconds(0.1f); // Çekilme sonrası minik es
-                
+
                 // HEDEFLERİ GÜNCELLE (Yeni gelenler de hasar yesin diye)
-                targets = GetAdjacentEnemies(pCell); 
-                
+                targets = GetAdjacentEnemies(pCell);
+
                 var perk = RunManager.instance.activePerks.Find(p => p is BioMagnetismPerk);
                 if (perk != null) perk.TriggerVisualPop();
             }
@@ -497,34 +761,36 @@ public class TurnManager : MonoBehaviour
         // ========================================================
         // 3. HASARI BÖLÜŞTÜR VE VUR!
         // ========================================================
-        
+
         // Dikkat: Hedef sayısı az önce çekilen adamlarla artmış olabilir!
         int damagePerEnemy = targets.Count > 0 ? finalDamage / targets.Count : 0;
+
 
         if (player != null) player.TriggerAttackAnimation();
         yield return new WaitForSeconds(0.3f);
         isAttackAnimationPlaying = false;
 
-        hexesMovedThisTurn = 0; 
+        hexesMovedThisTurn = 0;
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
-        
+
         bool hasVoodoo = RunManager.instance.activePerks.Exists(p => p is VoodooParasitePerk);
 
         foreach (var enemy in targets)
         {
             if (enemy == null) continue;
-            bool dies = enemy.health.currentHP <= damagePerEnemy; 
+            bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
             if (hasVoodoo && enemies.Count > 1)
             {
                 var others = enemies.Where(e => e != null && e != enemy && e.health.currentHP > 0).ToList();
-                if (others.Count > 0) {
+                if (others.Count > 0)
+                {
                     var voodooTarget = others[Random.Range(0, others.Count)];
                     voodooTarget.health.TakeDamage(damagePerEnemy);
-                    TriggerExplosion(voodooTarget.GetCurrentCellPosition()); 
+                    TriggerExplosion(voodooTarget.GetCurrentCellPosition());
                 }
             }
         }
@@ -535,18 +801,21 @@ public class TurnManager : MonoBehaviour
             Vector3Int rawTargetCell = GetRawOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
             EnemyAI enemyBehind = GetEnemyAtCell(rawTargetCell);
 
-            if (enemyBehind != null) {
+            if (enemyBehind != null)
+            {
                 e.ApplyStun(2, true); enemyBehind.ApplyStun(2, true);
                 Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition()); Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
                 cPos.z = 0; pPos.z = 0; Vector3 bumpDir = (cPos - pPos).normalized;
                 e.StartWallBump(bumpDir); enemyBehind.StartWallBump(bumpDir);
             }
-            else if (!groundMap.HasTile(rawTargetCell) || player.GetCurrentCellPosition() == rawTargetCell) {
+            else if (!groundMap.HasTile(rawTargetCell) || player.GetCurrentCellPosition() == rawTargetCell)
+            {
                 e.ApplyStun(2, true);
                 Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition()); Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
                 cPos.z = 0; pPos.z = 0; e.StartWallBump((cPos - pPos).normalized);
             }
-            else {
+            else
+            {
                 e.ApplyStun(1, false); e.StartKnockbackMovement(rawTargetCell);
             }
         }
@@ -556,8 +825,10 @@ public class TurnManager : MonoBehaviour
         foreach (var e in knockedEnemies) if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition());
 
         List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
-        foreach (var deadEnemy in deadFromSpikes) {
-            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem) {
+        foreach (var deadEnemy in deadFromSpikes)
+        {
+            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+            {
                 int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                 if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
                 RunManager.instance.currentGold += coinDrop;
@@ -576,10 +847,11 @@ public class TurnManager : MonoBehaviour
         {
             yield return new WaitForSeconds(0.2f);
             foreach (var s in spikedEnemies) { StartCoroutine(FlashHazardTileCoroutine(s.GetCurrentCellPosition())); s.health.TakeDamage(Mathf.Max(1, s.health.maxHP / 2)); }
-            
+
             bool hasAcid = RunManager.instance.activePerks.Exists(p => p is AcidBloodPerk);
-            if (hasAcid) {
-                player.health.Heal(spikedEnemies.Count); 
+            if (hasAcid)
+            {
+                player.health.Heal(spikedEnemies.Count);
             }
 
             yield return new WaitForSeconds(0.2f);
@@ -589,8 +861,10 @@ public class TurnManager : MonoBehaviour
         if (anyoneBounced) yield return new WaitUntil(() => { foreach (var s in spikedEnemies) if (s != null && s.IsMoving()) return false; return true; });
 
         deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
-        foreach (var deadEnemy in deadFromSpikes) {
-            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem) {
+        foreach (var deadEnemy in deadFromSpikes)
+        {
+            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+            {
                 int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                 if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
                 RunManager.instance.currentGold += coinDrop;
@@ -607,7 +881,8 @@ public class TurnManager : MonoBehaviour
         {
             Vector3Int playerOriginal = player.GetCurrentCellPosition();
             Vector3Int bounceTo = GetOppositeCell(playerOriginal, targets[0].GetCurrentCellPosition());
-            if (bounceTo != playerOriginal) {
+            if (bounceTo != playerOriginal)
+            {
                 player.StartKnockbackMovement(bounceTo);
                 yield return new WaitUntil(() => !player.IsMoving());
             }
