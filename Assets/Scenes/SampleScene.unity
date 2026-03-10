@@ -6784,7 +6784,7 @@ MonoBehaviour:
   warningTile: {fileID: 11400000, guid: 3137f168ca8c8594e8ae498f267c29fb, type: 2}
   explosionPrefab: {fileID: 3347869054971392747, guid: 798f5d41853a9ab4e8d4c50f3d394173, type: 3}
   dodgeEffectPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
-  vacuumVfxPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
+  vacuumVfxPrefab: {fileID: 3347869054971392747, guid: c7a3816837d36de42b9625f4cf7763f5, type: 3}
   phantomMinePrefab: {fileID: 3347869054971392747, guid: 48053295290bbe54a863c51441f121b6, type: 3}
   player: {fileID: 815353782}
   groundMap: {fileID: 1259843048}
