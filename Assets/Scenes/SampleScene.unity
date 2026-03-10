@@ -2747,7 +2747,7 @@ MonoBehaviour:
   coinDisplayText: {fileID: 311926039}
   rerollButton: {fileID: 2099779297}
   rerollPriceText: {fileID: 814757009}
-  rerollBaseCost: 2
+  rerollBaseCost: 10
   rerollMultiplier: 1.2
 --- !u!4 &663098664
 Transform:
