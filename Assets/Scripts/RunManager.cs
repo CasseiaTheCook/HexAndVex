@@ -37,6 +37,8 @@ public class RunManager : MonoBehaviour
     public int bonusDiceNextCombat = 0;
     public bool doubleGoldNextKill = false;
     public bool doubleDamageNextCombat = false;
+    public bool cleaveNextCombat = false;
+    public bool surgeBootNextTurn = false;
 
     [Header("Legendary Stats")]
     public int extraMovesPerTurn = 0; // Swift Action ile artacak (Normalde 0)

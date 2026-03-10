@@ -72,7 +72,7 @@ public class HexMovement : MonoBehaviour
         
         ProcessHighlights();
 
-        if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn && !TurnManager.instance.isNecroShotTargeting)
+        if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn && !TurnManager.instance.IsAnyTargetingActive)
         {
             HandleMovementInput();
         }
@@ -276,6 +276,27 @@ public class HexMovement : MonoBehaviour
             }
         }
 
+        // Surge-Boot: also highlight 2-hex range neighbors (walk through safe tiles)
+        if (RunManager.instance != null && RunManager.instance.surgeBootNextTurn)
+        {
+            List<Vector3Int> ring1Safe = new List<Vector3Int>(validCells);
+            foreach (var r1 in ring1Safe)
+            {
+                Vector3Int[] r1Offsets = (r1.y % 2 != 0) ? evenOffsets : oddOffsets;
+                foreach (var off2 in r1Offsets)
+                {
+                    Vector3Int r2 = r1 + off2;
+                    if (r2 == currentCellPosition) continue;
+                    if (validCells.Contains(r2)) continue;
+                    if (!groundMap.HasTile(r2)) continue;
+                    bool isHazard2 = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(r2);
+                    if (isHazard2) continue;
+                    if (TurnManager.instance != null && TurnManager.instance.IsEnemyAtCell(r2)) continue;
+                    validCells.Add(r2);
+                }
+            }
+        }
+
         // ========================================================
         // ASENKRON ANİMASYONLARI ASKER GİBİ DİZEN KOD
         // ========================================================
@@ -352,6 +373,16 @@ public class HexMovement : MonoBehaviour
     }
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;
+
+    public void ForceSetPosition(Vector3Int newCell)
+    {
+        currentCellPosition = newCell;
+        Vector3 worldPos = groundMap.GetCellCenterWorld(newCell);
+        worldPos.z = 0;
+        transform.position = worldPos;
+        targetWorldPosition = worldPos;
+        isMoving = false;
+    }
 
     public void TriggerAttackAnimation()
     {

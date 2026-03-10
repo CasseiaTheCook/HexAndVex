@@ -135,8 +135,11 @@ public class EnemyAI : MonoBehaviour
 
     void OnMouseDown()
     {
-        if (TurnManager.instance != null && TurnManager.instance.isNecroShotTargeting)
+        if (TurnManager.instance == null) return;
+        if (TurnManager.instance.isNecroShotTargeting)
             TurnManager.instance.TryNecroShotKill(this);
+        else if (TurnManager.instance.isPhaseShiftTargeting)
+            TurnManager.instance.TryPhaseShift(this);
     }
 
     void Update()
@@ -713,6 +716,16 @@ public class EnemyAI : MonoBehaviour
     }
 
     public Vector3Int GetCurrentCellPosition() => cell;
+
+    public void ForceSetPosition(Vector3Int newCell)
+    {
+        cell = newCell;
+        Tilemap groundMap = TurnManager.instance.groundMap;
+        Vector3 worldPos = groundMap.GetCellCenterWorld(newCell);
+        worldPos.z = 0;
+        transform.position = worldPos;
+    }
+
     public bool IsMoving() => isMoving || isBumping;
 
     private bool IsNeighbor(Vector3Int cell1, Vector3Int cell2)

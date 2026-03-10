@@ -28,6 +28,11 @@ public static class ShopSetupTool
         CreateItem<SynthStim>(folder, "SynthStim", "Synth-Stim", "Roll +1 extra die in the next combat", 6);
         CreateItem<GoldLeech>(folder, "GoldLeech", "Gold-Leech", "Next enemy drops 2x gold", 4);
         CreateItem<OverClok>(folder, "OverClok", "Over-Clok", "Deal 2x total dice damage in the next combat", 7);
+        CreateItem<FragMine>(folder, "FragMine", "Frag-Mine", "Place a bomb on any hex. Rolls dice and deals damage to all enemies within 1 hex radius", 8);
+        CreateItem<PhaseShift>(folder, "PhaseShift", "Phase-Shift", "Select an enemy and swap positions with it", 6);
+        CreateItem<CleaveAxe>(folder, "CleaveAxe", "Cleave-Axe", "Next attack deals full damage to all adjacent enemies without splitting", 7);
+        CreateItem<HexThorn>(folder, "HexThorn", "Hex-Thorn", "Place a spike trap on any empty hex tile", 5);
+        CreateItem<SurgeBoot>(folder, "SurgeBoot", "Surge-Boot", "Next turn you can move up to 2 hexes instead of 1", 4);
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
