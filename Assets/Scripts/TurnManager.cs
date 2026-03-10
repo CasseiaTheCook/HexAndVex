@@ -335,6 +335,7 @@ public class TurnManager : MonoBehaviour
     public void TryNecroShotKill(EnemyAI target)
     {
         if (!isNecroShotTargeting || target == null) return;
+        if (target.enemyBehavior == EnemyAI.EnemyBehavior.Boss) return;
         isNecroShotTargeting = false;
         if (player != null) player.TriggerAttackAnimation();
 
@@ -413,6 +414,7 @@ public class TurnManager : MonoBehaviour
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+        else ShowAllEnemyIntents();
     }
 
     public void StartPhaseShiftTargeting() { isPhaseShiftTargeting = true; }
@@ -420,9 +422,44 @@ public class TurnManager : MonoBehaviour
     {
         if (!isPhaseShiftTargeting || target == null) return;
         isPhaseShiftTargeting = false;
+        StartCoroutine(PhaseShiftCoroutine(target));
+    }
+
+    private IEnumerator PhaseShiftCoroutine(EnemyAI target)
+    {
         Vector3Int playerCell = player.GetCurrentCellPosition();
         Vector3Int enemyCell = target.GetCurrentCellPosition();
-        player.ForceSetPosition(enemyCell); target.ForceSetPosition(playerCell);
+
+        // Oyuncu küçülür
+        float shrinkDur = 0.12f; float elapsed = 0f;
+        while (elapsed < shrinkDur)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / shrinkDur;
+            player.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.zero, t);
+            yield return null;
+        }
+        player.transform.localScale = Vector3.zero;
+
+        // Konumları değiştir
+        player.ForceSetPosition(enemyCell);
+        target.ForceSetPosition(playerCell);
+
+        // Oyuncu büyür
+        elapsed = 0f;
+        while (elapsed < shrinkDur)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / shrinkDur;
+            player.transform.localScale = Vector3.Lerp(Vector3.zero, Vector3.one, t);
+            yield return null;
+        }
+        player.transform.localScale = Vector3.one;
+
+        // Highlight ve ok'ları yeni konuma göre güncelle
+        player.UpdateHighlights();
+        LockAllEnemyIntents();
+        ShowAllEnemyIntents();
     }
 
     public void StartThornPlacement() { isThornPlacementTargeting = true; }

@@ -316,7 +316,7 @@ public static class ShopSetupTool
         mgr.rerollButton      = rerollBtn;
         mgr.rerollPriceText   = rerollPriceTxt;
         mgr.coinDisplayText   = coinDisplayTxt;
-        mgr.rerollBaseCost    = 2f;
+        mgr.rerollBaseCost    = 10f;
         mgr.rerollMultiplier  = 1.2f;
 
         // Item pool'u otomatik doldur
