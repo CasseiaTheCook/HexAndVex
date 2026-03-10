@@ -29,14 +29,15 @@ public class TurnManager : MonoBehaviour
 
     [Header("Coin UI")]
     public TMP_Text coinText;
+    public Sprite coinSprite;
 
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
     public bool isPlayerTurn = true;
 
     public bool hasAttackedThisTurn = false;
-    
-    public bool isAttackAnimationPlaying = false; 
+
+    public bool isAttackAnimationPlaying = false;
 
     [HideInInspector] public bool isNecroShotTargeting = false;
 
@@ -66,6 +67,7 @@ public class TurnManager : MonoBehaviour
     void Start()
     {
         HideDiceResults();
+        SetupCoinIcon();
         UpdateCoinUI();
         Invoke("StartPlayerTurn", 0.5f);
     }
@@ -156,10 +158,11 @@ public class TurnManager : MonoBehaviour
     public void StartPlayerTurn()
     {
         if (player == null || player.health.currentHP <= 0) return;
-        
-        isPlayerTurn = true; 
+
+        isPlayerTurn = true;
         hasAttackedThisTurn = false;
-        isAttackAnimationPlaying = false; 
+        isAttackAnimationPlaying = false;
+
 
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
@@ -171,9 +174,53 @@ public class TurnManager : MonoBehaviour
         if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
     }
 
+    private void SetupCoinIcon()
+    {
+        if (coinSprite == null)
+        {
+            var vfx = FindFirstObjectByType<CoinDropVFX>();
+            if (vfx != null) coinSprite = vfx.coinSprite;
+        }
+        if (coinText == null || coinSprite == null) return;
+        Transform parent = coinText.transform.parent;
+        if (parent == null) return;
+
+        // Zaten varsa tekrar oluşturma
+        if (parent.Find("CoinIcon") != null) return;
+
+        HorizontalLayoutGroup hlg = parent.GetComponent<HorizontalLayoutGroup>();
+        if (hlg == null)
+        {
+            hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 4f;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = false;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+        }
+
+        GameObject iconGO = new GameObject("CoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        iconGO.transform.SetParent(parent, false);
+        iconGO.transform.SetAsFirstSibling();
+
+        RectTransform iconRT = iconGO.GetComponent<RectTransform>();
+        float size = coinText.fontSize + 2f;
+        iconRT.sizeDelta = new Vector2(size, size);
+
+        LayoutElement le = iconGO.AddComponent<LayoutElement>();
+        le.preferredWidth = size;
+        le.preferredHeight = size;
+
+        Image img = iconGO.GetComponent<Image>();
+        img.sprite = coinSprite;
+        img.preserveAspect = true;
+        img.raycastTarget = false;
+    }
+
     public void UpdateCoinUI()
     {
-        if (coinText != null && RunManager.instance != null) coinText.text = "Coins: " + RunManager.instance.currentGold;
+        if (coinText != null && RunManager.instance != null) coinText.text = RunManager.instance.currentGold.ToString();
         if (Shopmanager.instance != null) Shopmanager.instance.RefreshAffordability();
     }
 
@@ -191,13 +238,19 @@ public class TurnManager : MonoBehaviour
     {
         if (!isNecroShotTargeting || target == null) return;
         isNecroShotTargeting = false;
-        
+
         if (player != null) player.TriggerAttackAnimation();
-        
-        target.health.TakeDamage(target.health.maxHP + 999);
-        int coinDropAmt = Random.Range(1, 4) + RunManager.instance.bonusGold;
-        if (RunManager.instance.doubleGoldNextKill) { coinDropAmt *= 2; RunManager.instance.doubleGoldNextKill = false; }
-        RunManager.instance.currentGold += coinDropAmt;
+
+
+        target.health.TakeDamage(9999);
+        if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+        {
+            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+            if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+            RunManager.instance.currentGold += coinDrop;
+            if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
+        }
+
         foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -227,12 +280,12 @@ public class TurnManager : MonoBehaviour
     public void SkipTurn()
     {
         if (!isPlayerTurn) return;
-        
+
         isPlayerTurn = false;
         if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
-        
+
         if (player != null) player.ClearHighlights();
-        
+
         StartCoroutine(HandleSkipPhase());
     }
 
@@ -241,8 +294,8 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-            hasAttackedThisTurn = true; 
-            isAttackAnimationPlaying = true; 
+            hasAttackedThisTurn = true;
+            isAttackAnimationPlaying = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
 
@@ -251,7 +304,7 @@ public class TurnManager : MonoBehaviour
         foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
-        
+
         StartCoroutine(EnemyPhase());
     }
 
@@ -315,7 +368,7 @@ public class TurnManager : MonoBehaviour
             {
                 RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
             }
-            else if (player != null && player.health.currentHP > 0) 
+            else if (player != null && player.health.currentHP > 0)
             {
                 player.ClearHighlights();
                 StartCoroutine(EnemyPhase());
@@ -326,8 +379,10 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
-            hasAttackedThisTurn = true; 
-            isAttackAnimationPlaying = true; 
+            hasAttackedThisTurn = true;
+
+            isAttackAnimationPlaying = true;
+
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
 
@@ -336,7 +391,7 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.remainingMoves--;
             isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
         }
-        else if (player != null && player.health.currentHP > 0) 
+        else if (player != null && player.health.currentHP > 0)
         {
             player.ClearHighlights();
             StartCoroutine(EnemyPhase());
@@ -358,7 +413,7 @@ public class TurnManager : MonoBehaviour
     {
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
-        
+
         foreach (var e in enemies) if (e != null && e.skipTurns <= 0) e.ExecuteLockedMove();
         yield return new WaitUntil(() =>
         {
@@ -375,11 +430,11 @@ public class TurnManager : MonoBehaviour
         {
             if (e != null && e.skipTurns <= 0)
             {
-                if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) 
+                if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn)
                     readyToBossAttack.Add(e);
-                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) 
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack)
                     readyToAoEAttack.Add(e);
-                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) 
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition()))
                     readyToMeleeAttack.Add(e);
             }
         }
@@ -402,7 +457,7 @@ public class TurnManager : MonoBehaviour
         {
             yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
         }
-        else 
+        else
         {
             EndTurnAndDecreaseStuns();
         }
@@ -486,8 +541,10 @@ public class TurnManager : MonoBehaviour
 
         if (player != null) player.TriggerAttackAnimation();
         yield return new WaitForSeconds(0.3f);
-        
-        isAttackAnimationPlaying = false; 
+
+
+        isAttackAnimationPlaying = false;
+
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
         foreach (var enemy in targets)
@@ -502,15 +559,15 @@ public class TurnManager : MonoBehaviour
             if (e == null) continue;
             Vector3Int rawTargetCell = GetRawOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
             EnemyAI enemyBehind = GetEnemyAtCell(rawTargetCell);
-            
+
             // ========================================================
             // DÜZELTME: SADECE BURADA AĞIR (2) VEYA HAFİF (1) STUN ÇAĞIRILIR
             // ========================================================
             if (enemyBehind != null)
             {
-                e.ApplyStun(2, true); 
+                e.ApplyStun(2, true);
                 enemyBehind.ApplyStun(2, true);
-                
+
                 Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition()); Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
                 cPos.z = 0; pPos.z = 0; Vector3 bumpDir = (cPos - pPos).normalized;
                 e.StartWallBump(bumpDir); enemyBehind.StartWallBump(bumpDir);
@@ -518,14 +575,14 @@ public class TurnManager : MonoBehaviour
             else if (!groundMap.HasTile(rawTargetCell) || player.GetCurrentCellPosition() == rawTargetCell)
             {
                 e.ApplyStun(2, true);
-                
+
                 Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition()); Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
                 cPos.z = 0; pPos.z = 0; e.StartWallBump((cPos - pPos).normalized);
             }
-            else 
-            { 
+            else
+            {
                 e.ApplyStun(1, false); // DÜZ İTİLDİ, EFEKT YOK!
-                e.StartKnockbackMovement(rawTargetCell); 
+                e.StartKnockbackMovement(rawTargetCell);
             }
         }
 
@@ -536,9 +593,16 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
         {
-            int coinDropAmt = Random.Range(1, 4) + RunManager.instance.bonusGold;
-            if (RunManager.instance.doubleGoldNextKill) { coinDropAmt *= 2; RunManager.instance.doubleGoldNextKill = false; }
-            RunManager.instance.currentGold += coinDropAmt; foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+
+            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+            {
+                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                RunManager.instance.currentGold += coinDrop;
+                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+            }
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
@@ -570,9 +634,16 @@ public class TurnManager : MonoBehaviour
         deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
         {
-            int coinDropAmt = Random.Range(1, 4) + RunManager.instance.bonusGold;
-            if (RunManager.instance.doubleGoldNextKill) { coinDropAmt *= 2; RunManager.instance.doubleGoldNextKill = false; }
-            RunManager.instance.currentGold += coinDropAmt; foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+
+            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+            {
+                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                RunManager.instance.currentGold += coinDrop;
+                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+            }
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
@@ -635,7 +706,7 @@ public class TurnManager : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
         yield return new WaitForSeconds(0.3f);
-        
+
         EndTurnAndDecreaseStuns();
     }
 
@@ -646,9 +717,9 @@ public class TurnManager : MonoBehaviour
             // ========================================================
             // YENİ: SÜREYİ BURADAN DECREASESTUNTURN FONKSİYONUNA YOLLA!
             // ========================================================
-            foreach (var e in enemies) 
+            foreach (var e in enemies)
             {
-                if (e != null) e.DecreaseStunTurn(); 
+                if (e != null) e.DecreaseStunTurn();
             }
             StartPlayerTurn();
         }
@@ -795,12 +866,12 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator FlashHazardTileCoroutine(Vector3Int cell)
     {
-        Tilemap targetMap = LevelGenerator.instance.hazardMap; 
+        Tilemap targetMap = LevelGenerator.instance.hazardMap;
         if (targetMap == null) yield break;
 
         targetMap.SetTileFlags(cell, TileFlags.None);
         Color originalColor = Color.white;
-        Color flashColor = new Color(0.2f, 1f, 0.2f, 1f); 
+        Color flashColor = new Color(0.2f, 1f, 0.2f, 1f);
         float duration = 0.15f;
         float elapsed = 0f;
 

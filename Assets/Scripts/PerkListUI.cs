@@ -103,6 +103,21 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         for (int i = 0; i < perks.Count; i++)
         {
+            if (i > 0)
+            {
+                GameObject sep = new GameObject("Separator", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                sep.transform.SetParent(perkListPanel.transform, false);
+                Image sepImg = sep.GetComponent<Image>();
+                sepImg.color = new Color(1f, 1f, 1f, 0.06f);
+                sep.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 1f);
+                LayoutElement sepLE = sep.AddComponent<LayoutElement>();
+                sepLE.minHeight = 1f;
+                sepLE.preferredHeight = 1f;
+                sepLE.flexibleHeight = 0f;
+                sepLE.flexibleWidth = 1f;
+                spawnedRows.Add(sep);
+            }
+
             BasePerk p = perks[i];
             GameObject row = CreatePerkRow(p, font);
             row.transform.SetParent(perkListPanel.transform, false);
@@ -143,7 +158,9 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         textObj.transform.SetParent(row.transform, false);
         RectTransform textRT = textObj.GetComponent<RectTransform>();
-        textRT.sizeDelta = new Vector2(260f, iconSize + 16f);
+        textRT.sizeDelta = new Vector2(260f, 0f);
+        ContentSizeFitter csf = textObj.AddComponent<ContentSizeFitter>();
+        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
         tmp.text = $"<color=#FFFFFF>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>\n<size=70%>{perk.description}</size>";
         tmp.fontSize = 18;

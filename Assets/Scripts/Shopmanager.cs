@@ -238,7 +238,7 @@ public class Shopmanager : MonoBehaviour
     private void RefreshRerollButton()
     {
         if (rerollPriceText != null)
-            rerollPriceText.text = "Reroll: " + currentRerollCost + " Coin";
+            rerollPriceText.text = "Reroll: " + currentRerollCost;
         if (rerollButton != null && RunManager.instance != null)
             rerollButton.interactable = RunManager.instance.currentGold >= currentRerollCost;
     }
