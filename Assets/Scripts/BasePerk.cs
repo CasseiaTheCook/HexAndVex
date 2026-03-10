@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections;
 
+public enum PerkRarity { Common, Rare, Epic, Legendary }
+
 public abstract class BasePerk : MonoBehaviour
 {
     [Header("Seviye Sistemi")]
@@ -11,6 +13,9 @@ public abstract class BasePerk : MonoBehaviour
     public Sprite icon;
     public int priority = 0;
     public bool isRerollPerk = false;
+
+    [Header("Rarity")]
+    public PerkRarity rarity = PerkRarity.Common;
 
     // Perk havuzdan çekilirken gösterilebilir mi? (GeneSplice gibi koşullu perkler override eder)
     public virtual bool CanBeOffered() { return true; }
