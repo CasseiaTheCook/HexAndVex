@@ -44,6 +44,11 @@ public class RunManager : MonoBehaviour
     public int extraMovesPerTurn = 0; // Swift Action ile artacak (Normalde 0)
     public int remainingMoves;       // O tur içindeki kalan hamle hakkı
 
+    [Header("Run Statistics")]
+    public int totalEnemiesKilled = 0;
+    public int totalDamageDealt = 0;
+    public int totalDamageReceived = 0;
+    public int totalTurnsPlayed = 0;
     void Awake()
     {
         // The legendary Singleton pattern for cross-scene persistence
@@ -83,5 +88,24 @@ public class RunManager : MonoBehaviour
             activePerks.Add(newPerk);
             newPerk.OnAcquire();
         }
+    }
+    public string GetStatsSummary()
+    {
+        string perksList = "Perks: ";
+        if (activePerks.Count == 0) perksList += "None";
+        else
+        {
+            for (int i = 0; i < activePerks.Count; i++)
+            {
+                perksList += activePerks[i].perkName + (i == activePerks.Count - 1 ? "" : ", ");
+            }
+        }
+
+        return $"Level: {currentLevel}\n" +
+               $"Turns: {totalTurnsPlayed}\n" +
+               $"Kills: {totalEnemiesKilled}\n" +
+               $"Damage Dealt: {totalDamageDealt}\n" +
+               $"Damage Taken: {totalDamageReceived}\n\n" +
+               perksList;
     }
 }

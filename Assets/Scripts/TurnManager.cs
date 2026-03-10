@@ -64,6 +64,7 @@ public class TurnManager : MonoBehaviour
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
+    public int finalDamage = 0;
     void Awake()
     {
         if (instance == null) instance = this;
@@ -128,16 +129,18 @@ public class TurnManager : MonoBehaviour
     private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
     {
         List<Vector3Int> line = new List<Vector3Int>();
-        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
-        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        Vector3Int[] oddOff = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
         int bestDir = 0; float minDist = float.MaxValue;
         Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOff : oddOff;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 6; i++)
+        {
             float d = enemy.Distance(startCell + startOffsets[i], targetCell);
             if (d < minDist) { minDist = d; bestDir = i; }
         }
         Vector3Int cur = startCell;
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++)
+        {
             Vector3Int[] offs = (cur.y % 2 != 0) ? evenOff : oddOff;
             cur += offs[bestDir];
             if (groundMap.HasTile(cur)) line.Add(cur);
@@ -149,16 +152,18 @@ public class TurnManager : MonoBehaviour
     {
         if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null) return;
         Vector3Int playerCell = player.GetCurrentCellPosition();
-        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
-        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        Vector3Int[] oddOff = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
         Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
         List<Vector3Int> spawnCells = new List<Vector3Int>();
 
-        int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
-        foreach (var pair in pairs) {
+        int[][] pairs = { new[] { 0, 3 }, new[] { 1, 4 }, new[] { 2, 5 } };
+        foreach (var pair in pairs)
+        {
             Vector3Int c1 = playerCell + offsets[pair[0]];
             Vector3Int c2 = playerCell + offsets[pair[1]];
-            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2)) {
+            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2))
+            {
                 Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff; Vector3Int far1 = c1 + off1[pair[0]];
                 Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff; Vector3Int far2 = c2 + off2[pair[1]];
                 if (groundMap.HasTile(far1) && groundMap.HasTile(far2) && !IsEnemyAtCell(far1) && !IsEnemyAtCell(far2)) { spawnCells.Add(far1); spawnCells.Add(far2); break; }
@@ -166,7 +171,8 @@ public class TurnManager : MonoBehaviour
             }
         }
         if (spawnCells.Count < 2) return;
-        foreach (var spawnCell in spawnCells) {
+        foreach (var spawnCell in spawnCells)
+        {
             Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell); spawnPos.z = 0;
             GameObject obj = Instantiate(LevelGenerator.instance.aoeEnemyPrefab, spawnPos, Quaternion.identity);
             EnemyAI ai = obj.GetComponent<EnemyAI>(); ai.groundMap = groundMap;
@@ -228,7 +234,7 @@ public class TurnManager : MonoBehaviour
             {
                 RunManager.instance.currentGold = 0; UpdateCoinUI(); player.health.Heal(9999);
                 RunManager.instance.activePerks.Remove(bribe); Destroy(bribe.gameObject);
-                
+
                 // DODGE EFEKTİNİ COROUTINE İLE ÇAĞIRIYORUZ (Kalkan Kırılma Animasyonu)
                 StartCoroutine(AnimateShieldBreakFX(player.transform.position));
                 return;
@@ -249,7 +255,7 @@ public class TurnManager : MonoBehaviour
 
         float duration = 0.35f;
         float elapsed = 0f;
-        
+
         // Küçükten büyüyen bir efekt için scale değerleri
         Vector3 startScale = Vector3.one * 2.4f;
         Vector3 endScale = Vector3.one * 9.0f;
@@ -258,7 +264,7 @@ public class TurnManager : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            
+
             // Objeyi büyütüyoruz
             fx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
 
@@ -344,6 +350,7 @@ public class TurnManager : MonoBehaviour
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+        RunManager.instance.totalEnemiesKilled++; // Öldürme sayısını arttır
     }
 
     public void StartBombPlacement() { isBombPlacementTargeting = true; }
@@ -860,7 +867,7 @@ public class TurnManager : MonoBehaviour
             if (bounceTo != playerOriginal)
             {
                 recoilPerk.TriggerVisualPop();
-                player.StartKnockbackMovement(bounceTo, true); 
+                player.StartKnockbackMovement(bounceTo, true);
                 didRecoil = true;
             }
         }
@@ -924,6 +931,8 @@ public class TurnManager : MonoBehaviour
             List<EnemyAI> nextTargets = allAdjacent.Where(e => e != null && e.health.currentHP > 0).ToList();
             if (nextTargets.Count > 0) yield return StartCoroutine(MultiAttack(nextTargets));
         }
+        finalDamage = payload.GetFinalDamage();
+        RunManager.instance.totalDamageDealt += finalDamage; // Toplam hasarı ekle
     }
 
     private IEnumerator EnemyAttackCoroutine(List<EnemyAI> attackers)
@@ -981,6 +990,7 @@ public class TurnManager : MonoBehaviour
             }
             StartPlayerTurn();
         }
+        RunManager.instance.totalTurnsPlayed++; // Tur sayısını arttır
     }
 
     public void ResumeAfterShop() { StartPlayerTurn(); }
