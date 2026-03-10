@@ -43,6 +43,7 @@ public class TurnManager : MonoBehaviour
 
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
+    [HideInInspector] public bool isLevelClearTriggered = false;
     public bool isPlayerTurn = true;
     public bool hasAttackedThisTurn = false;
     public bool isAttackAnimationPlaying = false;
@@ -250,8 +251,8 @@ public class TurnManager : MonoBehaviour
         float elapsed = 0f;
         
         // Küçükten büyüyen bir efekt için scale değerleri
-        Vector3 startScale = Vector3.one * 0.8f;
-        Vector3 endScale = Vector3.one * 3.0f;
+        Vector3 startScale = Vector3.one * 2.4f;
+        Vector3 endScale = Vector3.one * 9.0f;
 
         while (elapsed < duration)
         {
@@ -279,6 +280,9 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator WaitAndTriggerLevelClear()
     {
+        if (isLevelClearTriggered) yield break;
+        isLevelClearTriggered = true;
+
         while (isAttackAnimationPlaying) yield return null;
         if (CoinDropVFX.instance != null) while (CoinDropVFX.instance.activeCoinCount > 0) yield return null;
         yield return new WaitForSeconds(0.3f);
@@ -476,14 +480,14 @@ public class TurnManager : MonoBehaviour
         StartCoroutine(EnemyPhase());
     }
 
-    public void TriggerExplosion(Vector3Int centerCell, float damagePercent = 0.5f)
+    public void TriggerExplosion(Vector3Int centerCell, float damagePercent = 0.5f, bool includeCenter = true)
     {
         Vector3 spawnPos = groundMap.GetCellCenterWorld(centerCell);
         spawnPos.z = 0;
         StartCoroutine(AnimateExplosionFX(spawnPos));
 
         Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
-        List<Vector3Int> cellsToHit = new List<Vector3Int> { centerCell };
+        List<Vector3Int> cellsToHit = includeCenter ? new List<Vector3Int> { centerCell } : new List<Vector3Int>();
         foreach (var off in offsets) cellsToHit.Add(centerCell + off);
 
         HashSet<EnemyAI> enemiesToHit = new HashSet<EnemyAI>();
@@ -512,7 +516,7 @@ public class TurnManager : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime; float t = elapsed / duration;
-            fx.transform.localScale = Vector3.Lerp(Vector3.one * 0.5f, Vector3.one * 2.6f, t);
+            fx.transform.localScale = Vector3.Lerp(Vector3.one * 1.0f, Vector3.one * 5.2f, t);
             foreach (var sr in renderers) { Color c = sr.color; c.a = Mathf.Lerp(0.8f, 0f, t); sr.color = c; }
             yield return null;
         }
@@ -525,7 +529,7 @@ public class TurnManager : MonoBehaviour
         GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
         float duration = 0.4f; float elapsed = 0f;
-        Vector3 startScale = Vector3.one * 4f; Vector3 endScale = Vector3.one * 0.4f;
+        Vector3 startScale = Vector3.one * 12f; Vector3 endScale = Vector3.one * 1.2f;
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime; float t = elapsed / duration;
@@ -863,7 +867,7 @@ public class TurnManager : MonoBehaviour
 
         yield return new WaitUntil(() => { foreach (var e in knockedEnemies) if (e != null && e.IsMoving()) return false; if (didRecoil && player.IsMoving()) return false; return true; });
 
-        foreach (var e in knockedEnemies) if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition(), payload.explosionDamagePercent);
+        foreach (var e in knockedEnemies) if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition(), payload.explosionDamagePercent, false);
 
         List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
         foreach (var deadEnemy in deadFromSpikes)
@@ -1172,9 +1176,10 @@ public class TurnManager : MonoBehaviour
         float duration = 0.3f; float elapsed = 0f;
         while (elapsed < duration)
         {
+            if (!warningMap.HasTile(cell)) yield break;
             elapsed += Time.deltaTime; float t = elapsed / duration; t = t * t * (3f - 2f * t);
             warningMap.SetColor(cell, Color.Lerp(startColor, endColor, t)); yield return null;
         }
-        warningMap.SetColor(cell, endColor);
+        if (warningMap.HasTile(cell)) warningMap.SetColor(cell, endColor);
     }
 }

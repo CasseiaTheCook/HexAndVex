@@ -42,14 +42,7 @@ public class BioBarrierPerk : BasePerk
             // ========================================================
             currentShieldInstance.transform.localPosition = new Vector3(0f, shieldOffsetY, 0f); 
             
-            // Kalkan ilk doğduğunda görünürlüğünü normale çek (eğer önceden saydam kaldıysa diye)
-            SpriteRenderer[] renderers = currentShieldInstance.GetComponentsInChildren<SpriteRenderer>();
-            foreach (var sr in renderers)
-            {
-                Color c = sr.color;
-                c.a = 0.3f; // Normalde kalkanın saydamlığı (istersen 1f yapabilirsin)
-                sr.color = c;
-            }
+            // Prefabın alpha değerini koru, hard code etme
         }
     }
 
@@ -63,28 +56,26 @@ public class BioBarrierPerk : BasePerk
 
     private IEnumerator AnimateShieldBreak()
     {
-        // Kalkan objesinin içindeki tüm resimleri (Sprite) bul
         SpriteRenderer[] renderers = currentShieldInstance.GetComponentsInChildren<SpriteRenderer>();
-        
+        float startAlpha = renderers.Length > 0 ? renderers[0].color.a : 1f;
+
         Vector3 startScale = currentShieldInstance.transform.localScale;
-        Vector3 endScale = startScale * 2.5f; // Kalkan kırılırken 2.5 katına çıkarak patlasın
-        
-        float duration = 0.3f; // Patlama süresi (0.3 saniye, çok tatlı bir hız)
+        Vector3 endScale = startScale * 2.5f;
+
+        float duration = 0.3f;
         float elapsed = 0f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            
-            // 1. Kalkanı büyüt
+
             currentShieldInstance.transform.localScale = Vector3.Lerp(startScale, endScale, t);
-            
-            // 2. Kalkanı aynı anda yavaşça saydamlaştır (Fade Out)
+
             foreach (var sr in renderers)
             {
                 Color c = sr.color;
-                c.a = Mathf.Lerp(0.5f, 0f, t); // 0.5 alpha'dan 0'a doğru erit
+                c.a = Mathf.Lerp(startAlpha, 0f, t);
                 sr.color = c;
             }
             

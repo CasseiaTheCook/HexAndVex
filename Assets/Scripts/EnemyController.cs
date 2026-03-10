@@ -112,11 +112,8 @@ public class EnemyAI : MonoBehaviour
 
     private void HandleDeath()
     {
-        if (isChargingAttack)
-        {
-            isChargingAttack = false;
-            ForceClearWarningCells();
-        }
+        isChargingAttack = false;
+        if (warningCells.Count > 0) ForceClearWarningCells();
 
         if (enemyBehavior == EnemyBehavior.Totem && SpawnerBossAI.instance != null)
         {
@@ -476,11 +473,8 @@ public class EnemyAI : MonoBehaviour
     {
         isFading = true;
 
-        if (isChargingAttack)
-        {
-            isChargingAttack = false;
-            ForceClearWarningCells();
-        }
+        isChargingAttack = false;
+        if (warningCells.Count > 0) ForceClearWarningCells();
 
         health.currentHP = 0;
         skipTurns = 0;

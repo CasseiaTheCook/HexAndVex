@@ -91,6 +91,8 @@ public class LevelGenerator : MonoBehaviour
 
     public void GenerateNextLevel()
     {
+        if (TurnManager.instance != null) TurnManager.instance.isLevelClearTriggered = false;
+
         foreach (var perk in RunManager.instance.activePerks)
         {
             if (perk != null) perk.OnLevelStart();
@@ -115,7 +117,10 @@ public class LevelGenerator : MonoBehaviour
         }
         TurnManager.instance.enemies.Clear();
 
-        int currentRadius = baseMapRadius + (RunManager.instance.currentLevel / 6);
+        bool isPostBossLevel = RunManager.instance.currentLevel > 1 && RunManager.instance.currentLevel % 5 == 1;
+        int currentRadius = isPostBossLevel
+            ? (baseMapRadius + (RunManager.instance.currentLevel / 6)) * 2
+            : baseMapRadius + (RunManager.instance.currentLevel / 6);
 
         for (int x = -currentRadius; x <= currentRadius; x++)
         {
@@ -158,7 +163,9 @@ public class LevelGenerator : MonoBehaviour
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
+        int enemyCountToSpawn = isPostBossLevel
+            ? (2 + (RunManager.instance.currentLevel / 3)) * 2
+            : 2 + (RunManager.instance.currentLevel / 3);
 
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
         Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerStartCell);
