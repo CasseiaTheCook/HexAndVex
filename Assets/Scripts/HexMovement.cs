@@ -38,9 +38,6 @@ public class HexMovement : MonoBehaviour
 
     private float targetAlphaValue = 1f;
 
-    // ========================================================
-    // YENİ: ZAMANI DONDURMAK İÇİN GİZLİ KALIP
-    // ========================================================
     private Tile frozenDummyTile;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
@@ -55,7 +52,6 @@ public class HexMovement : MonoBehaviour
         if (visualRenderer == null) visualRenderer = GetComponentInChildren<SpriteRenderer>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
-        // Oyun başlarken zaman dondurma tile'ımızı bir kereye mahsus yaratıyoruz
         frozenDummyTile = ScriptableObject.CreateInstance<Tile>();
 
         currentCellPosition = groundMap.WorldToCell(transform.position);
@@ -119,34 +115,35 @@ public class HexMovement : MonoBehaviour
                 isKnockbackMove = false;
                 TurnManager.instance.isPlayerTurn = false;
                 TurnManager.instance.HideAllEnemyIntents();
-                
+
                 // ========================================================
-                // EFSANEVİ DOKUNUŞ: TIKLANAN KARENİN ANİMASYONUNU DONDUR!
+                // İŞTE BURASI! Tıkladığın an (Yürüme başlarken) sayacı artır.
                 // ========================================================
+                if (TurnManager.instance != null)
+                {
+                    TurnManager.instance.hexesMovedThisTurn++;
+                }
+
                 Sprite currentFrameSprite = highlightMap.GetSprite(clickedCell);
                 if (currentFrameSprite != null)
                 {
-                    // O milisaniyedeki resmi gizlice al ve donuk kalıba yapıştır
                     frozenDummyTile.sprite = currentFrameSprite;
-                    
-                    // Hareketli kareyi sök, yerine donuk resmi bas!
                     highlightMap.SetTile(clickedCell, frozenDummyTile);
                     highlightMap.SetTileFlags(clickedCell, TileFlags.None);
                 }
 
-                // Silinme tepkimeleri
                 foreach (var kvp in highlights)
                 {
                     if (kvp.Key != clickedCell)
                     {
                         kvp.Value.targetAlpha = 0f;
-                        kvp.Value.fadeSpeed = 15f; // Diğerleri toz olur
+                        kvp.Value.fadeSpeed = 15f; 
                     }
                     else
                     {
-                        kvp.Value.currentAlpha = 1f; // Donan kare anında tam parlar
-                        kvp.Value.targetAlpha = 0f;  // Sonra tamamen yok olmaya başlar
-                        kvp.Value.fadeSpeed = 2.5f;  // Yavaşça söner
+                        kvp.Value.currentAlpha = 1f; 
+                        kvp.Value.targetAlpha = 0f; 
+                        kvp.Value.fadeSpeed = 2.5f; 
                     }
                 }
                 
@@ -297,12 +294,8 @@ public class HexMovement : MonoBehaviour
             }
         }
 
-        // ========================================================
-        // ASENKRON ANİMASYONLARI ASKER GİBİ DİZEN KOD
-        // ========================================================
         foreach (var cell in validCells)
         {
-            // Unity'nin animasyon sayacını sıfırlamak için kareyi silip AYNI ANDA geri koyuyoruz!
             highlightMap.SetTile(cell, null); 
             highlightMap.SetTile(cell, highlightTile); 
             highlightMap.SetTileFlags(cell, TileFlags.None);
@@ -317,11 +310,9 @@ public class HexMovement : MonoBehaviour
                 highlights[cell].fadeSpeed = 4f;
             }
             
-            // Renkleri anında eşitle ki göz kırpması (flicker) olmasın
             highlightMap.SetColor(cell, new Color(1f, 1f, 1f, highlights[cell].currentAlpha));
         }
 
-        // Gidilemeyecek eski kareleri söndür
         foreach (var cell in highlights.Keys.ToList())
         {
             if (!validCells.Contains(cell))
