@@ -49,5 +49,5 @@ MonoBehaviour:
   perkName: Momentum Engine
   description: Add +1 to your rolls for every tile moved before attacking.
   icon: {fileID: 0}
-  priority: 1
+  priority: 5
   isRerollPerk: 0

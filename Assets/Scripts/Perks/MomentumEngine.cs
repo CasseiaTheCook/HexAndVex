@@ -4,20 +4,23 @@ public class MomentumEnginePerk : BasePerk
 {
     public override void OnAcquire()
     {
-        priority = 5; 
+        priority = 5; // Hasar çarpanlarından önce, normal zar manipülasyonlarıyla aynı anda eklensin
     }
 
     public override void ModifyCombat(CombatPayload payload)
     {
-        // Şimdilik oyuncunun attığı adım sayısı yerine, kalan hareket hakkını hasara dönüştürelim
-        if (RunManager.instance != null)
+        // Eğer TurnManager yoksa veya hiç yürümediysek boşuna yorma
+        if (TurnManager.instance == null || TurnManager.instance.hexesMovedThisTurn <= 0) return;
+
+        int stepsTaken = TurnManager.instance.hexesMovedThisTurn;
+
+        // Bütün zarlara atılan adım kadar değer ekle
+        for (int i = 0; i < payload.diceRolls.Count; i++)
         {
-            int bonus = (RunManager.instance.extraMovesPerTurn - RunManager.instance.remainingMoves) * 2;
-            if (bonus > 0)
-            {
-                payload.flatBonus += bonus;
-                TriggerVisualPop();
-            }
+            payload.diceRolls[i] += stepsTaken;
         }
+
+        // Çalıştığını belli etmek için hoplat
+        TriggerVisualPop();
     }
 }
