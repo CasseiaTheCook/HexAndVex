@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 549e3fedc06a5c1499c4f92447a8f2b2
+guid: d470eb7d9703c2b45b22cda85f3d3209
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -127,7 +127,7 @@ ScriptedImporter:
     tessellationDetail: 0
     uvTransform: {x: 0, y: 0}
   animatedSpriteImportData:
-  - name: Bio Vial
+  - name: Synth Stim
     originalName: 
     pivot: {x: 0.5, y: 0}
     alignment: 9
@@ -139,7 +139,7 @@ ScriptedImporter:
       y: 4
       width: 64
       height: 64
-    spriteID: c8c28cc6f56ea554d860233df10d1e34
+    spriteID: 68b593aa3b19aad439e1d1bb62d1805d
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -153,17 +153,17 @@ ScriptedImporter:
   asepriteLayers:
   - layerIndex: 0
     uuid:
-      value0: 315033772
+      value0: 3200799839
       value1: 0
       value2: 0
       value3: 0
     guid: 0
-    name: Bio Vial
+    name: Synth Stim
     layerFlags: 0
     layerType: 0
     blendMode: 0
     cells:
-    - name: Bio Vial
+    - name: Synth Stim
       frameIndex: 1
       additiveSortOrder: 0
       cellRect:
@@ -171,7 +171,7 @@ ScriptedImporter:
         y: 0
         width: 64
         height: 64
-      spriteId: c8c28cc6f56ea554d860233df10d1e34
+      spriteId: 68b593aa3b19aad439e1d1bb62d1805d
     linkedCells: []
     tileCells: []
     tileSetIndex: 0
