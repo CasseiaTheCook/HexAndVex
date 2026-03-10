@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: SynthStim
   m_EditorClassIdentifier: Assembly-CSharp::SynthStim
   itemName: Synth-Stim
-  description: Roll +1 extra die in the next combat
+  description: "Bu sava\u015Fta +1 zar at"
   price: 6
-  icon: {fileID: 0}
+  icon: {fileID: 7764831295479663515, guid: d470eb7d9703c2b45b22cda85f3d3209, type: 3}

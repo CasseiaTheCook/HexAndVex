@@ -15,4 +15,4 @@ MonoBehaviour:
   itemName: Phase-Shift
   description: Select an enemy and swap positions with it
   price: 6
-  icon: {fileID: 0}
+  icon: {fileID: 4403203449512686609, guid: eb47033b1443e8640a76a405bd37cde6, type: 3}

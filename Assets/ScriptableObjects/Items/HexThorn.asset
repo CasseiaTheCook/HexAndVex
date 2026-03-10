@@ -15,4 +15,4 @@ MonoBehaviour:
   itemName: Hex-Thorn
   description: Place a spike trap on any empty hex tile
   price: 5
-  icon: {fileID: 0}
+  icon: {fileID: -6242459698676535975, guid: 7181871ca736cd74b8cc273a168af673, type: 3}
