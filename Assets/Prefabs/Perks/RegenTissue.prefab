@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 3
   perkName: Regen Tissue
   description: Gain a health point at the start of each level. (+1 each LVL)
+  icon: {fileID: -8498019834719258484, guid: 585eb0649dbe9c04e9724bdfdb1bede8, type: 3}
   priority: 0
   isRerollPerk: 0

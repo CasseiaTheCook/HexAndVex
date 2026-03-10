@@ -49,6 +49,6 @@ MonoBehaviour:
   perkName: Voodoo Parasite
   description: When you deal damage to an enemy, enemy with most health on the map
     takes the same amount of damage.
-  icon: {fileID: 0}
+  icon: {fileID: 602717344546491706, guid: e5297f942915a4645a5cdf5d9287dd7b, type: 3}
   priority: 0
   isRerollPerk: 0

@@ -49,5 +49,6 @@ MonoBehaviour:
   perkName: Mutant Swarm
   description: Gain extra multiplier based on your total dice count. (1.25X each
     level)
+  icon: {fileID: 2887690202466212411, guid: 3d4da4974027a774f8b3dbcca2f31f89, type: 3}
   priority: 2
   isRerollPerk: 0

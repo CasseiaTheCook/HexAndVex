@@ -49,6 +49,6 @@ MonoBehaviour:
   perkName: Rigged Dice
   description: Your lowest die roll is automatically set to equal your highest die
     roll.
-  icon: {fileID: 0}
+  icon: {fileID: -3491094715024217226, guid: 54b1d49883b189b4e84d3dfd13cb56f1, type: 3}
   priority: 1
   isRerollPerk: 0

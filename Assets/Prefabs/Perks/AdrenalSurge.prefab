@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Adrenal Surge
   description: Doubles total dice.
+  icon: {fileID: -5250393536178744942, guid: fcfbb4a5cf1f2734ab0f6edd16554e5d, type: 3}
   priority: 2
   isRerollPerk: 0

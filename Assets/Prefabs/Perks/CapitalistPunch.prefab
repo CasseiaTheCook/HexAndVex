@@ -48,6 +48,6 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Capitalist Punch
   description: Gain +1 to your rolls for every 10 gold you possess.
-  icon: {fileID: 0}
+  icon: {fileID: -5272344780757727663, guid: 1bd04005f98421042be2b4afac192120, type: 3}
   priority: 1
   isRerollPerk: 0

@@ -1286,10 +1286,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 753195838}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 160, y: -35}
+  m_SizeDelta: {x: 300, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &411054226
 MonoBehaviour:
@@ -1311,7 +1311,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: No perks yet.
+  m_text: No implants yet.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
   m_sharedMaterial: {fileID: 7936242644131845956, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
@@ -1333,7 +1333,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -2429,7 +2429,7 @@ RectTransform:
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: -50}
-  m_SizeDelta: {x: 320, y: 200}
+  m_SizeDelta: {x: 320, y: 70}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &753195839
 MonoBehaviour:
@@ -2902,7 +2902,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: PERKS
+  m_text: IMPLANTS
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
   m_sharedMaterial: {fileID: 7936242644131845956, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
@@ -3017,35 +3017,35 @@ MonoBehaviour:
   - {fileID: 5673649842244364538, guid: 42d757f24381e4044ae8a25c201686ca, type: 3}
   - {fileID: 8421024522635560941, guid: 9a9e4094e59f8eb4caa4127aee7c2b46, type: 3}
   - {fileID: 7357606744854520209, guid: c5e39148a8e7b5d47928c80d55b4ff3c, type: 3}
+  - {fileID: 3200241053812791980, guid: 407d74543c70faf49b06b98f676ad8d1, type: 3}
+  - {fileID: 297017077572518837, guid: 6e7215ec5f7dfb54db1f0221a86f03f0, type: 3}
+  - {fileID: 1036782846232815647, guid: 326cb9d6ffa3e224eb82cf9698109001, type: 3}
+  - {fileID: 5093722096315643738, guid: 0847041e97dcb7648b5897f7f9a83ecf, type: 3}
+  - {fileID: 5068179257304331724, guid: cdc2662d0656276448b616cfefe9c9d1, type: 3}
+  - {fileID: 7709780136663571344, guid: 068b670ca0405144384779e69aa54d49, type: 3}
   rarePerks:
   - {fileID: 8170780636646441943, guid: 3512cd5738bf59d47ac77b4450365bf4, type: 3}
-  - {fileID: 3200241053812791980, guid: 407d74543c70faf49b06b98f676ad8d1, type: 3}
   - {fileID: 1986514174070140262, guid: 8d2cf8eb1410c6d44942bc4168924640, type: 3}
-  - {fileID: 297017077572518837, guid: 6e7215ec5f7dfb54db1f0221a86f03f0, type: 3}
-  - {fileID: 5068179257304331724, guid: cdc2662d0656276448b616cfefe9c9d1, type: 3}
-  - {fileID: 1036782846232815647, guid: 326cb9d6ffa3e224eb82cf9698109001, type: 3}
   - {fileID: 3172771413119584058, guid: a76fa3f56976f8b45b52b14bfca07c7c, type: 3}
-  epicPerks:
-  - {fileID: 7709780136663571344, guid: 068b670ca0405144384779e69aa54d49, type: 3}
   - {fileID: 5078675499939597767, guid: ad70bb15bab1bb44186895817e14b523, type: 3}
-  - {fileID: 1412653846867171776, guid: fca2ad3f3a913c64bba24f7617234511, type: 3}
   - {fileID: 7578640038350188942, guid: fb6a172a1936cb04c93257e74aef0463, type: 3}
+  - {fileID: 1412653846867171776, guid: fca2ad3f3a913c64bba24f7617234511, type: 3}
   - {fileID: 7943290738935132467, guid: 5233eb7c84d74284e8bacd094186a75b, type: 3}
   - {fileID: 5047546002744779634, guid: eec9c7d0b32c52e418dec796960dfe05, type: 3}
   - {fileID: 3106120126287650368, guid: 838a33db2aca1da4d93374f57d13a821, type: 3}
+  epicPerks:
   - {fileID: 1969263836647659006, guid: cdded615e1c59514abb6dd08f0c3044a, type: 3}
-  - {fileID: 5093722096315643738, guid: 0847041e97dcb7648b5897f7f9a83ecf, type: 3}
   - {fileID: 8338301390874939306, guid: 92274e630d9983f4692e0d50c90eb926, type: 3}
-  legendaryPerks:
-  - {fileID: 8701619630202089433, guid: 2006924981287ef40a94a3ea53a48712, type: 3}
-  - {fileID: 1109346846490427701, guid: 591fd3e063799564ea700207eeb3e9e0, type: 3}
   - {fileID: 575377947375056754, guid: 19a8e2458f31e9844aea1d7486c8bad8, type: 3}
-  - {fileID: 4520883504955689006, guid: 02cb28d0d7f5084419350d73f47a6370, type: 3}
   - {fileID: 2698308610461572902, guid: 8668b9db5b315694d896d602e882685c, type: 3}
   - {fileID: 7573325371218563316, guid: f0d596c3e13ed1e40842b6f14687ae19, type: 3}
   - {fileID: 6899603810289213356, guid: 9ed0fca975cfc2d45bc0595a03b02b05, type: 3}
+  legendaryPerks:
+  - {fileID: 1109346846490427701, guid: 591fd3e063799564ea700207eeb3e9e0, type: 3}
   - {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
   - {fileID: 2685890259749979858, guid: 933253f12869f3e4baabefcd1401161d, type: 3}
+  - {fileID: 4520883504955689006, guid: 02cb28d0d7f5084419350d73f47a6370, type: 3}
+  - {fileID: 8701619630202089433, guid: 2006924981287ef40a94a3ea53a48712, type: 3}
   choiceButtons:
   - {fileID: 1840497870}
   - {fileID: 990590839}
@@ -3067,7 +3067,7 @@ MonoBehaviour:
   - {fileID: 164953103}
   - {fileID: 833440338}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 2685890259749979858, guid: 933253f12869f3e4baabefcd1401161d, type: 3}
+  forcedPerk: {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0

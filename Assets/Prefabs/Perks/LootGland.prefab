@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 3
   perkName: Loot Gland
   description: Enemies drop 2 additional gold.
+  icon: {fileID: 8045863270625670295, guid: 22de378e37ad57443ac683e37a78de95, type: 3}
   priority: 0
   isRerollPerk: 0

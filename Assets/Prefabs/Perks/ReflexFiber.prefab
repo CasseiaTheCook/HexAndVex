@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Reflex Fiber
   description: You can move one more time before enemies turn.
+  icon: {fileID: 4142533412855451761, guid: ef83208a1ca716647bd15dbabe4bc39a, type: 3}
   priority: 0
   isRerollPerk: 0

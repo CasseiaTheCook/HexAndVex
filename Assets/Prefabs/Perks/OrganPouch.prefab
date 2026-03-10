@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 2
   perkName: Organ Pouch
   description: Get an additional shop slot.
+  icon: {fileID: 879421308609144542, guid: 9094303d702dc5844adfccf15d339c80, type: 3}
   priority: 0
   isRerollPerk: 0

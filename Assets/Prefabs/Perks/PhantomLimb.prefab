@@ -49,6 +49,6 @@ MonoBehaviour:
   perkName: Fatal Mine
   description: When skipping leave a mine at your tile. (the mine instantly kills
     the enemy that stepped on it)
-  icon: {fileID: 0}
+  icon: {fileID: 1049648278431873775, guid: ce80817fbabf2694da60f7a7d7f37716, type: 3}
   priority: 0
   isRerollPerk: 0

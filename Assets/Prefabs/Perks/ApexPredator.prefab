@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 3
   perkName: Apex Predator
   description: 5X Total dice but loses 1X for each dice you roll.
+  icon: {fileID: 2870332851842103812, guid: 211b1e9ec1eda1c4eaa9e429739dddef, type: 3}
   priority: 2
   isRerollPerk: 0

@@ -49,6 +49,6 @@ MonoBehaviour:
   perkName: Bribe
   description: When you receive fatal damage, lose all your gold to cheat death and
     respawn.
-  icon: {fileID: 0}
+  icon: {fileID: -3208392794392601858, guid: 67306c4e8928bae429a2b2d466dc2c65, type: 3}
   priority: 1
   isRerollPerk: 0

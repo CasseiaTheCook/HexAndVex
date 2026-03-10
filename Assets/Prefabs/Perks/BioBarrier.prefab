@@ -48,6 +48,8 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Bio-Barrier
   description: One time damage negation.
+  icon: {fileID: -3981353234451992249, guid: 8b476cec834219949b6a5d1f7270a373, type: 3}
   priority: 0
   isRerollPerk: 0
   shieldPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
+  shieldOffsetY: 0.1

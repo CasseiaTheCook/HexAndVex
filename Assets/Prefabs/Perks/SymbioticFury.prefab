@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Symbiotic Fury
   description: Multiply the dices next to each other instead of addition.
+  icon: {fileID: -5660792714676904651, guid: 51ec8d856d61127458239d265f84c093, type: 3}
   priority: 3
   isRerollPerk: 0

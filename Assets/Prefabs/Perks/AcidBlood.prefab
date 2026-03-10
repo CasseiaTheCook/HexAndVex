@@ -48,6 +48,6 @@ MonoBehaviour:
   maxLevel: 3
   perkName: Acid Blood
   description: Knocking an enemy into spikes heals you.
-  icon: {fileID: 0}
+  icon: {fileID: 1938561639929944937, guid: b4ccb4fd839c0e640b5d62819f3fcdcd, type: 3}
   priority: 1
   isRerollPerk: 0

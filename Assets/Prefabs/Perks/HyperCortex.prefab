@@ -44,5 +44,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f4f7f3029c405b84fa6dc1eea5651b58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HyperCortexPerk
+  currentLevel: 1
+  maxLevel: 3
   perkName: Hyper Cortex
   description: +50% Critical damage.
+  icon: {fileID: -6745974226562746324, guid: dd096c62da99b9f4d87eeee6ae09a823, type: 3}
+  priority: 0
+  isRerollPerk: 0

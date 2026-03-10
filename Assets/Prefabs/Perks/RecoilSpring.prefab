@@ -50,6 +50,6 @@ MonoBehaviour:
   description: When you deal damage to an enemy, both you and the target are knocked
     back by 1 tile. If you land adjacent to an enemy after this jump, you immediately
     make another attack roll.
-  icon: {fileID: 0}
+  icon: {fileID: -4629115114559398676, guid: f579110dd4bb8974499ed93e2b54edd4, type: 3}
   priority: 0
   isRerollPerk: 0

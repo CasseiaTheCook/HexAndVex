@@ -48,6 +48,7 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Dormant Spore
   description: Roll an extra dice on the next attack for each skip.
+  icon: {fileID: 8890502143960562090, guid: 7d9db08a35bcf674fbfea6fb5d1d3bc5, type: 3}
   priority: 0
   isRerollPerk: 0
   storedExtraDices: 0

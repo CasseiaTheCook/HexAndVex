@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 3
   perkName: Gene Splice
   description: Levels up random perk.
+  icon: {fileID: -6454164580269868760, guid: 249f4a7c2a4642c40b325e1abdb2286e, type: 3}
   priority: 0
   isRerollPerk: 0

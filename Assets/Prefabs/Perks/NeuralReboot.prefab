@@ -48,5 +48,6 @@ MonoBehaviour:
   maxLevel: 1
   perkName: Neural Reboot
   description: Reroll dice if the result is lower than 3.
+  icon: {fileID: 2016930833858598064, guid: bb445e7ec0dd64a43a1dfe2a36101f25, type: 3}
   priority: 0
   isRerollPerk: 0

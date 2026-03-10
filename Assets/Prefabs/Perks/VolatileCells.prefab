@@ -49,5 +49,6 @@ MonoBehaviour:
   perkName: Volatile Cells
   description: Enemies explode after being attacked and damage enemies close by.
     (%25 max health damage each level)
+  icon: {fileID: 5924252578520605724, guid: a97a0cdfdcad3f442abb5abac12f5e21, type: 3}
   priority: 0
   isRerollPerk: 0
