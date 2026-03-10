@@ -65,7 +65,6 @@ public class HexMovement : MonoBehaviour
     void Update()
     {
         HandleMovement();
-        
         ProcessHighlights();
 
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn && !TurnManager.instance.IsAnyTargetingActive)
@@ -83,11 +82,7 @@ public class HexMovement : MonoBehaviour
             if (TurnManager.instance != null)
             {
                 canAttack = TurnManager.instance.isPlayerTurn && !TurnManager.instance.hasAttackedThisTurn;
-                
-                if (TurnManager.instance.isAttackAnimationPlaying)
-                {
-                    canAttack = true; 
-                }
+                if (TurnManager.instance.isAttackAnimationPlaying) canAttack = true; 
             }
 
             targetAlphaValue = canAttack ? 1f : 0.5f;
@@ -98,10 +93,7 @@ public class HexMovement : MonoBehaviour
         }
     }
 
-    public void SetVisualAlpha(float targetAlpha)
-    {
-        targetAlphaValue = targetAlpha;
-    }
+    public void SetVisualAlpha(float targetAlpha) { targetAlphaValue = targetAlpha; }
 
     private void HandleMovementInput()
     {
@@ -116,13 +108,7 @@ public class HexMovement : MonoBehaviour
                 TurnManager.instance.isPlayerTurn = false;
                 TurnManager.instance.HideAllEnemyIntents();
 
-                // ========================================================
-                // İŞTE BURASI! Tıkladığın an (Yürüme başlarken) sayacı artır.
-                // ========================================================
-                if (TurnManager.instance != null)
-                {
-                    TurnManager.instance.hexesMovedThisTurn++;
-                }
+                if (TurnManager.instance != null) TurnManager.instance.hexesMovedThisTurn++;
 
                 Sprite currentFrameSprite = highlightMap.GetSprite(clickedCell);
                 if (currentFrameSprite != null)
@@ -134,16 +120,10 @@ public class HexMovement : MonoBehaviour
 
                 foreach (var kvp in highlights)
                 {
-                    if (kvp.Key != clickedCell)
-                    {
-                        kvp.Value.targetAlpha = 0f;
-                        kvp.Value.fadeSpeed = 15f; 
-                    }
-                    else
-                    {
-                        kvp.Value.currentAlpha = 1f; 
-                        kvp.Value.targetAlpha = 0f; 
-                        kvp.Value.fadeSpeed = 2.5f; 
+                    if (kvp.Key != clickedCell) {
+                        kvp.Value.targetAlpha = 0f; kvp.Value.fadeSpeed = 15f; 
+                    } else {
+                        kvp.Value.currentAlpha = 1f; kvp.Value.targetAlpha = 0f; kvp.Value.fadeSpeed = 2.5f; 
                     }
                 }
                 
@@ -156,12 +136,7 @@ public class HexMovement : MonoBehaviour
     {
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         Plane zPlane = new Plane(Vector3.forward, Vector3.zero); 
-
-        if (zPlane.Raycast(ray, out float distance))
-        {
-            return ray.GetPoint(distance);
-        }
-
+        if (zPlane.Raycast(ray, out float distance)) return ray.GetPoint(distance);
         return Vector3.zero; 
     }
 
@@ -169,11 +144,7 @@ public class HexMovement : MonoBehaviour
     {
         if (isMoving)
         {
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                targetWorldPosition,
-                MOVEMENT_SPEED * Time.deltaTime
-            );
+            transform.position = Vector3.MoveTowards(transform.position, targetWorldPosition, MOVEMENT_SPEED * Time.deltaTime);
 
             if (Vector3.Distance(transform.position, targetWorldPosition) < 0.001f)
             {
@@ -181,20 +152,12 @@ public class HexMovement : MonoBehaviour
                 isMoving = false;
 
                 Vector3 checkPos = transform.position;
-
                 Vector3Int newCell = groundMap.WorldToCell(checkPos);
-                if (newCell != currentCellPosition)
-                {
-                    currentCellPosition = newCell;
-                }
+                if (newCell != currentCellPosition) currentCellPosition = newCell;
 
                 FaceCombatTarget();
 
-                if (!isKnockbackMove)
-                {
-                    TurnManager.instance.PlayerFinishedMove(currentCellPosition);
-                }
-
+                if (!isKnockbackMove) TurnManager.instance.PlayerFinishedMove(currentCellPosition);
                 isKnockbackMove = false;
             }
         }
@@ -202,19 +165,29 @@ public class HexMovement : MonoBehaviour
 
     private void MoveCharacter(Vector3Int targetCell)
     {
+        // Otomatik mayın bırakma KODU BURADAN SİLİNDİ.
+        // Artık sadece yürüyecek.
+
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
         targetWorldPosition.z = 0;
 
         if (visualRenderer != null)
         {
             float dx = targetWorldPosition.x - transform.position.x;
-            if (Mathf.Abs(dx) > 0.01f)
-            {
-                visualRenderer.flipX = (dx < 0);
-            }
+            if (Mathf.Abs(dx) > 0.01f) visualRenderer.flipX = (dx < 0);
         }
 
         isMoving = true;
+    }
+
+    public void ForceSetPosition(Vector3Int targetCell)
+    {
+        currentCellPosition = targetCell;
+        targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
+        targetWorldPosition.z = 0;
+        transform.position = targetWorldPosition;
+        isMoving = false;
+        isKnockbackMove = false;
     }
 
     private void FaceCombatTarget()
@@ -227,11 +200,7 @@ public class HexMovement : MonoBehaviour
             {
                 Vector3 enemyPos = groundMap.GetCellCenterWorld(neighbor);
                 float dx = enemyPos.x - transform.position.x;
-
-                if (Mathf.Abs(dx) > 0.01f && visualRenderer != null)
-                {
-                    visualRenderer.flipX = (dx < 0);
-                }
+                if (Mathf.Abs(dx) > 0.01f && visualRenderer != null) visualRenderer.flipX = (dx < 0);
                 break;
             }
         }
@@ -257,40 +226,10 @@ public class HexMovement : MonoBehaviour
         foreach (var off in offsets)
         {
             Vector3Int neighbor = currentCellPosition + off;
-
             if (groundMap.HasTile(neighbor))
             {
-                bool isHazard = false;
-                if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null)
-                {
-                    isHazard = LevelGenerator.instance.hazardCells.Contains(neighbor);
-                }
-
-                if (!isHazard && TurnManager.instance != null && !TurnManager.instance.IsEnemyAtCell(neighbor))
-                {
-                    validCells.Add(neighbor);
-                }
-            }
-        }
-
-        // Surge-Boot: also highlight 2-hex range neighbors (walk through safe tiles)
-        if (RunManager.instance != null && RunManager.instance.surgeBootNextTurn)
-        {
-            List<Vector3Int> ring1Safe = new List<Vector3Int>(validCells);
-            foreach (var r1 in ring1Safe)
-            {
-                Vector3Int[] r1Offsets = (r1.y % 2 != 0) ? evenOffsets : oddOffsets;
-                foreach (var off2 in r1Offsets)
-                {
-                    Vector3Int r2 = r1 + off2;
-                    if (r2 == currentCellPosition) continue;
-                    if (validCells.Contains(r2)) continue;
-                    if (!groundMap.HasTile(r2)) continue;
-                    bool isHazard2 = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(r2);
-                    if (isHazard2) continue;
-                    if (TurnManager.instance != null && TurnManager.instance.IsEnemyAtCell(r2)) continue;
-                    validCells.Add(r2);
-                }
+                bool isHazard = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(neighbor);
+                if (!isHazard && TurnManager.instance != null && !TurnManager.instance.IsEnemyAtCell(neighbor)) validCells.Add(neighbor);
             }
         }
 
@@ -300,86 +239,40 @@ public class HexMovement : MonoBehaviour
             highlightMap.SetTile(cell, highlightTile); 
             highlightMap.SetTileFlags(cell, TileFlags.None);
             
-            if (!highlights.ContainsKey(cell))
-            {
-                highlights[cell] = new HighlightData { currentAlpha = 0f, targetAlpha = 0.6f, fadeSpeed = 4f };
-            }
-            else
-            {
-                highlights[cell].targetAlpha = 0.6f;
-                highlights[cell].fadeSpeed = 4f;
-            }
+            if (!highlights.ContainsKey(cell)) highlights[cell] = new HighlightData { currentAlpha = 0f, targetAlpha = 0.6f, fadeSpeed = 4f };
+            else { highlights[cell].targetAlpha = 0.6f; highlights[cell].fadeSpeed = 4f; }
             
             highlightMap.SetColor(cell, new Color(1f, 1f, 1f, highlights[cell].currentAlpha));
         }
 
         foreach (var cell in highlights.Keys.ToList())
         {
-            if (!validCells.Contains(cell))
-            {
-                highlights[cell].targetAlpha = 0f;
-                highlights[cell].fadeSpeed = 4f; 
-            }
+            if (!validCells.Contains(cell)) { highlights[cell].targetAlpha = 0f; highlights[cell].fadeSpeed = 4f; }
         }
     }
 
     public void ClearHighlights()
     {
-        foreach (var cell in highlights.Keys.ToList())
-        {
-            highlights[cell].targetAlpha = 0f;
-            highlights[cell].fadeSpeed = 4f; 
-        }
+        foreach (var cell in highlights.Keys.ToList()) { highlights[cell].targetAlpha = 0f; highlights[cell].fadeSpeed = 4f; }
     }
 
     private void ProcessHighlights()
     {
         List<Vector3Int> cellsToRemove = new List<Vector3Int>();
-
         foreach (var kvp in highlights)
         {
-            Vector3Int cell = kvp.Key;
-            HighlightData data = kvp.Value;
-
+            Vector3Int cell = kvp.Key; HighlightData data = kvp.Value;
             if (data.currentAlpha != data.targetAlpha)
             {
                 data.currentAlpha = Mathf.MoveTowards(data.currentAlpha, data.targetAlpha, data.fadeSpeed * Time.deltaTime);
-                if (highlightMap.HasTile(cell)) 
-                {
-                    highlightMap.SetColor(cell, new Color(1f, 1f, 1f, data.currentAlpha));
-                }
+                if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, new Color(1f, 1f, 1f, data.currentAlpha));
             }
-
-            if (data.currentAlpha <= 0.01f && data.targetAlpha <= 0.01f)
-            {
-                if (highlightMap.HasTile(cell)) highlightMap.SetTile(cell, null);
-                cellsToRemove.Add(cell);
-            }
+            if (data.currentAlpha <= 0.01f && data.targetAlpha <= 0.01f) { if (highlightMap.HasTile(cell)) highlightMap.SetTile(cell, null); cellsToRemove.Add(cell); }
         }
-
-        foreach (var c in cellsToRemove)
-        {
-            highlights.Remove(c);
-        }
+        foreach (var c in cellsToRemove) highlights.Remove(c);
     }
 
     public Vector3Int GetCurrentCellPosition() => currentCellPosition;
 
-    public void ForceSetPosition(Vector3Int newCell)
-    {
-        currentCellPosition = newCell;
-        Vector3 worldPos = groundMap.GetCellCenterWorld(newCell);
-        worldPos.z = 0;
-        transform.position = worldPos;
-        targetWorldPosition = worldPos;
-        isMoving = false;
-    }
-
-    public void TriggerAttackAnimation()
-    {
-        if (animator != null)
-        {
-            animator.SetTrigger("Attack"); 
-        }
-    }
+    public void TriggerAttackAnimation() { if (animator != null) animator.SetTrigger("Attack"); }
 }
