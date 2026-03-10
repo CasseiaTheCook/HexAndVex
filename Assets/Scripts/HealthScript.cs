@@ -54,6 +54,11 @@ public class HealthScript : MonoBehaviour
 
         currentHP -= dmg;
 
+        if (gameObject.CompareTag("Player"))
+        {
+            RunManager.instance.totalDamageReceived += dmg; // Alınan hasarı kaydet
+        }
+        
         if (damageTextPrefab != null)
         {
             // Sayıyı tam düşmanın merkezinde oluştur
