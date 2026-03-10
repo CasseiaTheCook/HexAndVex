@@ -18,13 +18,6 @@ public class DoubleOrNothingPerk : BasePerk
             payload.multiplier *= 2f;
             TriggerVisualPop();
         }
-        else
-        {
-            // Tekse ceza!
-            if (TurnManager.instance != null && TurnManager.instance.player != null)
-            {
-                TurnManager.instance.player.health.TakeDamage(1);
-            }
-        }
+
     }
 }
