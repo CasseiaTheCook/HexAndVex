@@ -269,29 +269,16 @@ public class LevelUpManager : MonoBehaviour
 
     private IEnumerator CardIdleBounce(Transform card)
     {
-        float speed = 0.8f;
-        float amplitude = 0.02f;
-        float phase = Random.Range(0f, Mathf.PI * 2f);
         int cardIdx = -1;
         for (int i = 0; i < choiceButtons.Length; i++)
             if (choiceButtons[i] != null && choiceButtons[i].transform == card) { cardIdx = i; break; }
 
         while (card != null && card.gameObject.activeSelf && levelUpPanel.activeSelf)
         {
-            if (hoveredCardIndex == cardIdx)
-            {
-                // Hovered: smoothly scale to 1.1
-                float cur = card.localScale.x;
-                float target = 1.1f;
-                float s = Mathf.MoveTowards(cur, target, Time.unscaledDeltaTime * 3f);
-                card.localScale = new Vector3(s, s, 1f);
-            }
-            else
-            {
-                // Idle bounce
-                float s = 1f + Mathf.Sin((Time.unscaledTime * speed * Mathf.PI * 2f) + phase) * amplitude;
-                card.localScale = new Vector3(s, s, 1f);
-            }
+            float target = (hoveredCardIndex == cardIdx) ? 1.1f : 1f;
+            float cur = card.localScale.x;
+            float s = Mathf.MoveTowards(cur, target, Time.unscaledDeltaTime * 3f);
+            card.localScale = new Vector3(s, s, 1f);
             yield return null;
         }
     }
