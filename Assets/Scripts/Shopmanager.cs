@@ -60,6 +60,7 @@ public class Shopmanager : MonoBehaviour
             rerollButton.onClick.AddListener(TryReroll);
         }
 
+        SetupCoinIcons();
         GenerateShopItems();
     }
 
@@ -238,9 +239,71 @@ public class Shopmanager : MonoBehaviour
     private void RefreshRerollButton()
     {
         if (rerollPriceText != null)
-            rerollPriceText.text = "Reroll: " + currentRerollCost;
+        {
+            rerollPriceText.richText = true;
+            rerollPriceText.text = "Reroll  <color=#FFD933>" + currentRerollCost + "</color>";
+        }
         if (rerollButton != null && RunManager.instance != null)
             rerollButton.interactable = RunManager.instance.currentGold >= currentRerollCost;
+    }
+
+    private void SetupCoinIcons()
+    {
+        Sprite coinSpr = null;
+        if (TurnManager.instance != null && TurnManager.instance.coinSprite != null)
+            coinSpr = TurnManager.instance.coinSprite;
+        if (coinSpr == null)
+        {
+            var vfx = FindFirstObjectByType<CoinDropVFX>();
+            if (vfx != null) coinSpr = vfx.coinSprite;
+        }
+        if (coinSpr == null) return;
+
+        // Coin area icon (coinDisplayText parent)
+        if (coinDisplayText != null)
+        {
+            Transform coinParent = coinDisplayText.transform.parent;
+            if (coinParent != null && coinParent.Find("ShopCoinIcon") == null)
+            {
+                GameObject iconGO = new GameObject("ShopCoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                iconGO.transform.SetParent(coinParent, false);
+                iconGO.transform.SetAsFirstSibling();
+                iconGO.layer = gameObject.layer;
+                RectTransform iconRT = iconGO.GetComponent<RectTransform>();
+                iconRT.sizeDelta = new Vector2(22f, 22f);
+                LayoutElement iconLE = iconGO.AddComponent<LayoutElement>();
+                iconLE.preferredWidth = 22f;
+                iconLE.preferredHeight = 22f;
+                Image img = iconGO.GetComponent<Image>();
+                img.sprite = coinSpr;
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+            }
+        }
+
+        // Reroll button coin icon — placed manually, no HLG
+        if (rerollPriceText != null)
+        {
+            Transform rerollParent = rerollPriceText.transform.parent;
+            if (rerollParent != null && rerollParent.Find("RerollCoinIcon") == null)
+            {
+                // Keep existing text anchored/stretched, just add icon as sibling
+                GameObject rIconGO = new GameObject("RerollCoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                rIconGO.transform.SetParent(rerollParent, false);
+                rIconGO.layer = gameObject.layer;
+                RectTransform rIconRT = rIconGO.GetComponent<RectTransform>();
+                // Anchor to right-center of button
+                rIconRT.anchorMin = new Vector2(1f, 0.5f);
+                rIconRT.anchorMax = new Vector2(1f, 0.5f);
+                rIconRT.pivot = new Vector2(1f, 0.5f);
+                rIconRT.anchoredPosition = new Vector2(-6f, 0f);
+                rIconRT.sizeDelta = new Vector2(18f, 18f);
+                Image rImg = rIconGO.GetComponent<Image>();
+                rImg.sprite = coinSpr;
+                rImg.preserveAspect = true;
+                rImg.raycastTarget = false;
+            }
+        }
     }
 
     private IEnumerator FlashText(TMP_Text t)

@@ -5,8 +5,48 @@ using TMPro;
 
 public static class ShopSetupTool
 {
-    [MenuItem("Tools/Setup Shop UI")]
-    public static void SetupShopUI()
+    [MenuItem("Tools/Setup Shop")]
+    public static void SetupShop()
+    {
+        CreateItems();
+        SetupShopUI();
+        Debug.Log("=== Shop kurulumu tamamlandi! ===");
+    }
+
+    // ── Item asset'lerini oluştur ──────────────────────────────────────
+    static void CreateItems()
+    {
+        string folder = "Assets/ScriptableObjects/Items";
+        if (!AssetDatabase.IsValidFolder("Assets/ScriptableObjects"))
+            AssetDatabase.CreateFolder("Assets", "ScriptableObjects");
+        if (!AssetDatabase.IsValidFolder(folder))
+            AssetDatabase.CreateFolder("Assets/ScriptableObjects", "Items");
+
+        CreateItem<BioVial>(folder, "BioVial", "Bio-Vial", "Restore 1 HP", 3);
+        CreateItem<MutaGen>(folder, "MutaGen", "Muta-Gen", "Restore 2 HP", 5);
+        CreateItem<NecroShot>(folder, "NecroShot", "Necro-Shot", "Instantly kill any enemy on the map", 10);
+        CreateItem<SynthStim>(folder, "SynthStim", "Synth-Stim", "Roll +1 extra die in the next combat", 6);
+        CreateItem<GoldLeech>(folder, "GoldLeech", "Gold-Leech", "Next enemy drops 2x gold", 4);
+        CreateItem<OverClok>(folder, "OverClok", "Over-Clok", "Deal 2x total dice damage in the next combat", 7);
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("Item asset'leri hazir.");
+    }
+
+    static void CreateItem<T>(string folder, string fileName, string name, string desc, int price) where T : BaseItem
+    {
+        string path = $"{folder}/{fileName}.asset";
+        if (AssetDatabase.LoadAssetAtPath<T>(path) != null) return;
+        T item = ScriptableObject.CreateInstance<T>();
+        item.itemName = name;
+        item.description = desc;
+        item.price = price;
+        AssetDatabase.CreateAsset(item, path);
+    }
+
+    // ── Shop UI'ını kur ────────────────────────────────────────────────
+    static void SetupShopUI()
     {
         // ── 1. Ana Canvas'i bul (MainUi veya ilk Canvas) ──────────────────
         Canvas mainCanvas = null;
@@ -54,36 +94,6 @@ public static class ShopSetupTool
         Button btn = btnGO.AddComponent<Button>();
         shopSlot.buyButton = btn;
 
-        // -- İsim text (hover'da gorunur)
-        GameObject nameGO = new GameObject("Isim");
-        nameGO.transform.SetParent(slotRoot.transform, false);
-        nameGO.layer = LayerMask.NameToLayer("UI");
-        RectTransform nameRT = nameGO.AddComponent<RectTransform>();
-        nameRT.anchorMin = new Vector2(0f, 0.35f);
-        nameRT.anchorMax = new Vector2(1f, 1f);
-        nameRT.offsetMin = new Vector2(4f, 4f);
-        nameRT.offsetMax = new Vector2(-4f, -4f);
-        TMP_Text nameTxt = nameGO.AddComponent<TextMeshProUGUI>();
-        nameTxt.text = "Item Adi";
-        nameTxt.fontSize = 8;
-        nameTxt.alignment = TextAlignmentOptions.Center;
-        nameTxt.color = Color.white;
-
-        // -- Fiyat text (hover'da gorunur)
-        GameObject priceGO = new GameObject("Fiyat");
-        priceGO.transform.SetParent(slotRoot.transform, false);
-        priceGO.layer = LayerMask.NameToLayer("UI");
-        RectTransform priceRT = priceGO.AddComponent<RectTransform>();
-        priceRT.anchorMin = new Vector2(0f, 0f);
-        priceRT.anchorMax = new Vector2(1f, 0.35f);
-        priceRT.offsetMin = new Vector2(4f, 4f);
-        priceRT.offsetMax = new Vector2(-4f, -4f);
-        TMP_Text priceTxt = priceGO.AddComponent<TextMeshProUGUI>();
-        priceTxt.text = "0 Coin";
-        priceTxt.fontSize = 7;
-        priceTxt.alignment = TextAlignmentOptions.Center;
-        priceTxt.color = new Color(1f, 0.85f, 0.2f);
-
         // -- SoldOut overlay
         GameObject soldGO = new GameObject("SoldOut");
         soldGO.transform.SetParent(slotRoot.transform, false);
@@ -106,7 +116,7 @@ public static class ShopSetupTool
         soldTextRT.offsetMin = Vector2.zero;
         soldTextRT.offsetMax = Vector2.zero;
         TMP_Text soldTxt = soldTextGO.AddComponent<TextMeshProUGUI>();
-        soldTxt.text = "SATILDI";
+        soldTxt.text = "SOLD OUT";
         soldTxt.fontSize = 9;
         soldTxt.fontStyle = FontStyles.Bold;
         soldTxt.alignment = TextAlignmentOptions.Center;
@@ -152,7 +162,7 @@ public static class ShopSetupTool
         panelRT.anchorMax = new Vector2(0f, 1f);
         panelRT.pivot     = new Vector2(0f, 1f);
         panelRT.anchoredPosition = new Vector2(10f, -10f);
-        panelRT.sizeDelta = new Vector2(225f, 110f);
+        panelRT.sizeDelta = new Vector2(280f, 115f);
 
         VerticalLayoutGroup mainVlg = panelGO.AddComponent<VerticalLayoutGroup>();
         mainVlg.spacing = 4;
@@ -174,8 +184,8 @@ public static class ShopSetupTool
 
         HorizontalLayoutGroup slotHlg = slotRowGO.AddComponent<HorizontalLayoutGroup>();
         slotHlg.spacing = 8;
-        slotHlg.padding = new RectOffset(4, 4, 0, 0);
-        slotHlg.childAlignment         = TextAnchor.MiddleCenter;
+        slotHlg.padding = new RectOffset(0, 0, 0, 0);
+        slotHlg.childAlignment         = TextAnchor.MiddleLeft;
         slotHlg.childControlWidth      = false;
         slotHlg.childControlHeight     = false;
         slotHlg.childForceExpandWidth  = false;
@@ -188,12 +198,12 @@ public static class ShopSetupTool
         bottomRowGO.transform.SetParent(panelGO.transform, false);
         bottomRowGO.layer = LayerMask.NameToLayer("UI");
         RectTransform bottomRowRT = bottomRowGO.AddComponent<RectTransform>();
-        bottomRowRT.sizeDelta = new Vector2(0f, 30f);
+        bottomRowRT.sizeDelta = new Vector2(0f, 36f);
         LayoutElement bottomRowLE = bottomRowGO.AddComponent<LayoutElement>();
-        bottomRowLE.preferredHeight = 30f;
+        bottomRowLE.preferredHeight = 36f;
 
         HorizontalLayoutGroup bottomHlg = bottomRowGO.AddComponent<HorizontalLayoutGroup>();
-        bottomHlg.spacing = 6;
+        bottomHlg.spacing = 12;
         bottomHlg.padding = new RectOffset(0, 0, 0, 0);
         bottomHlg.childAlignment         = TextAnchor.MiddleCenter;
         bottomHlg.childControlWidth      = true;
@@ -207,7 +217,7 @@ public static class ShopSetupTool
         rerollGO.layer = LayerMask.NameToLayer("UI");
 
         LayoutElement rerollLE = rerollGO.AddComponent<LayoutElement>();
-        rerollLE.flexibleWidth = 1f;
+        rerollLE.flexibleWidth = 1.5f;
 
         Image rerollBg = rerollGO.AddComponent<Image>();
         rerollBg.color = Color.white;
@@ -227,10 +237,10 @@ public static class ShopSetupTool
         rerollTxtGO.layer = LayerMask.NameToLayer("UI");
         RectTransform rpRT = rerollTxtGO.GetComponent<RectTransform>();
         rpRT.anchorMin = Vector2.zero; rpRT.anchorMax = Vector2.one;
-        rpRT.offsetMin = new Vector2(4f, 2f); rpRT.offsetMax = new Vector2(-4f, -2f);
+        rpRT.offsetMin = new Vector2(4f, 2f); rpRT.offsetMax = new Vector2(-24f, -2f);
         TMP_Text rerollPriceTxt = rerollTxtGO.AddComponent<TextMeshProUGUI>();
         rerollPriceTxt.text      = "Reroll: 2";
-        rerollPriceTxt.fontSize  = 12;
+        rerollPriceTxt.fontSize  = 14;
         rerollPriceTxt.alignment = TextAlignmentOptions.Center;
         rerollPriceTxt.color     = Color.white;
         rerollPriceTxt.raycastTarget = false;
@@ -243,7 +253,7 @@ public static class ShopSetupTool
         coinAreaGO.layer = LayerMask.NameToLayer("UI");
 
         LayoutElement coinAreaLE = coinAreaGO.AddComponent<LayoutElement>();
-        coinAreaLE.flexibleWidth = 1f;
+        coinAreaLE.flexibleWidth = 0.5f;
 
         Image coinAreaBg = coinAreaGO.AddComponent<Image>();
         coinAreaBg.color = new Color32(0x00, 0x05, 0x0C, 0xFF);
@@ -266,7 +276,7 @@ public static class ShopSetupTool
         coinTxtRT.sizeDelta = new Vector2(60f, 26f);
         TMP_Text coinDisplayTxt = coinTxtGO.AddComponent<TextMeshProUGUI>();
         coinDisplayTxt.text = "0";
-        coinDisplayTxt.fontSize = 14;
+        coinDisplayTxt.fontSize = 16;
         coinDisplayTxt.alignment = TextAlignmentOptions.Left;
         coinDisplayTxt.color = new Color(1f, 0.85f, 0.2f, 1f);
         coinDisplayTxt.fontStyle = FontStyles.Bold;
@@ -290,16 +300,25 @@ public static class ShopSetupTool
         mgr.rerollBaseCost    = 2f;
         mgr.rerollMultiplier  = 1.2f;
 
+        // Item pool'u otomatik doldur
+        mgr.itemPool.Clear();
+        string[] guids = AssetDatabase.FindAssets("t:BaseItem", new[] { "Assets/ScriptableObjects/Items" });
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            BaseItem item = AssetDatabase.LoadAssetAtPath<BaseItem>(path);
+            if (item != null) mgr.itemPool.Add(item);
+        }
+
         EditorUtility.SetDirty(mgrGO);
         EditorUtility.SetDirty(panelGO);
         EditorUtility.SetDirty(rerollGO);
-        Debug.Log("ShopManager olusturuldu ve baglandı.");
+        Debug.Log($"ShopManager olusturuldu — {mgr.itemPool.Count} item atandı.");
 
         // Sahneyi kaydet
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
-        Debug.Log("=== Shop kurulumu tamamlandi! ===");
         Selection.activeGameObject = panelGO;
     }
 

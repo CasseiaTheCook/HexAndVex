@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: BioVial
   m_EditorClassIdentifier: Assembly-CSharp::BioVial
   itemName: Bio-Vial
-  description: 1 can yenile
+  description: Restore 1 HP
   price: 3
   icon: {fileID: 0}

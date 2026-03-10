@@ -845,7 +845,8 @@ public class TurnManager : MonoBehaviour
     {
         if (index >= 0 && index < spawnedDiceUI.Count)
         {
-            Transform dieTransform = spawnedDiceUI[index].transform; TMP_Text dieText = spawnedDiceUI[index].GetComponentInChildren<TMP_Text>(); Image dieImage = spawnedDiceUI[index].GetComponent<Image>();
+            Transform dieTransform = spawnedDiceUI[index].transform; 
+            TMP_Text dieText = spawnedDiceUI[index].GetComponentInChildren<TMP_Text>(); Image dieImage = spawnedDiceUI[index].GetComponent<Image>();
             if (dieText != null) dieText.text = newValue.ToString();
             if (dieImage != null && diceSprites != null) { int spriteIndex = Mathf.Clamp(newValue - 1, 0, diceSprites.Length - 1); dieImage.sprite = diceSprites[spriteIndex]; }
             StartCoroutine(DiePopAnimation(dieTransform));

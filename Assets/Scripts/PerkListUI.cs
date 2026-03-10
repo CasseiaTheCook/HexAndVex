@@ -118,15 +118,23 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         hlg.spacing = 8f;
         hlg.childAlignment = TextAnchor.UpperLeft;
         hlg.childControlWidth = false;
-        hlg.childControlHeight = false;
+        hlg.childControlHeight = true;
         hlg.childForceExpandWidth = false;
         hlg.childForceExpandHeight = false;
+
+        ContentSizeFitter rowFitter = row.AddComponent<ContentSizeFitter>();
+        rowFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // İkon
         GameObject iconObj = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         iconObj.transform.SetParent(row.transform, false);
         RectTransform iconRT = iconObj.GetComponent<RectTransform>();
         iconRT.sizeDelta = new Vector2(iconSize, iconSize);
+        LayoutElement iconLE = iconObj.AddComponent<LayoutElement>();
+        iconLE.minWidth = iconSize;
+        iconLE.minHeight = iconSize;
+        iconLE.preferredWidth = iconSize;
+        iconLE.preferredHeight = iconSize;
         Image iconImg = iconObj.GetComponent<Image>();
         if (perk.icon != null)
         {
@@ -144,6 +152,8 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         textObj.transform.SetParent(row.transform, false);
         RectTransform textRT = textObj.GetComponent<RectTransform>();
         textRT.sizeDelta = new Vector2(260f, 0f);
+        LayoutElement textLE = textObj.AddComponent<LayoutElement>();
+        textLE.preferredWidth = 260f;
         ContentSizeFitter csf = textObj.AddComponent<ContentSizeFitter>();
         csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();

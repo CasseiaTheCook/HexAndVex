@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: MutaGen
   m_EditorClassIdentifier: Assembly-CSharp::MutaGen
   itemName: Muta-Gen
-  description: 2 can yenile
+  description: Restore 2 HP
   price: 5
   icon: {fileID: 0}
