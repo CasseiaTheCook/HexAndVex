@@ -94,6 +94,21 @@ public static class ShopSetupTool
         Button btn = btnGO.AddComponent<Button>();
         shopSlot.buyButton = btn;
 
+        // -- ItemIcon (item ikonu burada görünecek)
+        GameObject iconGO = new GameObject("ItemIcon");
+        iconGO.transform.SetParent(slotRoot.transform, false);
+        iconGO.layer = LayerMask.NameToLayer("UI");
+        RectTransform iconRT = iconGO.AddComponent<RectTransform>();
+        iconRT.anchorMin = new Vector2(0.1f, 0.1f);
+        iconRT.anchorMax = new Vector2(0.9f, 0.9f);
+        iconRT.offsetMin = Vector2.zero;
+        iconRT.offsetMax = Vector2.zero;
+        Image iconImg = iconGO.AddComponent<Image>();
+        iconImg.color = Color.white;
+        iconImg.preserveAspect = true;
+        iconImg.raycastTarget = false;
+        shopSlot.itemIconImage = iconImg;
+
         // -- SoldOut overlay
         GameObject soldGO = new GameObject("SoldOut");
         soldGO.transform.SetParent(slotRoot.transform, false);

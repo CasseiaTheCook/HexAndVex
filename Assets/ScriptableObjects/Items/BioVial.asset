@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: BioVial
   m_EditorClassIdentifier: Assembly-CSharp::BioVial
   itemName: Bio-Vial
-  description: Restore 1 HP
+  description: 1 can yenile
   price: 3
-  icon: {fileID: 0}
+  icon: {fileID: 2153946001263900196, guid: 52f137595ec80f947b65c95ed45822d8, type: 3}

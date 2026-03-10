@@ -12,6 +12,9 @@ public abstract class BasePerk : MonoBehaviour
     public int priority = 0;
     public bool isRerollPerk = false;
 
+    // Perk havuzdan çekilirken gösterilebilir mi? (GeneSplice gibi koşullu perkler override eder)
+    public virtual bool CanBeOffered() { return true; }
+
     // 1. Perk satın alındığında / seçildiğinde 1 kez çalışır
     public virtual void OnAcquire() { }
 

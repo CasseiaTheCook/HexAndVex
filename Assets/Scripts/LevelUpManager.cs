@@ -133,6 +133,10 @@ public class LevelUpManager : MonoBehaviour
         if (perkPrefab == null || RunManager.instance == null) return true;
         
         BasePerk checkPerk = perkPrefab.GetComponent<BasePerk>();
+
+        // CanBeOffered kontrolü — koşullu perkler (GeneSplice vb.)
+        if (!checkPerk.CanBeOffered()) return true;
+
         BasePerk existing = RunManager.instance.activePerks.Find(p => p.GetType() == checkPerk.GetType());
         
         if (existing != null && existing.currentLevel >= existing.maxLevel)

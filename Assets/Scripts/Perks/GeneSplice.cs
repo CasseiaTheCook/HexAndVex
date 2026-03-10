@@ -3,6 +3,18 @@ using System.Collections.Generic;
 
 public class GeneSplicePerk : BasePerk
 {
+    // Sadece upgrade edilebilir (maxLevel > 1) perk varsa göster
+    public override bool CanBeOffered()
+    {
+        if (RunManager.instance == null) return true;
+        foreach (var perk in RunManager.instance.activePerks)
+        {
+            if (perk != this && perk.maxLevel > 1)
+                return true;
+        }
+        return RunManager.instance.activePerks.Count == 0;
+    }
+
     // İlk alındığında çalışır
     public override void OnAcquire()
     {

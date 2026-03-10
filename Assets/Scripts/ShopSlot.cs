@@ -8,6 +8,7 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Slot UI Elemanlari")]
     public Button buyButton;
+    public Image itemIconImage;
     public TMP_FontAsset customFont;
     public GameObject soldOutOverlay;
     public Sprite coinSprite;

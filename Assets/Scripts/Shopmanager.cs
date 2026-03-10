@@ -168,6 +168,21 @@ public class Shopmanager : MonoBehaviour
         slot.tooltipDesc = item.description;
         slot.tooltipPrice = item.price;
 
+        // Item ikonunu göster
+        if (slot.itemIconImage != null)
+        {
+            if (item.icon != null)
+            {
+                slot.itemIconImage.sprite = item.icon;
+                slot.itemIconImage.color = Color.white;
+                slot.itemIconImage.enabled = true;
+            }
+            else
+            {
+                slot.itemIconImage.enabled = false;
+            }
+        }
+
         if (slot.soldOutOverlay != null)
             slot.soldOutOverlay.SetActive(false);
 
