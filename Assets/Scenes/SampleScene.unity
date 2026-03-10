@@ -2737,7 +2737,7 @@ MonoBehaviour:
   coinDisplayText: {fileID: 311926039}
   rerollButton: {fileID: 2099779297}
   rerollPriceText: {fileID: 814757009}
-  rerollBaseCost: 2
+  rerollBaseCost: 10
   rerollMultiplier: 1.2
 --- !u!4 &663098664
 Transform:
@@ -7325,6 +7325,7 @@ MonoBehaviour:
   coinText: {fileID: 0}
   coinSprite: {fileID: -3424034131817855405, guid: 496580030e4fa8a41ba454a468500dfc, type: 3}
   enemies: []
+  isLevelClearTriggered: 0
   isPlayerTurn: 1
   hasAttackedThisTurn: 0
   isAttackAnimationPlaying: 0

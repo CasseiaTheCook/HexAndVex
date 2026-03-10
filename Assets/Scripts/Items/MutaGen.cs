@@ -6,7 +6,7 @@ public class MutaGen : BaseItem
     void OnEnable()
     {
         itemName = "Muta-Gen";
-        description = "2 can yenile";
+        description = "Restore 2 HP";
         price = 5;
     }
 

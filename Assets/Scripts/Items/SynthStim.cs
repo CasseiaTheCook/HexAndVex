@@ -6,7 +6,7 @@ public class SynthStim : BaseItem
     void OnEnable()
     {
         itemName = "Synth-Stim";
-        description = "Bu savaşta +1 zar at";
+        description = "Roll +1 extra die in the next combat";
         price = 6;
     }
 
