@@ -439,7 +439,7 @@ public class TurnManager : MonoBehaviour
 
     public void SkipTurn()
     {
-        if (!isPlayerTurn) return;
+        if (!isPlayerTurn || IsAnyTargetingActive) return;
         isPlayerTurn = false;
         if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
 

@@ -96,6 +96,7 @@ public class Shopmanager : MonoBehaviour
     public void TryReroll()
     {
         if (RunManager.instance == null) return;
+        if (TurnManager.instance != null && TurnManager.instance.IsAnyTargetingActive) return;
 
         if (RunManager.instance.currentGold < currentRerollCost)
         {
@@ -206,6 +207,7 @@ public class Shopmanager : MonoBehaviour
     {
         if (index >= purchased.Count || purchased[index]) return;
         if (RunManager.instance == null) return;
+        if (TurnManager.instance != null && TurnManager.instance.IsAnyTargetingActive) return;
 
         BaseItem item = currentItems[index];
         if (item == null) return;
