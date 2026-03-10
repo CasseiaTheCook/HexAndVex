@@ -37,8 +37,9 @@ public class BombPlacementCursor : MonoBehaviour
 
     private void ActivateCursor()
     {
-        if (cursorTexture == null) return;
-        Vector2 hotspot = autoCenter ? new Vector2(cursorTexture.width / 2f, cursorTexture.height / 2f) : hotspotOverride;
+        Vector2 hotspot = (cursorTexture != null && autoCenter)
+            ? new Vector2(cursorTexture.width / 2f, cursorTexture.height / 2f)
+            : hotspotOverride;
         Cursor.SetCursor(cursorTexture, hotspot, CursorMode.Auto);
         isCustomCursorActive = true;
     }
