@@ -69,6 +69,11 @@ public class TurnManager : MonoBehaviour
 #if UNITY_EDITOR
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.F7))
+        {
+            RunManager.instance.currentGold += 10000;
+            UpdateCoinUI();
+        }
         if (Input.GetKeyDown(KeyCode.F8)) SpawnDebugAoEEnemies();
         if (Input.GetKeyDown(KeyCode.F9))
         {
