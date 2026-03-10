@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 938c8afb14878554fbf1a8df03bdd7a6, type: 3}
+  m_Name: SynthStim
+  m_EditorClassIdentifier: Assembly-CSharp::SynthStim
+  itemName: Synth-Stim
+  description: "Bu sava\u015Fta +1 zar at"
+  price: 6
+  icon: {fileID: 7764831295479663515, guid: d470eb7d9703c2b45b22cda85f3d3209, type: 3}

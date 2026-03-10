@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec20566112d1a7148b8d2f96517f204e, type: 3}
+  m_Name: MutaGen
+  m_EditorClassIdentifier: Assembly-CSharp::MutaGen
+  itemName: Muta-Gen
+  description: 2 can yenile
+  price: 5
+  icon: {fileID: 8796583169327146959, guid: 549e3fedc06a5c1499c4f92447a8f2b2, type: 3}

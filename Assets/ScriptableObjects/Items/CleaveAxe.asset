@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eda180b05ca64ef4ab38687d9e920d8f, type: 3}
+  m_Name: CleaveAxe
+  m_EditorClassIdentifier: Assembly-CSharp::CleaveAxe
+  itemName: Cleave-Axe
+  description: Next attack deals full damage to all adjacent enemies without splitting
+  price: 7
+  icon: {fileID: -3472828434593650774, guid: 25e5cecdebe26d24fb3e2e0dbcb5fb78, type: 3}

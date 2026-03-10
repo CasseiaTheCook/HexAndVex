@@ -1,0 +1,1185 @@
+﻿using UnityEngine;
+using System.Collections.Generic;
+using System.Collections;
+using UnityEngine.Tilemaps;
+using TMPro;
+using UnityEngine.UI;
+using System.Linq;
+
+public class TurnManager : MonoBehaviour
+{
+    public static TurnManager instance;
+
+    [Header("Düşman Uyarı (Warning) Karosu")]
+    public Tilemap warningMap;
+    public UnityEngine.Tilemaps.TileBase warningTile;
+
+    [Header("Efektler & Prefablar")]
+    public GameObject explosionPrefab;
+    public GameObject dodgeEffectPrefab;
+    public GameObject vacuumVfxPrefab;
+
+    // ========================================================
+    // MAYIN PREFABI BURAYA GELECEK
+    // ========================================================
+    public GameObject phantomMinePrefab;
+
+    [Header("Frag-Mine")]
+    public GameObject fragMinePlaceholderPrefab;
+
+    public HexMovement player;
+    public Tilemap groundMap;
+
+    [Header("Dinamik Zar UI Sistemi")]
+    public GameObject dieUIPrefab;
+    public Transform diceUIContainer;
+    public TMP_Text totalDamageText;
+    public Sprite[] diceSprites;
+    public GameObject criticalText;
+
+    [Header("Coin UI")]
+    public TMP_Text coinText;
+    public Sprite coinSprite;
+
+    private List<GameObject> spawnedDiceUI = new List<GameObject>();
+    public List<EnemyAI> enemies = new List<EnemyAI>();
+    [HideInInspector] public bool isLevelClearTriggered = false;
+    public bool isPlayerTurn = true;
+    public bool hasAttackedThisTurn = false;
+    public bool isAttackAnimationPlaying = false;
+
+    [HideInInspector] public bool isNecroShotTargeting = false;
+    [HideInInspector] public bool isBombPlacementTargeting = false;
+    [HideInInspector] public bool isPhaseShiftTargeting = false;
+    [HideInInspector] public bool isThornPlacementTargeting = false;
+
+    public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
+
+    public int hexesMovedThisTurn = 0;
+
+    // MAYIN DEĞİŞKENLERİ
+    public Vector3Int activeMineCell = new Vector3Int(-999, -999, -999);
+    private GameObject activeMineObj;
+
+    private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
+    private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
+
+    void Awake()
+    {
+        if (instance == null) instance = this;
+        else Destroy(gameObject);
+
+        if (player == null) player = FindFirstObjectByType<HexMovement>();
+        if (groundMap == null) groundMap = GameObject.Find("GroundMap")?.GetComponent<Tilemap>();
+        if (totalDamageText == null) totalDamageText = GameObject.Find("TotalDamageText")?.GetComponent<TMP_Text>();
+    }
+
+    void Start()
+    {
+        HideDiceResults();
+        SetupCoinIcon();
+        UpdateCoinUI();
+        Invoke("StartPlayerTurn", 0.5f);
+    }
+
+    void Update()
+    {
+        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        {
+            Vector3 mousePos = Input.mousePosition;
+            mousePos.z = Mathf.Abs(Camera.main.transform.position.z);
+            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(mousePos);
+            worldPoint.z = 0;
+            Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
+
+            if (groundMap.HasTile(clickedCell))
+            {
+                if (isBombPlacementTargeting) StartCoroutine(ExecuteBombAt(clickedCell));
+                else if (isThornPlacementTargeting) ExecuteThornAt(clickedCell);
+            }
+        }
+
+#if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.F7))
+        {
+            RunManager.instance.currentGold += 10000;
+            UpdateCoinUI();
+        }
+        if (Input.GetKeyDown(KeyCode.F8)) SpawnDebugAoEEnemies();
+        if (Input.GetKeyDown(KeyCode.F9))
+        {
+            foreach (var e in enemies)
+            {
+                if (e != null && e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.health.currentHP > 0 && e.skipTurns <= 0)
+                {
+                    e.isChargingAttack = true;
+                    e.warningCells = e.GetComponent<EnemyAI>().warningCells;
+                    Vector3Int playerCell = player.GetCurrentCellPosition();
+                    var cells = GetLineOfCells_Debug(e.GetCurrentCellPosition(), playerCell, e.aoeAttackRange, e);
+                    e.warningCells = cells;
+                    foreach (var wCell in cells) DrawWarningTile(wCell);
+                }
+            }
+        }
+#endif
+    }
+
+#if UNITY_EDITOR
+    private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
+    {
+        List<Vector3Int> line = new List<Vector3Int>();
+        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        int bestDir = 0; float minDist = float.MaxValue;
+        Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOff : oddOff;
+        for (int i = 0; i < 6; i++) {
+            float d = enemy.Distance(startCell + startOffsets[i], targetCell);
+            if (d < minDist) { minDist = d; bestDir = i; }
+        }
+        Vector3Int cur = startCell;
+        for (int i = 0; i < length; i++) {
+            Vector3Int[] offs = (cur.y % 2 != 0) ? evenOff : oddOff;
+            cur += offs[bestDir];
+            if (groundMap.HasTile(cur)) line.Add(cur);
+        }
+        return line;
+    }
+
+    private void SpawnDebugAoEEnemies()
+    {
+        if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null) return;
+        Vector3Int playerCell = player.GetCurrentCellPosition();
+        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
+        List<Vector3Int> spawnCells = new List<Vector3Int>();
+
+        int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
+        foreach (var pair in pairs) {
+            Vector3Int c1 = playerCell + offsets[pair[0]];
+            Vector3Int c2 = playerCell + offsets[pair[1]];
+            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2)) {
+                Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff; Vector3Int far1 = c1 + off1[pair[0]];
+                Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff; Vector3Int far2 = c2 + off2[pair[1]];
+                if (groundMap.HasTile(far1) && groundMap.HasTile(far2) && !IsEnemyAtCell(far1) && !IsEnemyAtCell(far2)) { spawnCells.Add(far1); spawnCells.Add(far2); break; }
+                spawnCells.Add(c1); spawnCells.Add(c2); break;
+            }
+        }
+        if (spawnCells.Count < 2) return;
+        foreach (var spawnCell in spawnCells) {
+            Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell); spawnPos.z = 0;
+            GameObject obj = Instantiate(LevelGenerator.instance.aoeEnemyPrefab, spawnPos, Quaternion.identity);
+            EnemyAI ai = obj.GetComponent<EnemyAI>(); ai.groundMap = groundMap;
+            ai.health.maxHP = 50; ai.health.currentHP = 50; ai.health.updateHealth();
+            RegisterEnemy(ai); StartCoroutine(ai.FadeSpawnCoroutine());
+        }
+    }
+#endif
+
+    public void StartPlayerTurn()
+    {
+        if (player == null || player.health.currentHP <= 0) return;
+
+        isPlayerTurn = true;
+        hasAttackedThisTurn = false;
+        isAttackAnimationPlaying = false;
+
+        if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
+        player.UpdateHighlights(); LockAllEnemyIntents();
+    }
+
+    // ========================================================
+    // YENİ: MAYIN BIRAKMA / YER DEĞİŞTİRME KOMUTU
+    // ========================================================
+    public void TryDropMine(Vector3Int cell)
+    {
+        if (activeMineObj != null)
+        {
+            Destroy(activeMineObj);
+        }
+
+        activeMineCell = cell;
+        Vector3 pos = groundMap.GetCellCenterWorld(cell);
+        pos.z = 0;
+
+        if (phantomMinePrefab != null)
+        {
+            activeMineObj = Instantiate(phantomMinePrefab, pos, Quaternion.identity);
+        }
+    }
+
+    public void ClearWarningMap()
+    {
+        GameObject warningMapObj = GameObject.Find("WarningMap");
+        if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
+
+        if (activeMineObj != null) Destroy(activeMineObj);
+        activeMineCell = new Vector3Int(-999, -999, -999);
+    }
+
+    public void PlayerTakeDamage(int amt)
+    {
+        if (player == null || player.health.currentHP <= 0) return;
+
+        if (player.health.currentHP - amt <= 0)
+        {
+            var bribe = RunManager.instance.activePerks.FirstOrDefault(p => p is BribePerk);
+            if (bribe != null)
+            {
+                RunManager.instance.currentGold = 0; UpdateCoinUI(); player.health.Heal(9999);
+                RunManager.instance.activePerks.Remove(bribe); Destroy(bribe.gameObject);
+                
+                // DODGE EFEKTİNİ COROUTINE İLE ÇAĞIRIYORUZ (Kalkan Kırılma Animasyonu)
+                StartCoroutine(AnimateShieldBreakFX(player.transform.position));
+                return;
+            }
+        }
+        player.health.TakeDamage(amt);
+    }
+
+    // ========================================================
+    // DODGE / BRIBE İÇİN KALKAN KIRILMA EFEKTİ
+    // ========================================================
+    private IEnumerator AnimateShieldBreakFX(Vector3 pos)
+    {
+        if (dodgeEffectPrefab == null) yield break;
+
+        GameObject fx = Instantiate(dodgeEffectPrefab, pos, Quaternion.identity);
+        SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
+
+        float duration = 0.35f;
+        float elapsed = 0f;
+        
+        // Küçükten büyüyen bir efekt için scale değerleri
+        Vector3 startScale = Vector3.one * 2.4f;
+        Vector3 endScale = Vector3.one * 9.0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            
+            // Objeyi büyütüyoruz
+            fx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
+
+            // Giderek saydamlaştırıyoruz
+            foreach (var sr in renderers)
+            {
+                if (sr != null)
+                {
+                    Color c = sr.color;
+                    c.a = Mathf.Lerp(1f, 0f, t);
+                    sr.color = c;
+                }
+            }
+            yield return null;
+        }
+
+        Destroy(fx);
+    }
+
+    private IEnumerator WaitAndTriggerLevelClear()
+    {
+        if (isLevelClearTriggered) yield break;
+        isLevelClearTriggered = true;
+
+        while (isAttackAnimationPlaying) yield return null;
+        if (CoinDropVFX.instance != null) while (CoinDropVFX.instance.activeCoinCount > 0) yield return null;
+        yield return new WaitForSeconds(0.3f);
+
+        if (Shopmanager.instance != null)
+        {
+            bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+            if (isBossLevel) Shopmanager.instance.OnBossCleared(); else Shopmanager.instance.OnDungeonCleared();
+        }
+        else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+    }
+
+    private void SetupCoinIcon()
+    {
+        if (coinSprite == null) { var vfx = FindFirstObjectByType<CoinDropVFX>(); if (vfx != null) coinSprite = vfx.coinSprite; }
+        if (coinText == null || coinSprite == null) return;
+        Transform parent = coinText.transform.parent;
+        if (parent == null || parent.Find("CoinIcon") != null) return;
+
+        HorizontalLayoutGroup hlg = parent.GetComponent<HorizontalLayoutGroup>();
+        if (hlg == null)
+        {
+            hlg = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 4f; hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = false; hlg.childControlHeight = false;
+        }
+
+        GameObject iconGO = new GameObject("CoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        iconGO.transform.SetParent(parent, false); iconGO.transform.SetAsFirstSibling();
+        RectTransform iconRT = iconGO.GetComponent<RectTransform>(); iconRT.sizeDelta = new Vector2(22f, 22f);
+        LayoutElement le = iconGO.AddComponent<LayoutElement>(); le.preferredWidth = 22f; le.preferredHeight = 22f;
+        Image img = iconGO.GetComponent<Image>(); img.sprite = coinSprite; img.preserveAspect = true; img.raycastTarget = false;
+    }
+
+    public void UpdateCoinUI()
+    {
+        if (coinText != null && RunManager.instance != null) coinText.text = RunManager.instance.currentGold.ToString();
+        if (Shopmanager.instance != null) Shopmanager.instance.RefreshAffordability();
+    }
+
+    public void RegisterEnemy(EnemyAI enemy) { if (!enemies.Contains(enemy)) enemies.Add(enemy); }
+    public void StartNecroShotTargeting() { isNecroShotTargeting = true; }
+
+    public void TryNecroShotKill(EnemyAI target)
+    {
+        if (!isNecroShotTargeting || target == null) return;
+        isNecroShotTargeting = false;
+        if (player != null) player.TriggerAttackAnimation();
+
+        target.health.TakeDamage(9999);
+        if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+        {
+            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+            if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+            RunManager.instance.currentGold += coinDrop;
+            if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
+        }
+        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
+        UpdateCoinUI();
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+    }
+
+    public void StartBombPlacement() { isBombPlacementTargeting = true; }
+    private IEnumerator ExecuteBombAt(Vector3Int cell)
+    {
+        isBombPlacementTargeting = false;
+
+        // Placeholder'ı hemen koy, patlamadan önce göster
+        GameObject placeholderObj = null;
+        if (fragMinePlaceholderPrefab != null)
+        {
+            Vector3 placeholderPos = groundMap.GetCellCenterWorld(cell);
+            placeholderPos.z = 0;
+            placeholderObj = Instantiate(fragMinePlaceholderPrefab, placeholderPos, Quaternion.identity);
+        }
+
+        // Zar animasyonunu göster (sadece baseDiceCount, bonus zar yok)
+        int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
+        List<int> rolls = new List<int>();
+        for (int i = 0; i < diceCount; i++) rolls.Add(Random.Range(1, 7));
+
+        yield return StartCoroutine(ShowDiceSequence(rolls));
+
+        int totalDamage = 0;
+        foreach (var r in rolls) totalDamage += r;
+        UpdateTotalDamageDisplay(totalDamage);
+        yield return new WaitForSeconds(0.6f);
+
+        // Placeholder'ı kaldır ve patlama efektini çal
+        if (placeholderObj != null) Destroy(placeholderObj);
+        StartCoroutine(AnimateExplosionFX(groundMap.GetCellCenterWorld(cell)));
+
+        HideDiceResults();
+
+        // Patlama alanı: bombadaki hex + 1 mesafe komşular
+        Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        List<Vector3Int> blastCells = new List<Vector3Int> { cell };
+        foreach (var off in offsets) blastCells.Add(cell + off);
+
+        // Her düşmana aynı zarı ver (paylaştırma yok)
+        List<EnemyAI> hitEnemies = new List<EnemyAI>();
+        foreach (var bc in blastCells) { EnemyAI enemy = GetEnemyAtCell(bc); if (enemy != null && !hitEnemies.Contains(enemy)) hitEnemies.Add(enemy); }
+
+        foreach (var enemy in hitEnemies)
+        {
+            enemy.health.TakeDamage(totalDamage);
+            if (enemy.health.currentHP <= 0)
+            {
+                if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+                {
+                    int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                    if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                    RunManager.instance.currentGold += coinDrop;
+                    if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
+                }
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
+            }
+        }
+
+        UpdateCoinUI();
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+        if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+    }
+
+    public void StartPhaseShiftTargeting() { isPhaseShiftTargeting = true; }
+    public void TryPhaseShift(EnemyAI target)
+    {
+        if (!isPhaseShiftTargeting || target == null) return;
+        isPhaseShiftTargeting = false;
+        Vector3Int playerCell = player.GetCurrentCellPosition();
+        Vector3Int enemyCell = target.GetCurrentCellPosition();
+        player.ForceSetPosition(enemyCell); target.ForceSetPosition(playerCell);
+    }
+
+    public void StartThornPlacement() { isThornPlacementTargeting = true; }
+    private void ExecuteThornAt(Vector3Int cell)
+    {
+        if (LevelGenerator.instance == null) { isThornPlacementTargeting = false; return; }
+        if (player.GetCurrentCellPosition() == cell || IsEnemyAtCell(cell) || LevelGenerator.instance.hazardCells.Contains(cell)) return;
+        isThornPlacementTargeting = false;
+        LevelGenerator.instance.hazardCells.Add(cell);
+        if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
+    }
+
+    public void LockAllEnemyIntents()
+    {
+        if (player == null || player.health.currentHP <= 0) return;
+        Vector3Int pCell = player.GetCurrentCellPosition();
+        foreach (var e in enemies) if (e != null) { bool isStunned = e.skipTurns > 0; e.LockNextMove(pCell, isStunned); }
+    }
+
+    public void PlayerFinishedMove(Vector3Int playerCell)
+    {
+        if (RunManager.instance != null) RunManager.instance.surgeBootNextTurn = false;
+        StartCoroutine(HandlePlayerPhase(playerCell));
+    }
+
+    public void SkipTurn()
+    {
+        if (!isPlayerTurn || IsAnyTargetingActive) return;
+        isPlayerTurn = false;
+        if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
+
+        if (player != null)
+        {
+            player.ClearHighlights();
+
+            if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is PhantomLimbPerk))
+            {
+                TryDropMine(player.GetCurrentCellPosition());
+
+                var perk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
+                if (perk != null) perk.TriggerVisualPop();
+            }
+        }
+
+        StartCoroutine(HandleSkipPhase());
+    }
+
+    private IEnumerator HandleSkipPhase()
+    {
+        List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
+        if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
+        {
+            RunManager.instance.remainingMoves = 0;
+            hasAttackedThisTurn = true; isAttackAnimationPlaying = true;
+            yield return StartCoroutine(MultiAttack(adjacentEnemies));
+        }
+
+        if (enemies.Count <= 0) yield break;
+        foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
+        RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
+        UpdateCoinUI();
+        StartCoroutine(EnemyPhase());
+    }
+
+    public void TriggerExplosion(Vector3Int centerCell, float damagePercent = 0.5f, bool includeCenter = true)
+    {
+        Vector3 spawnPos = groundMap.GetCellCenterWorld(centerCell);
+        spawnPos.z = 0;
+        StartCoroutine(AnimateExplosionFX(spawnPos));
+
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        List<Vector3Int> cellsToHit = includeCenter ? new List<Vector3Int> { centerCell } : new List<Vector3Int>();
+        foreach (var off in offsets) cellsToHit.Add(centerCell + off);
+
+        HashSet<EnemyAI> enemiesToHit = new HashSet<EnemyAI>();
+        foreach (var cell in cellsToHit)
+        {
+            EnemyAI e = GetEnemyAtCell(cell);
+            if (e != null && e.health.currentHP > 0) enemiesToHit.Add(e);
+        }
+
+        foreach (var e in enemiesToHit)
+        {
+            if (e == null) continue;
+            int explosionDamage = Mathf.Max(1, Mathf.RoundToInt(e.health.maxHP * damagePercent));
+            e.health.TakeDamage(explosionDamage);
+        }
+
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+    }
+
+    private IEnumerator AnimateExplosionFX(Vector3 pos)
+    {
+        if (explosionPrefab == null) yield break;
+        GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
+        SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
+        float duration = 0.15f; float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime; float t = elapsed / duration;
+            fx.transform.localScale = Vector3.Lerp(Vector3.one * 1.0f, Vector3.one * 5.2f, t);
+            foreach (var sr in renderers) { Color c = sr.color; c.a = Mathf.Lerp(0.8f, 0f, t); sr.color = c; }
+            yield return null;
+        }
+        Destroy(fx);
+    }
+
+    private IEnumerator VacuumVFXCoroutine(Vector3 pos)
+    {
+        if (vacuumVfxPrefab == null) yield break;
+        GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
+        SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
+        float duration = 0.4f; float elapsed = 0f;
+        Vector3 startScale = Vector3.one * 12f; Vector3 endScale = Vector3.one * 1.2f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime; float t = elapsed / duration;
+            float alpha = t < 0.2f ? Mathf.Lerp(0f, 0.4f, t / 0.2f) : Mathf.Lerp(0.4f, 0f, (t - 0.2f) / 0.8f);
+            vfx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
+            foreach (var sr in renderers) { if (sr != null) { Color c = sr.color; c.a = alpha; sr.color = c; } }
+            yield return null;
+        }
+        Destroy(vfx);
+    }
+
+    private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
+    {
+        hexesMovedThisTurn++;
+
+        if (LevelGenerator.instance.hazardCells.Contains(playerCell))
+        {
+            yield return new WaitForSeconds(0.15f);
+            StartCoroutine(FlashHazardTileCoroutine(playerCell));
+            if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
+            else PlayerTakeDamage(1);
+
+            yield return new WaitForSeconds(0.15f);
+            player.StartKnockbackMovement(GetSafeNeighbor(playerCell));
+            yield return new WaitUntil(() => !player.IsMoving());
+
+            if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0)
+            {
+                RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
+            }
+            else if (player != null && player.health.currentHP > 0)
+            {
+                player.ClearHighlights(); yield return new WaitForSeconds(0.1f); StartCoroutine(EnemyPhase());
+            }
+            yield break;
+        }
+
+        List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
+        if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
+        {
+            RunManager.instance.remainingMoves = 0;
+            hasAttackedThisTurn = true; isAttackAnimationPlaying = true;
+            yield return StartCoroutine(MultiAttack(adjacentEnemies));
+        }
+        else yield return new WaitForSeconds(0.05f);
+
+        if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
+        {
+            RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
+        }
+        else if (player != null && player.health.currentHP > 0)
+        {
+            player.ClearHighlights(); yield return new WaitForSeconds(0.1f); StartCoroutine(EnemyPhase());
+        }
+    }
+
+    private Vector3Int GetSafeNeighbor(Vector3Int centerCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        foreach (var off in offsets)
+        {
+            Vector3Int n = centerCell + off;
+            if (groundMap.HasTile(n) && !IsEnemyAtCell(n) && !LevelGenerator.instance.hazardCells.Contains(n)) return n;
+        }
+        return centerCell;
+    }
+
+    private IEnumerator EnemyPhase()
+    {
+        yield return new WaitForSeconds(0.2f);
+        enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        foreach (var e in enemies) if (e != null && e.skipTurns <= 0) e.ExecuteLockedMove();
+        yield return new WaitUntil(() => { foreach (var e in enemies) if (e != null && e.IsMoving()) return false; return true; });
+        yield return new WaitForSeconds(0.2f);
+
+        // ========================================================
+        // MAYIN KONTROLÜ
+        // ========================================================
+        if (activeMineCell.y != -999)
+        {
+            EnemyAI victim = GetEnemyAtCell(activeMineCell);
+
+            if (victim != null && victim.health.currentHP > 0)
+            {
+                var phantomPerk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
+                float mineDamagePercent = phantomPerk != null ? phantomPerk.currentLevel * 0.25f : 0.25f;
+                TriggerExplosion(activeMineCell, mineDamagePercent);
+
+                if (victim != null && victim.health.currentHP > 0)
+                    victim.ApplyStun(2, true);
+
+                if (activeMineObj != null) Destroy(activeMineObj);
+                activeMineCell = new Vector3Int(-999, -999, -999);
+
+                enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+                UpdateCoinUI();
+
+                if (enemies.Count <= 0)
+                {
+                    ClearWarningMap();
+                    StartCoroutine(WaitAndTriggerLevelClear());
+                }
+                else
+                {
+                    var perk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
+                    if (perk != null) perk.TriggerVisualPop();
+                }
+            }
+        }
+
+        List<EnemyAI> readyToBossAttack = new List<EnemyAI>();
+        List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
+        List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
+
+        foreach (var e in enemies)
+        {
+            if (e != null && e.skipTurns <= 0)
+            {
+                if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) readyToBossAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) readyToAoEAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) readyToMeleeAttack.Add(e);
+            }
+        }
+
+        if (readyToBossAttack.Count > 0)
+        {
+            foreach (var boss in readyToBossAttack) yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        if (readyToAoEAttack.Count > 0)
+        {
+            foreach (var aoeEnemy in readyToAoEAttack) yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        if (readyToMeleeAttack.Count > 0) yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
+        else EndTurnAndDecreaseStuns();
+    }
+
+    public void HideAllEnemyIntents() { foreach (var e in enemies) if (e != null) e.SetArrowVisibility(false); }
+    public void ShowAllEnemyIntents() { foreach (var e in enemies) if (e != null && e.skipTurns <= 0) e.SetArrowVisibility(true); }
+
+    private IEnumerator MultiAttack(List<EnemyAI> targets)
+    {
+        bool hasBioMag = RunManager.instance.activePerks.Exists(p => p is BioMagnetismPerk);
+        if (hasBioMag)
+        {
+            Vector3Int pCell = player.GetCurrentCellPosition();
+            List<EnemyAI> pullTargets = new List<EnemyAI>();
+            foreach (var e in enemies)
+            {
+                if (e != null && e.health.currentHP > 0 && DistanceCube(e.GetCurrentCellPosition(), pCell) == 2f) pullTargets.Add(e);
+            }
+            bool anyonePulled = false;
+            if (pullTargets.Count > 0 && vacuumVfxPrefab != null) StartCoroutine(VacuumVFXCoroutine(player.transform.position));
+
+            foreach (var e in pullTargets)
+            {
+                Vector3Int eCell = e.GetCurrentCellPosition();
+                Vector3Int bestPullCell = eCell;
+                Vector3Int[] pOffsets = (pCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+                foreach (var off in pOffsets)
+                {
+                    Vector3Int neighborToPlayer = pCell + off;
+                    if (IsNeighbor(neighborToPlayer, eCell))
+                    {
+                        if (groundMap.HasTile(neighborToPlayer) && !IsEnemyAtCell(neighborToPlayer) && (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(neighborToPlayer)))
+                        {
+                            bestPullCell = neighborToPlayer; break;
+                        }
+                    }
+                }
+                if (bestPullCell != eCell) { e.StartKnockbackMovement(bestPullCell); anyonePulled = true; }
+            }
+            if (anyonePulled)
+            {
+                yield return new WaitUntil(() => pullTargets.All(e => e == null || !e.IsMoving()));
+                yield return new WaitForSeconds(0.1f);
+                targets = GetAdjacentEnemies(pCell);
+                var perk = RunManager.instance.activePerks.Find(p => p is BioMagnetismPerk);
+                if (perk != null) perk.TriggerVisualPop();
+            }
+        }
+
+        yield return new WaitForSeconds(0.3f);
+        List<int> currentRolls = new List<int>();
+        int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
+        int extraDices = 0;
+        foreach (var p in RunManager.instance.activePerks) if (p is DormantSporePerk ambushPerk) { extraDices += ambushPerk.storedExtraDices; ambushPerk.storedExtraDices = 0; }
+        if (RunManager.instance.bonusDiceNextCombat > 0) { extraDices += RunManager.instance.bonusDiceNextCombat; RunManager.instance.bonusDiceNextCombat = 0; }
+        for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
+        CombatPayload payload = new CombatPayload(currentRolls);
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
+        yield return StartCoroutine(ShowDiceSequence(currentRolls));
+        UpdateTotalDamageDisplay(payload.GetFinalDamage());
+        yield return new WaitForSeconds(0.5f);
+
+        if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
+        {
+            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            perksToProcess.Sort((a, b) => { int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in perksToProcess)
+            {
+                int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < currentRolls.Count; i++) if (currentRolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (perk.isRerollPerk)
+                    {
+                        foreach (int idx in changedIndices)
+                        {
+                            if (idx < spawnedDiceUI.Count)
+                            {
+                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                            }
+                        }
+                        yield return new WaitForSeconds(0.5f);
+                        foreach (int idx in changedIndices)
+                        {
+                            currentRolls[idx] = payload.diceRolls[idx];
+                            if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                            AnimateSpecificDie(idx, currentRolls[idx]);
+                        }
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, currentRolls[idx]); }
+                    }
+                    anyDieChanged = true; yield return new WaitForSeconds(0.3f);
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+            }
+        }
+
+        if (Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true; UpdateTotalDamageDisplay(payload.GetFinalDamage());
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return new WaitForSeconds(0.5f);
+        }
+
+        yield return new WaitForSeconds(0.4f); HideDiceResults();
+        int finalDamage = payload.GetFinalDamage();
+        if (RunManager.instance.doubleDamageNextCombat) { finalDamage *= 2; RunManager.instance.doubleDamageNextCombat = false; }
+
+        int damagePerEnemy = 0;
+        if (targets.Count > 0)
+        {
+            if (RunManager.instance.cleaveNextCombat) { damagePerEnemy = finalDamage; RunManager.instance.cleaveNextCombat = false; }
+            else { damagePerEnemy = finalDamage / targets.Count; }
+        }
+
+        if (player != null) player.TriggerAttackAnimation();
+        yield return new WaitForSeconds(0.3f);
+        isAttackAnimationPlaying = false;
+        hexesMovedThisTurn = 0;
+
+        List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
+
+        Vector3Int recoilFromCell = (targets.Count > 0 && targets[0] != null) ? targets[0].GetCurrentCellPosition() : Vector3Int.zero;
+        var voodooPerk = RunManager.instance.activePerks.Find(p => p is VoodooParasitePerk) as VoodooParasitePerk;
+
+        foreach (var enemy in targets)
+        {
+            if (enemy == null) continue;
+            bool dies = enemy.health.currentHP <= damagePerEnemy;
+            enemy.health.TakeDamage(damagePerEnemy);
+            knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
+
+            // ========================================================
+            // VOODOO PARASITE GÜNCELLEMESİ (Canı en çok olana vurma)
+            // ========================================================
+            if (voodooPerk != null && enemies.Count > 1)
+            {
+                // Hayatta olanları candan (büyükten küçüğe) sıralayıp liste haline getir
+                var others = enemies.Where(e => e != null && e != enemy && e.health.currentHP > 0)
+                                    .OrderByDescending(e => e.health.currentHP)
+                                    .ToList();
+
+                int voodooHits = Mathf.Min(voodooPerk.currentLevel, others.Count);
+                for (int v = 0; v < voodooHits; v++)
+                {
+                    others[v].health.TakeDamage(damagePerEnemy);
+                }
+                if (voodooHits > 0) voodooPerk.TriggerVisualPop();
+            }
+        }
+
+        foreach (var e in knockedEnemies)
+        {
+            if (e == null) continue;
+            Vector3Int rawTargetCell = GetRawOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
+            EnemyAI enemyBehind = GetEnemyAtCell(rawTargetCell);
+
+            if (enemyBehind != null)
+            {
+                e.ApplyStun(2, true); enemyBehind.ApplyStun(2, true);
+                Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition()); Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
+                cPos.z = 0; pPos.z = 0; Vector3 bumpDir = (cPos - pPos).normalized;
+                e.StartWallBump(bumpDir); enemyBehind.StartWallBump(bumpDir);
+            }
+            else if (!groundMap.HasTile(rawTargetCell) || player.GetCurrentCellPosition() == rawTargetCell)
+            {
+                e.ApplyStun(2, true);
+                Vector3 cPos = groundMap.GetCellCenterWorld(e.GetCurrentCellPosition()); Vector3 pPos = groundMap.GetCellCenterWorld(player.GetCurrentCellPosition());
+                cPos.z = 0; pPos.z = 0; e.StartWallBump((cPos - pPos).normalized);
+            }
+            else
+            {
+                e.ApplyStun(1, false); e.StartKnockbackMovement(rawTargetCell);
+            }
+        }
+
+        var recoilPerk = RunManager.instance.activePerks.Find(p => p is RecoilSpringPerk) as RecoilSpringPerk;
+        bool didRecoil = false;
+        if (recoilPerk != null && recoilFromCell != Vector3Int.zero)
+        {
+            Vector3Int playerOriginal = player.GetCurrentCellPosition();
+            Vector3Int bounceTo = GetOppositeCell(playerOriginal, recoilFromCell);
+            if (bounceTo != playerOriginal)
+            {
+                recoilPerk.TriggerVisualPop();
+                player.StartKnockbackMovement(bounceTo, true); 
+                didRecoil = true;
+            }
+        }
+
+        yield return new WaitUntil(() => { foreach (var e in knockedEnemies) if (e != null && e.IsMoving()) return false; if (didRecoil && player.IsMoving()) return false; return true; });
+
+        foreach (var e in knockedEnemies) if (e != null && payload.triggerExplosion) TriggerExplosion(e.GetCurrentCellPosition(), payload.explosionDamagePercent, false);
+
+        List<EnemyAI> deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+        foreach (var deadEnemy in deadFromSpikes)
+        {
+            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+            {
+                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                RunManager.instance.currentGold += coinDrop;
+                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+            }
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+        }
+        UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
+
+        List<EnemyAI> spikedEnemies = new List<EnemyAI>(); bool anyoneBounced = false;
+        foreach (var s in knockedEnemies) if (s != null && LevelGenerator.instance.hazardCells.Contains(s.GetCurrentCellPosition())) spikedEnemies.Add(s);
+
+        if (spikedEnemies.Count > 0)
+        {
+            yield return new WaitForSeconds(0.2f);
+            foreach (var s in spikedEnemies) { StartCoroutine(FlashHazardTileCoroutine(s.GetCurrentCellPosition())); s.health.TakeDamage(Mathf.Max(1, s.health.maxHP / 2)); }
+
+            var acidPerk = RunManager.instance.activePerks.Find(p => p is AcidBloodPerk) as AcidBloodPerk;
+            if (acidPerk != null) { player.health.Heal(spikedEnemies.Count * acidPerk.currentLevel); acidPerk.TriggerVisualPop(); }
+
+            yield return new WaitForSeconds(0.2f);
+            foreach (var s in spikedEnemies) if (s != null && s.health.currentHP > 0) { Vector3Int randomBounceCell = GetRandomSafeNeighbor(s.GetCurrentCellPosition()); s.StartKnockbackMovement(randomBounceCell); anyoneBounced = true; }
+        }
+
+        if (anyoneBounced) yield return new WaitUntil(() => { foreach (var s in spikedEnemies) if (s != null && s.IsMoving()) return false; return true; });
+
+        deadFromSpikes = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+        foreach (var deadEnemy in deadFromSpikes)
+        {
+            if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+            {
+                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                RunManager.instance.currentGold += coinDrop;
+                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+            }
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+        }
+        UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+
+        if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
+
+        if (didRecoil)
+        {
+            List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
+            List<EnemyAI> nextTargets = allAdjacent.Where(e => e != null && e.health.currentHP > 0).ToList();
+            if (nextTargets.Count > 0) yield return StartCoroutine(MultiAttack(nextTargets));
+        }
+    }
+
+    private IEnumerator EnemyAttackCoroutine(List<EnemyAI> attackers)
+    {
+        attackers.RemoveAll(a => a.skipTurns > 0);
+        if (attackers.Count == 0) { EndTurnAndDecreaseStuns(); yield break; }
+
+        yield return new WaitForSeconds(0.2f);
+        bool dodged = false;
+        if (RunManager.instance != null) dodged = Random.value < RunManager.instance.dodgeChance;
+
+        if (dodged)
+        {
+            // DODGE EFEKTİNİ COROUTINE İLE ÇAĞIRIYORUZ (Kalkan Kırılma Animasyonu)
+            StartCoroutine(AnimateShieldBreakFX(player.transform.position));
+        }
+        else if (RunManager.instance.hasBioBarrier)
+        {
+            foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+            RunManager.instance.hasBioBarrier = false;
+        }
+        else PlayerTakeDamage(1);
+
+        Vector3Int playerOriginalCell = player.GetCurrentCellPosition();
+        Vector3Int playerTarget = GetOppositeCell(playerOriginalCell, attackers[0].GetCurrentCellPosition());
+        player.StartKnockbackMovement(playerTarget);
+        yield return new WaitUntil(() => !player.IsMoving());
+
+        if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
+        {
+            yield return new WaitForSeconds(0.4f);
+            if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
+            else PlayerTakeDamage(1);
+
+            StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
+            player.StartKnockbackMovement(playerOriginalCell);
+            yield return new WaitUntil(() => !player.IsMoving());
+        }
+        yield return new WaitForSeconds(0.3f);
+
+        EndTurnAndDecreaseStuns();
+    }
+
+    private void EndTurnAndDecreaseStuns()
+    {
+        if (player != null && player.health.currentHP > 0)
+        {
+            foreach (var e in enemies)
+            {
+                if (e != null) e.DecreaseStunTurn();
+            }
+            StartPlayerTurn();
+        }
+    }
+
+    public void ResumeAfterShop() { StartPlayerTurn(); }
+
+    private IEnumerator ShowDiceSequence(List<int> rolls)
+    {
+        foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
+        if (totalDamageText != null) { totalDamageText.gameObject.SetActive(true); totalDamageText.text = "0"; }
+        List<Image> dieImages = new List<Image>(); List<Animator> dieAnimators = new List<Animator>(); List<TMP_Text> dieTexts = new List<TMP_Text>();
+        for (int i = 0; i < rolls.Count; i++)
+        {
+            GameObject newDie = Instantiate(dieUIPrefab, diceUIContainer); spawnedDiceUI.Add(newDie);
+            dieImages.Add(newDie.GetComponent<Image>()); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(newDie.GetComponentInChildren<TMP_Text>());
+        }
+        yield return new WaitForSeconds(0.4f);
+        for (int i = 0; i < rolls.Count; i++)
+        {
+            if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
+            dieImages[i].sprite = diceSprites[rolls[i] - 1]; dieTexts[i].text = rolls[i].ToString();
+            StartCoroutine(TextPopAnimation(dieTexts[i]));
+        }
+        yield return new WaitForSeconds(0.2f);
+    }
+
+    private IEnumerator TextPopAnimation(TMP_Text textElement)
+    {
+        if (textElement == null) yield break;
+        Transform t = textElement.transform; Vector3 startScale = new Vector3(3f, 3f, 3f); Vector3 endScale = Vector3.one;
+        float duration = 0.15f; float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float tParam = elapsed / duration; tParam = 1f - (1f - tParam) * (1f - tParam);
+            t.localScale = Vector3.Lerp(startScale, endScale, tParam); elapsed += Time.deltaTime; yield return null;
+        }
+        t.localScale = endScale;
+    }
+
+    public void UpdateTotalDamageDisplay(int val)
+    {
+        if (totalDamageText == null) return;
+        totalDamageText.gameObject.SetActive(true); totalDamageText.text = val.ToString();
+        StopCoroutine("TextPopAnimation"); StartCoroutine(TextPopAnimation(totalDamageText));
+    }
+
+    public void HideDiceResults()
+    {
+        foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
+        if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
+        if (criticalText != null) criticalText.gameObject.SetActive(false);
+    }
+
+    private IEnumerator CriticalTextPopAnimation()
+    {
+        if (criticalText == null) yield break;
+        criticalText.gameObject.SetActive(true); Transform t = criticalText.transform;
+        Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f); Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f); Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f);
+        float elapsed = 0f; float popDuration = 0.1f;
+        while (elapsed < popDuration) { t.localScale = Vector3.Lerp(startScale, overshootScale, elapsed / popDuration); elapsed += Time.deltaTime; yield return null; }
+        elapsed = 0f; float settleDuration = 0.1f;
+        while (elapsed < settleDuration) { t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration); elapsed += Time.deltaTime; yield return null; }
+        t.localScale = endScale;
+    }
+
+    public bool IsEnemyAtCell(Vector3Int cell)
+    {
+        foreach (var e in enemies) if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == cell) return true;
+        return false;
+    }
+
+    public EnemyAI GetEnemyAtCell(Vector3Int cell)
+    {
+        foreach (var e in enemies) if (e != null && e.health.currentHP > 0 && e.GetCurrentCellPosition() == cell) return e;
+        return null;
+    }
+
+    private Vector3Int GetRawOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        for (int i = 0; i < 6; i++) if (centerCell + offsets[i] == awayFromCell) return centerCell + offsets[(i + 3) % 6];
+        return centerCell;
+    }
+
+    private List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
+    {
+        List<EnemyAI> adjacentList = new List<EnemyAI>();
+        foreach (var enemy in enemies) if (enemy != null && enemy.health.currentHP > 0) if (IsNeighbor(playerCell, enemy.GetCurrentCellPosition())) adjacentList.Add(enemy);
+        return adjacentList;
+    }
+
+    public Vector3Int GetOppositeCell(Vector3Int centerCell, Vector3Int awayFromCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
+        for (int i = 0; i < 6; i++)
+        {
+            if (centerCell + offsets[i] == awayFromCell)
+            {
+                int oppositeIndex = (i + 3) % 6; Vector3Int strictKnockbackCell = centerCell + offsets[oppositeIndex];
+                if (!groundMap.HasTile(strictKnockbackCell) || IsEnemyAtCell(strictKnockbackCell) || player.GetCurrentCellPosition() == strictKnockbackCell) return centerCell;
+                return strictKnockbackCell;
+            }
+        }
+        return centerCell;
+    }
+
+    private bool IsNeighbor(Vector3Int cell1, Vector3Int cell2)
+    {
+        Vector3Int[] offsets = (cell1.y % 2 != 0) ? evenOffsets : oddOffsets;
+        foreach (var off in offsets) if (cell1 + off == cell2) return true;
+        return false;
+    }
+
+    public void AnimateSpecificDie(int index, int newValue)
+    {
+        if (index >= 0 && index < spawnedDiceUI.Count)
+        {
+            Transform dieTransform = spawnedDiceUI[index].transform; TMP_Text dieText = spawnedDiceUI[index].GetComponentInChildren<TMP_Text>(); Image dieImage = spawnedDiceUI[index].GetComponent<Image>();
+            if (dieText != null) dieText.text = newValue.ToString();
+            if (dieImage != null && diceSprites != null) { int spriteIndex = Mathf.Clamp(newValue - 1, 0, diceSprites.Length - 1); dieImage.sprite = diceSprites[spriteIndex]; }
+            StartCoroutine(DiePopAnimation(dieTransform));
+        }
+    }
+
+    private IEnumerator DiePopAnimation(Transform t)
+    {
+        Vector3 startScale = Vector3.one * 1.6f; float dur = 0.2f; float elapsed = 0f;
+        while (elapsed < dur) { t.localScale = Vector3.Lerp(startScale, Vector3.one, elapsed / dur); elapsed += Time.deltaTime; yield return null; }
+        t.localScale = Vector3.one;
+    }
+
+    private Vector3Int GetRandomSafeNeighbor(Vector3Int centerCell)
+    {
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets; List<Vector3Int> safeNeighbors = new List<Vector3Int>();
+        foreach (var off in offsets)
+        {
+            Vector3Int neighbor = centerCell + off;
+            if (groundMap.HasTile(neighbor) && !IsEnemyAtCell(neighbor) && player.GetCurrentCellPosition() != neighbor && !LevelGenerator.instance.hazardCells.Contains(neighbor)) safeNeighbors.Add(neighbor);
+        }
+        if (safeNeighbors.Count > 0) return safeNeighbors[Random.Range(0, safeNeighbors.Count)];
+        return centerCell;
+    }
+
+    public float DistanceCube(Vector3Int a, Vector3Int b)
+    {
+        Vector3Int ac = OffsetToCube(a);
+        Vector3Int bc = OffsetToCube(b);
+        return (Mathf.Abs(ac.x - bc.x) + Mathf.Abs(ac.y - bc.y) + Mathf.Abs(ac.z - bc.z)) * 0.5f;
+    }
+
+    private Vector3Int OffsetToCube(Vector3Int o)
+    {
+        int x = o.x - (o.y - (o.y & 1)) / 2; int z = o.y; int y = -x - z;
+        return new Vector3Int(x, y, z);
+    }
+
+    private IEnumerator FlashHazardTileCoroutine(Vector3Int cell)
+    {
+        Tilemap targetMap = LevelGenerator.instance.hazardMap;
+        if (targetMap == null) yield break;
+
+        targetMap.SetTileFlags(cell, TileFlags.None);
+        Color originalColor = Color.white;
+        Color flashColor = new Color(0.2f, 1f, 0.2f, 1f);
+        float duration = 0.15f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            targetMap.SetColor(cell, Color.Lerp(originalColor, flashColor, elapsed / duration));
+            yield return null;
+        }
+        elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            targetMap.SetColor(cell, Color.Lerp(flashColor, originalColor, elapsed / duration));
+            yield return null;
+        }
+        targetMap.SetColor(cell, originalColor);
+    }
+
+    public void DrawWarningTile(Vector3Int cell)
+    {
+        if (warningMap == null || warningTile == null) return;
+        StartCoroutine(SmoothWarningFadeIn(cell));
+    }
+
+    private IEnumerator SmoothWarningFadeIn(Vector3Int cell)
+    {
+        warningMap.SetTile(cell, warningTile); warningMap.SetTileFlags(cell, TileFlags.None);
+        Color startColor = new Color(1f, 1f, 1f, 0f); Color endColor = new Color(1f, 1f, 1f, 0.5f);
+        warningMap.SetColor(cell, startColor);
+        float duration = 0.3f; float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            if (!warningMap.HasTile(cell)) yield break;
+            elapsed += Time.deltaTime; float t = elapsed / duration; t = t * t * (3f - 2f * t);
+            warningMap.SetColor(cell, Color.Lerp(startColor, endColor, t)); yield return null;
+        }
+        if (warningMap.HasTile(cell)) warningMap.SetColor(cell, endColor);
+    }
+}
