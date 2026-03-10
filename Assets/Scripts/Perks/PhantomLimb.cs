@@ -4,7 +4,7 @@ public class PhantomLimbPerk : BasePerk
 {
     void OnEnable()
     {
-        maxLevel = 4;
+        maxLevel = 3;
     }
 
     public override void OnAcquire()
