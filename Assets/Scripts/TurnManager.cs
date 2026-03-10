@@ -176,14 +176,11 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator WaitAndTriggerLevelClear()
     {
-        // Saldırı animasyonu bitsin
         while (isAttackAnimationPlaying) yield return null;
 
-        // Coin VFX bitsin
         if (CoinDropVFX.instance != null)
             while (CoinDropVFX.instance.activeCoinCount > 0) yield return null;
 
-        // Kısa bekleme — son coin fade'i tamamlansın
         yield return new WaitForSeconds(0.3f);
 
         if (Shopmanager.instance != null)
@@ -205,10 +202,8 @@ public class TurnManager : MonoBehaviour
         Transform parent = coinText.transform.parent;
         if (parent == null) return;
 
-        // Zaten varsa tekrar oluşturma
         if (parent.Find("CoinIcon") != null) return;
 
-        // Parent'ta HLG yoksa ekle
         HorizontalLayoutGroup hlg = parent.GetComponent<HorizontalLayoutGroup>();
         if (hlg == null)
         {
@@ -261,7 +256,6 @@ public class TurnManager : MonoBehaviour
         isNecroShotTargeting = false;
 
         if (player != null) player.TriggerAttackAnimation();
-
 
         target.health.TakeDamage(9999);
         if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
@@ -388,6 +382,7 @@ public class TurnManager : MonoBehaviour
             else if (player != null && player.health.currentHP > 0)
             {
                 player.ClearHighlights();
+                yield return new WaitForSeconds(0.1f);
                 StartCoroutine(EnemyPhase());
             }
             yield break;
@@ -397,10 +392,17 @@ public class TurnManager : MonoBehaviour
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
             hasAttackedThisTurn = true;
-
             isAttackAnimationPlaying = true;
-
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
+        }
+        else
+        {
+            // ========================================================
+            // DÜZELTME: Karakter yerine vardı, eski kareler söndü.
+            // Yeni okların çizilmesi için minik bir es (0.05s) veriyoruz ki
+            // yeni kareler ekrana pürüzsüzce (Fade In) düşsün.
+            // ========================================================
+            yield return new WaitForSeconds(0.05f);
         }
 
         if (RunManager.instance.remainingMoves > 0 && player != null && player.health.currentHP > 0 && enemies.Count > 0)
@@ -411,6 +413,7 @@ public class TurnManager : MonoBehaviour
         else if (player != null && player.health.currentHP > 0)
         {
             player.ClearHighlights();
+            yield return new WaitForSeconds(0.1f);
             StartCoroutine(EnemyPhase());
         }
     }
@@ -559,9 +562,7 @@ public class TurnManager : MonoBehaviour
         if (player != null) player.TriggerAttackAnimation();
         yield return new WaitForSeconds(0.3f);
 
-
         isAttackAnimationPlaying = false;
-
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
         foreach (var enemy in targets)
@@ -577,9 +578,6 @@ public class TurnManager : MonoBehaviour
             Vector3Int rawTargetCell = GetRawOppositeCell(e.GetCurrentCellPosition(), player.GetCurrentCellPosition());
             EnemyAI enemyBehind = GetEnemyAtCell(rawTargetCell);
 
-            // ========================================================
-            // DÜZELTME: SADECE BURADA AĞIR (2) VEYA HAFİF (1) STUN ÇAĞIRILIR
-            // ========================================================
             if (enemyBehind != null)
             {
                 e.ApplyStun(2, true);
@@ -598,7 +596,7 @@ public class TurnManager : MonoBehaviour
             }
             else
             {
-                e.ApplyStun(1, false); // DÜZ İTİLDİ, EFEKT YOK!
+                e.ApplyStun(1, false);
                 e.StartKnockbackMovement(rawTargetCell);
             }
         }
@@ -721,9 +719,6 @@ public class TurnManager : MonoBehaviour
     {
         if (player != null && player.health.currentHP > 0)
         {
-            // ========================================================
-            // YENİ: SÜREYİ BURADAN DECREASESTUNTURN FONKSİYONUNA YOLLA!
-            // ========================================================
             foreach (var e in enemies)
             {
                 if (e != null) e.DecreaseStunTurn();
