@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 5974597001653933147}
   - component: {fileID: 7634534656804534253}
   m_Layer: 0
-  m_Name: Explosion
+  m_Name: Vacuum
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -58,7 +58,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  - {fileID: 2100000, guid: 49b0ff9c05cb759bc8723e972c94a3e3, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -81,8 +81,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 5
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -7938986264094012129, guid: 05a1ad19fba67d64da8cdd98eeeb5050, type: 3}
-  m_Color: {r: 1, g: 0, b: 0, a: 0.20392157}
+  m_Sprite: {fileID: 3443996092498913389, guid: 20f19d54716d7274b8caf32d7fa1d23e, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.20392157}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
