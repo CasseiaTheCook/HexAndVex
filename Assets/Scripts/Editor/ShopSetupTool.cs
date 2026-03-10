@@ -22,7 +22,6 @@ public static class ShopSetupTool
         if (!AssetDatabase.IsValidFolder(folder))
             AssetDatabase.CreateFolder("Assets/ScriptableObjects", "Items");
 
-        CreateItem<BioVial>(folder, "BioVial", "Bio-Vial", "Restore 1 HP", 3);
         CreateItem<MutaGen>(folder, "MutaGen", "Muta-Gen", "Restore 2 HP", 5);
         CreateItem<NecroShot>(folder, "NecroShot", "Necro-Shot", "Instantly kill any enemy on the map", 10);
         CreateItem<SynthStim>(folder, "SynthStim", "Synth-Stim", "Roll +1 extra die in the next combat", 6);

@@ -96,6 +96,7 @@ public class Shopmanager : MonoBehaviour
     public void TryReroll()
     {
         if (RunManager.instance == null) return;
+        if (TurnManager.instance != null && TurnManager.instance.IsAnyTargetingActive) return;
 
         if (RunManager.instance.currentGold < currentRerollCost)
         {
@@ -135,6 +136,7 @@ public class Shopmanager : MonoBehaviour
             usedIndices.Add(idx);
 
             BaseItem item = itemPool[idx];
+            if (item == null) continue;
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
             slotGO.transform.localScale = Vector3.one;
@@ -205,6 +207,7 @@ public class Shopmanager : MonoBehaviour
     {
         if (index >= purchased.Count || purchased[index]) return;
         if (RunManager.instance == null) return;
+        if (TurnManager.instance != null && TurnManager.instance.IsAnyTargetingActive) return;
 
         BaseItem item = currentItems[index];
         if (item == null) return;
@@ -247,7 +250,7 @@ public class Shopmanager : MonoBehaviour
         {
             if (purchased[i] || spawnedSlots[i] == null) continue;
             if (spawnedSlots[i].buyButton != null)
-                spawnedSlots[i].buyButton.interactable = RunManager.instance.currentGold >= currentItems[i].price;
+                spawnedSlots[i].buyButton.interactable = currentItems[i] != null && RunManager.instance.currentGold >= currentItems[i].price;
         }
     }
 
