@@ -46,9 +46,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhantomLimbPerk
   currentLevel: 1
   maxLevel: 1
-  perkName: PhantomLimb
-  description: After moving, leave a shadow in your previous tile. If an enemy attacks
-    the shadow, they take damage.
+  perkName: Fatal Mine
+  description: When skipping leave a mine at your tile. (the mine instantly kills
+    the enemy that stepped on it)
   icon: {fileID: 0}
   priority: 0
   isRerollPerk: 0

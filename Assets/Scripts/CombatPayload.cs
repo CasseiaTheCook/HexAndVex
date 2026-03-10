@@ -13,6 +13,7 @@ public class CombatPayload
     // Legendary perk'ler için özel kurallar
     public bool isCriticalHit = false;
     public bool triggerExplosion = false; // Blast Impact
+    public float explosionDamagePercent = 0.5f; // Volatile Cells seviyesine göre değişir
     public bool multiplyInsteadOfAdd = false; // Sword Dance
 
     public CombatPayload(List<int> rolls)

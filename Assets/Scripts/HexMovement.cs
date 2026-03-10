@@ -27,6 +27,7 @@ public class HexMovement : MonoBehaviour
     private Vector3 targetWorldPosition;
     private bool isMoving = false;
     private bool isKnockbackMove = false;
+    private bool _preserveFacingNextMove = false;
 
     private class HighlightData
     {
@@ -171,11 +172,12 @@ public class HexMovement : MonoBehaviour
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
         targetWorldPosition.z = 0;
 
-        if (visualRenderer != null)
+        if (!_preserveFacingNextMove && visualRenderer != null)
         {
             float dx = targetWorldPosition.x - transform.position.x;
             if (Mathf.Abs(dx) > 0.01f) visualRenderer.flipX = (dx < 0);
         }
+        _preserveFacingNextMove = false;
 
         isMoving = true;
     }
@@ -206,10 +208,11 @@ public class HexMovement : MonoBehaviour
         }
     }
 
-    public void StartKnockbackMovement(Vector3Int targetCell)
+    public void StartKnockbackMovement(Vector3Int targetCell, bool preserveFacing = false)
     {
         if (groundMap.HasTile(targetCell))
         {
+            _preserveFacingNextMove = preserveFacing;
             isKnockbackMove = true;
             currentCellPosition = targetCell;
             MoveCharacter(targetCell);

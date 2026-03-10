@@ -1,10 +1,14 @@
 public class VolatileCellsPerk : BasePerk
 {
+    void OnEnable()
+    {
+        maxLevel = 4;
+    }
+
     public override void ModifyCombat(CombatPayload payload)
     {
-        payload.triggerExplosion = true; 
-        // İpucu: TurnManager.cs içindeki TriggerExplosion metoduna hasar parametresi eklersen 
-        // level * 2 gibi yüksek hasarlar vurdurabilirsin.
+        payload.triggerExplosion = true;
+        payload.explosionDamagePercent = currentLevel * 0.25f; // Lv1=%25, Lv2=%50, Lv3=%75, Lv4=%100
         TriggerVisualPop();
     }
 }
