@@ -35,6 +35,11 @@ public class TurnManager : MonoBehaviour
     public bool isPlayerTurn = true;
 
     public bool hasAttackedThisTurn = false;
+    
+    // ========================================================
+    // YENİ: Kılıç havadayken parlak kalması için zamanlayıcı bayrak
+    // ========================================================
+    public bool isAttackAnimationPlaying = false; 
 
     [HideInInspector] public bool isNecroShotTargeting = false;
 
@@ -157,9 +162,7 @@ public class TurnManager : MonoBehaviour
         
         isPlayerTurn = true; 
         hasAttackedThisTurn = false;
-        
-        // Tur bizde, tam parlak ol!
-        player.SetVisualAlpha(1f);
+        isAttackAnimationPlaying = false; 
 
         if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
         player.UpdateHighlights(); LockAllEnemyIntents();
@@ -191,7 +194,9 @@ public class TurnManager : MonoBehaviour
     {
         if (!isNecroShotTargeting || target == null) return;
         isNecroShotTargeting = false;
+        
         if (player != null) player.TriggerAttackAnimation();
+        
         target.health.TakeDamage(target.health.maxHP + 999);
         int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
         if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
@@ -230,10 +235,9 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null) RunManager.instance.remainingMoves = 0;
         
         // ========================================================
-        // DÜZELTME: SKİP YAPINCA YERDEKİ MAVİ TILE'LARI ANINDA SİL VE KARAKTERİ SOLUKLAŞTIR
+        // SKİP YAPILDIĞINDA GİDEBİLECEĞİMİZ MAVİ YERLERİ ANINDA SİL
         // ========================================================
-        player.ClearHighlights();
-        player.SetVisualAlpha(0.5f);
+        if (player != null) player.ClearHighlights();
         
         StartCoroutine(HandleSkipPhase());
     }
@@ -244,6 +248,7 @@ public class TurnManager : MonoBehaviour
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
             hasAttackedThisTurn = true; 
+            isAttackAnimationPlaying = true; 
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
 
@@ -316,7 +321,11 @@ public class TurnManager : MonoBehaviour
             {
                 RunManager.instance.remainingMoves--; isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
             }
-            else if (player != null && player.health.currentHP > 0) StartCoroutine(EnemyPhase());
+            else if (player != null && player.health.currentHP > 0) 
+            {
+                player.ClearHighlights(); // Tur bitiyorsa highlightları kazı
+                StartCoroutine(EnemyPhase());
+            }
             yield break;
         }
 
@@ -324,12 +333,7 @@ public class TurnManager : MonoBehaviour
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
             hasAttackedThisTurn = true; 
-            
-            // ========================================================
-            // YENİ: VURDUĞUMUZ AN ŞEFFAFLAŞIYORUZ! (Ekstra hak olsa bile)
-            // ========================================================
-            if (player != null) player.SetVisualAlpha(0.5f);
-
+            isAttackAnimationPlaying = true; // Kılıç inene kadar rengi parlak tutacak bayrağı çek!
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
 
@@ -338,7 +342,11 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.remainingMoves--;
             isPlayerTurn = true; player.UpdateHighlights(); ShowAllEnemyIntents();
         }
-        else if (player != null && player.health.currentHP > 0) StartCoroutine(EnemyPhase());
+        else if (player != null && player.health.currentHP > 0) 
+        {
+            player.ClearHighlights(); // Ekstra hak bitti, mavi okları temizle
+            StartCoroutine(EnemyPhase());
+        }
     }
 
     private Vector3Int GetSafeNeighbor(Vector3Int centerCell)
@@ -354,9 +362,6 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator EnemyPhase()
     {
-        // Garanti olsun: Düşman sırasındayken kesinlikle soluğuz
-        if (player != null) player.SetVisualAlpha(0.5f);
-
         yield return new WaitForSeconds(0.2f);
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         
@@ -486,7 +491,16 @@ public class TurnManager : MonoBehaviour
         int damagePerEnemy = finalDamage / targets.Count;
 
         if (player != null) player.TriggerAttackAnimation();
+        
+        // ========================================================
+        // KILIÇ HAVADA SALLANIYOR, BEKLE...
+        // ========================================================
         yield return new WaitForSeconds(0.3f);
+        
+        // ========================================================
+        // KILIÇ İNDİ! Artık şeffaflaşabilir. (Update fonksiyonu bunu anlayacak)
+        // ========================================================
+        isAttackAnimationPlaying = false; 
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
         foreach (var enemy in targets)

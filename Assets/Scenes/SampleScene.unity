@@ -3025,7 +3025,7 @@ MonoBehaviour:
   - {fileID: 164953103}
   - {fileID: 833440338}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 1986514174070140262, guid: 8d2cf8eb1410c6d44942bc4168924640, type: 3}
+  forcedPerk: {fileID: 575377947375056754, guid: 19a8e2458f31e9844aea1d7486c8bad8, type: 3}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0
@@ -6610,6 +6610,7 @@ MonoBehaviour:
   enemies: []
   isPlayerTurn: 1
   hasAttackedThisTurn: 0
+  isAttackAnimationPlaying: 0
   isNecroShotTargeting: 0
 --- !u!4 &1504787228
 Transform:

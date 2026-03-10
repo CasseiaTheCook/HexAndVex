@@ -29,7 +29,6 @@ public class HexMovement : MonoBehaviour
 
     private List<Vector3Int> activeHighlightCells = new List<Vector3Int>();
     private Coroutine highlightFadeCoroutine;
-    private Coroutine alphaFadeCoroutine; // YENİ: Pürüzsüz saydamlık için
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -58,6 +57,29 @@ public class HexMovement : MonoBehaviour
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn)
         {
             HandleMovementInput();
+        }
+
+        // ========================================================
+        // EN BÜYÜK DÜZELTME BURADA: ANIMATORÜN KAFASINA VURUYORUZ
+        // ========================================================
+        if (visualRenderer != null && TurnManager.instance != null)
+        {
+            // Eğer tur bizdeyse VE bu tur henüz vurmadıysak saldırabiliriz
+            bool canAttack = TurnManager.instance.isPlayerTurn && !TurnManager.instance.hasAttackedThisTurn;
+            
+            // Eğer tam şu an kılıç sallama animasyonu oynuyorsa, şeffaflaşmayı bekle (tam vurana kadar parlak kal)
+            if (TurnManager.instance.isAttackAnimationPlaying)
+            {
+                canAttack = true; 
+            }
+
+            // Vurabiliyorsak Alpha 1, vuramıyorsak 0.5 (Şeffaf)
+            float targetAlpha = canAttack ? 1f : 0.5f;
+            Color c = visualRenderer.color;
+            
+            // Saniyesinde pürüzsüz geçiş yap (MoveTowards)
+            c.a = Mathf.MoveTowards(c.a, targetAlpha, 3f * Time.deltaTime);
+            visualRenderer.color = c;
         }
     }
 
@@ -286,34 +308,5 @@ public class HexMovement : MonoBehaviour
         {
             animator.SetTrigger("Attack"); 
         }
-    }
-
-    // ========================================================
-    // YENİ: PÜRÜZSÜZ SAYDAMLIK KONTROLÜ
-    // ========================================================
-    public void SetVisualAlpha(float targetAlpha)
-    {
-        if (visualRenderer == null) return;
-        if (alphaFadeCoroutine != null) StopCoroutine(alphaFadeCoroutine);
-        alphaFadeCoroutine = StartCoroutine(SmoothAlphaCoroutine(targetAlpha));
-    }
-
-    private IEnumerator SmoothAlphaCoroutine(float targetAlpha)
-    {
-        Color c = visualRenderer.color;
-        float startA = c.a;
-        float elapsed = 0f;
-        float dur = 0.25f; // Çeyrek saniyede yavaşça solacak veya parlayacak
-
-        while (elapsed < dur)
-        {
-            elapsed += Time.deltaTime;
-            c.a = Mathf.Lerp(startA, targetAlpha, elapsed / dur);
-            visualRenderer.color = c;
-            yield return null;
-        }
-        
-        c.a = targetAlpha;
-        visualRenderer.color = c;
     }
 }
