@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: NecroShot
   m_EditorClassIdentifier: Assembly-CSharp::NecroShot
   itemName: Necro-Shot
-  description: "Mapteki istedi\u011Fin d\xFC\u015Fman\u0131 an\u0131nda \xF6ld\xFCr"
+  description: Instantly kill any enemy on the map
   price: 10
   icon: {fileID: 0}

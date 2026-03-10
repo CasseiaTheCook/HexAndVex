@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
 using System.Linq; 
 
 public class LevelUpManager : MonoBehaviour
@@ -38,9 +39,13 @@ public class LevelUpManager : MonoBehaviour
     [Header("Debug")]
     [HideInInspector] public GameObject forcedPerk;
 
+    private int hoveredCardIndex = -1;
+    private bool[] cardAnimDone;
+
     void Awake()
     {
         if (instance == null) instance = this;
+        SetupCardHoverListeners();
     }
 
     public void ShowLevelUpScreen()
@@ -188,37 +193,126 @@ public class LevelUpManager : MonoBehaviour
 
     private IEnumerator FadeInAndPopRoutine()
     {
-        Transform panelTransform = levelUpPanel.transform; 
+        // Panel fade in
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = 0f;
-        panelTransform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
-        
-        float popDuration = 0.20f; 
-        float elapsed = 0f;
-        
-        while (elapsed < popDuration)
+        levelUpPanel.transform.localScale = Vector3.one;
+
+        // Hide all cards initially
+        for (int i = 0; i < choiceButtons.Length; i++)
         {
-            elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / popDuration;
-            float easeOutQuad = 1 - (1 - t) * (1 - t);
-            
-            if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = Mathf.Lerp(0f, 1f, easeOutQuad);
-            panelTransform.localScale = Vector3.Lerp(new Vector3(0.2f, 0.2f, 0.2f), new Vector3(1.1f, 1.1f, 1.1f), easeOutQuad);
-            yield return null;
+            if (choiceButtons[i] != null && choiceButtons[i].gameObject.activeSelf)
+                choiceButtons[i].transform.localScale = Vector3.zero;
         }
 
-        float settleDuration = 0.15f;
-        elapsed = 0f;
-        
-        while (elapsed < settleDuration)
+        // Fade in the panel background
+        float fadeDur = 0.2f;
+        float elapsed = 0f;
+        while (elapsed < fadeDur)
         {
             elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / settleDuration;
-            panelTransform.localScale = Vector3.Lerp(new Vector3(1.1f, 1.1f, 1.1f), Vector3.one, t);
+            float t = elapsed / fadeDur;
+            if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = Mathf.Lerp(0f, 1f, t);
             yield return null;
         }
-        
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = 1f;
-        panelTransform.localScale = Vector3.one;
+
+        // Spawn cards one by one with delay
+        for (int i = 0; i < choiceButtons.Length; i++)
+        {
+            if (choiceButtons[i] == null || !choiceButtons[i].gameObject.activeSelf) continue;
+            yield return StartCoroutine(CardPopIn(choiceButtons[i].transform));
+            if (i < choiceButtons.Length - 1)
+                yield return new WaitForSecondsRealtime(0.15f);
+        }
+
+        // Mark all cards as animation-done
+        cardAnimDone = new bool[choiceButtons.Length];
+        for (int i = 0; i < cardAnimDone.Length; i++) cardAnimDone[i] = true;
+
+        // Start idle bounce on all visible cards
+        for (int i = 0; i < choiceButtons.Length; i++)
+        {
+            if (choiceButtons[i] != null && choiceButtons[i].gameObject.activeSelf)
+                StartCoroutine(CardIdleBounce(choiceButtons[i].transform));
+        }
+    }
+
+    private IEnumerator CardPopIn(Transform card)
+    {
+        float dur = 0.25f;
+        float elapsed = 0f;
+        while (elapsed < dur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / dur);
+            float ease = 1f - (1f - t) * (1f - t);
+            float s = Mathf.Lerp(0f, 1.08f, ease);
+            card.localScale = new Vector3(s, s, 1f);
+            yield return null;
+        }
+        dur = 0.1f;
+        elapsed = 0f;
+        while (elapsed < dur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / dur);
+            float s = Mathf.Lerp(1.08f, 1f, t);
+            card.localScale = new Vector3(s, s, 1f);
+            yield return null;
+        }
+        card.localScale = Vector3.one;
+    }
+
+    private IEnumerator CardIdleBounce(Transform card)
+    {
+        float speed = 0.8f;
+        float amplitude = 0.02f;
+        float phase = Random.Range(0f, Mathf.PI * 2f);
+        int cardIdx = -1;
+        for (int i = 0; i < choiceButtons.Length; i++)
+            if (choiceButtons[i] != null && choiceButtons[i].transform == card) { cardIdx = i; break; }
+
+        while (card != null && card.gameObject.activeSelf && levelUpPanel.activeSelf)
+        {
+            if (hoveredCardIndex == cardIdx)
+            {
+                // Hovered: smoothly scale to 1.1
+                float cur = card.localScale.x;
+                float target = 1.1f;
+                float s = Mathf.MoveTowards(cur, target, Time.unscaledDeltaTime * 3f);
+                card.localScale = new Vector3(s, s, 1f);
+            }
+            else
+            {
+                // Idle bounce
+                float s = 1f + Mathf.Sin((Time.unscaledTime * speed * Mathf.PI * 2f) + phase) * amplitude;
+                card.localScale = new Vector3(s, s, 1f);
+            }
+            yield return null;
+        }
+    }
+
+    private void SetupCardHoverListeners()
+    {
+        if (choiceButtons == null) return;
+        for (int i = 0; i < choiceButtons.Length; i++)
+        {
+            if (choiceButtons[i] == null) continue;
+            EventTrigger trigger = choiceButtons[i].GetComponent<EventTrigger>();
+            if (trigger == null) trigger = choiceButtons[i].gameObject.AddComponent<EventTrigger>();
+
+            int idx = i;
+
+            EventTrigger.Entry enterEntry = new EventTrigger.Entry();
+            enterEntry.eventID = EventTriggerType.PointerEnter;
+            enterEntry.callback.AddListener((_) => { hoveredCardIndex = idx; });
+            trigger.triggers.Add(enterEntry);
+
+            EventTrigger.Entry exitEntry = new EventTrigger.Entry();
+            exitEntry.eventID = EventTriggerType.PointerExit;
+            exitEntry.callback.AddListener((_) => { if (hoveredCardIndex == idx) hoveredCardIndex = -1; });
+            trigger.triggers.Add(exitEntry);
+        }
     }
 
     private IEnumerator FadeOutAndShrinkRoutine()

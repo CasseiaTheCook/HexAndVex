@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: OverClok
   m_EditorClassIdentifier: Assembly-CSharp::OverClok
   itemName: Over-Clok
-  description: "S\u0131radaki ilk zar toplam\u0131n\u0131n 2 kat\u0131 hasar ver"
+  description: Deal 2x total dice damage in the next combat
   price: 7
   icon: {fileID: 0}

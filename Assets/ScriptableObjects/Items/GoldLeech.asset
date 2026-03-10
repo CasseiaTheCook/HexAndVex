@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: GoldLeech
   m_EditorClassIdentifier: Assembly-CSharp::GoldLeech
   itemName: Gold-Leech
-  description: "Sonraki d\xFC\u015Fmandan 2 kat gold d\xFC\u015F\xFCrt"
+  description: Next enemy drops 2x gold
   price: 4
   icon: {fileID: 0}
