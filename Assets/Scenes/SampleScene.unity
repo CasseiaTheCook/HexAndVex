@@ -2787,7 +2787,7 @@ MonoBehaviour:
   - {fileID: 164953103}
   - {fileID: 833440338}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 3106120126287650368, guid: 838a33db2aca1da4d93374f57d13a821, type: 3}
+  forcedPerk: {fileID: 2698308610461572902, guid: 8668b9db5b315694d896d602e882685c, type: 3}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0
@@ -6711,6 +6711,7 @@ MonoBehaviour:
   warningTile: {fileID: 11400000, guid: 3137f168ca8c8594e8ae498f267c29fb, type: 2}
   explosionPrefab: {fileID: 3347869054971392747, guid: 798f5d41853a9ab4e8d4c50f3d394173, type: 3}
   dodgeEffectPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
+  vacuumVfxPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
   player: {fileID: 815353782}
   groundMap: {fileID: 1259843048}
   dieUIPrefab: {fileID: 5327955378505097688, guid: 6a2b58ead4c04d34babdb63e3049a3a3, type: 3}
@@ -6734,6 +6735,8 @@ MonoBehaviour:
   isBombPlacementTargeting: 0
   isPhaseShiftTargeting: 0
   isThornPlacementTargeting: 0
+  hexesMovedThisTurn: 0
+  phantomShadowCell: {x: -999, y: -999, z: -999}
 --- !u!4 &1504787228
 Transform:
   m_ObjectHideFlags: 0
