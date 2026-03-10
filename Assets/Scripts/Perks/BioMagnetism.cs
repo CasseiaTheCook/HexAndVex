@@ -2,10 +2,8 @@ using UnityEngine;
 
 public class BioMagnetismPerk : BasePerk
 {
-    public override void ModifyCombat(CombatPayload payload)
+    public override void OnAcquire()
     {
-        // Alan hasarı gibi çalışsın, her hedefe +2 vursun
-        payload.flatBonus += 2;
-        TriggerVisualPop();
+        priority = 1; // Sıralaması önemli değil, savaş başlamadan özel olarak çağırıyoruz.
     }
 }
