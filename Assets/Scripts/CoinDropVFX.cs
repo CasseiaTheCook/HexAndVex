@@ -16,6 +16,8 @@ public class CoinDropVFX : MonoBehaviour
     public float fadeDuration = 0.3f;
     public float coinSize = 0.25f;
 
+    public int activeCoinCount { get; private set; }
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -27,6 +29,7 @@ public class CoinDropVFX : MonoBehaviour
         count = Mathf.Clamp(count, 1, 12);
         for (int i = 0; i < count; i++)
         {
+            activeCoinCount++;
             float delay = i * 0.05f;
             StartCoroutine(AnimateCoin(worldPos, delay));
         }
@@ -75,5 +78,6 @@ public class CoinDropVFX : MonoBehaviour
         }
 
         Destroy(coin);
+        activeCoinCount--;
     }
 }

@@ -174,6 +174,26 @@ public class TurnManager : MonoBehaviour
         if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
     }
 
+    private IEnumerator WaitAndTriggerLevelClear()
+    {
+        // Saldırı animasyonu bitsin
+        while (isAttackAnimationPlaying) yield return null;
+
+        // Coin VFX bitsin
+        if (CoinDropVFX.instance != null)
+            while (CoinDropVFX.instance.activeCoinCount > 0) yield return null;
+
+        // Kısa bekleme — son coin fade'i tamamlansın
+        yield return new WaitForSeconds(0.3f);
+
+        if (Shopmanager.instance != null)
+        {
+            bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
+            if (isBossLevel) Shopmanager.instance.OnBossCleared(); else Shopmanager.instance.OnDungeonCleared();
+        }
+        else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+    }
+
     private void SetupCoinIcon()
     {
         if (coinSprite == null)
@@ -188,6 +208,7 @@ public class TurnManager : MonoBehaviour
         // Zaten varsa tekrar oluşturma
         if (parent.Find("CoinIcon") != null) return;
 
+        // Parent'ta HLG yoksa ekle
         HorizontalLayoutGroup hlg = parent.GetComponent<HorizontalLayoutGroup>();
         if (hlg == null)
         {
@@ -204,8 +225,8 @@ public class TurnManager : MonoBehaviour
         iconGO.transform.SetParent(parent, false);
         iconGO.transform.SetAsFirstSibling();
 
+        float size = 22f;
         RectTransform iconRT = iconGO.GetComponent<RectTransform>();
-        float size = coinText.fontSize + 2f;
         iconRT.sizeDelta = new Vector2(size, size);
 
         LayoutElement le = iconGO.AddComponent<LayoutElement>();
@@ -257,11 +278,7 @@ public class TurnManager : MonoBehaviour
         if (enemies.Count <= 0)
         {
             ClearWarningMap();
-            if (Shopmanager.instance != null)
-            {
-                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
-                if (isBossLevel) Shopmanager.instance.OnBossCleared(); else Shopmanager.instance.OnDungeonCleared();
-            }
+            StartCoroutine(WaitAndTriggerLevelClear());
         }
     }
 
@@ -609,12 +626,7 @@ public class TurnManager : MonoBehaviour
         if (enemies.Count <= 0)
         {
             ClearWarningMap();
-            if (Shopmanager.instance != null)
-            {
-                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
-                if (isBossLevel) Shopmanager.instance.OnBossCleared(); else Shopmanager.instance.OnDungeonCleared();
-            }
-            else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+            StartCoroutine(WaitAndTriggerLevelClear());
             yield break;
         }
 
@@ -650,12 +662,7 @@ public class TurnManager : MonoBehaviour
         if (enemies.Count <= 0)
         {
             ClearWarningMap();
-            if (Shopmanager.instance != null)
-            {
-                bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;
-                if (isBossLevel) Shopmanager.instance.OnBossCleared(); else Shopmanager.instance.OnDungeonCleared();
-            }
-            else if (LevelUpManager.instance != null) LevelUpManager.instance.ShowLevelUpScreen();
+            StartCoroutine(WaitAndTriggerLevelClear());
             yield break;
         }
 

@@ -103,21 +103,6 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         for (int i = 0; i < perks.Count; i++)
         {
-            if (i > 0)
-            {
-                GameObject sep = new GameObject("Separator", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                sep.transform.SetParent(perkListPanel.transform, false);
-                Image sepImg = sep.GetComponent<Image>();
-                sepImg.color = new Color(1f, 1f, 1f, 0.06f);
-                sep.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 1f);
-                LayoutElement sepLE = sep.AddComponent<LayoutElement>();
-                sepLE.minHeight = 1f;
-                sepLE.preferredHeight = 1f;
-                sepLE.flexibleHeight = 0f;
-                sepLE.flexibleWidth = 1f;
-                spawnedRows.Add(sep);
-            }
-
             BasePerk p = perks[i];
             GameObject row = CreatePerkRow(p, font);
             row.transform.SetParent(perkListPanel.transform, false);

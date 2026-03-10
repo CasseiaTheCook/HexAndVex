@@ -145,7 +145,7 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         priceRowGO.layer = gameObject.layer;
         HorizontalLayoutGroup priceHlg = priceRowGO.AddComponent<HorizontalLayoutGroup>();
         priceHlg.spacing = 4f;
-        priceHlg.childAlignment = TextAnchor.MiddleRight;
+        priceHlg.childAlignment = TextAnchor.MiddleLeft;
         priceHlg.childControlWidth = false;
         priceHlg.childControlHeight = false;
         priceHlg.childForceExpandWidth = false;
@@ -154,12 +154,6 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         LayoutElement priceRowLE = priceRowGO.AddComponent<LayoutElement>();
         priceRowLE.preferredHeight = 22f;
         priceRowLE.minHeight = 22f;
-
-        // Spacer (fiyatı sağa itmek için)
-        GameObject spacer = new GameObject("Spacer", typeof(RectTransform));
-        spacer.transform.SetParent(priceRowGO.transform, false);
-        LayoutElement spacerLE = spacer.AddComponent<LayoutElement>();
-        spacerLE.flexibleWidth = 1f;
 
         // Coin icon
         if (coinSprite == null)
@@ -190,13 +184,14 @@ public class ShopSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         priceText = priceGO.AddComponent<TextMeshProUGUI>();
         if (customFont != null) priceText.font = customFont;
         priceText.fontSize = 16;
-        priceText.alignment = TextAlignmentOptions.Right;
+        priceText.alignment = TextAlignmentOptions.Left;
         priceText.color = new Color(1f, 0.85f, 0.2f, 1f);
         priceText.fontStyle = FontStyles.Bold;
         priceText.raycastTarget = false;
+        priceText.enableAutoSizing = false;
 
         LayoutElement priceLE = priceGO.AddComponent<LayoutElement>();
-        priceLE.preferredWidth = 60f;
+        priceLE.preferredWidth = 40f;
         priceLE.preferredHeight = 20f;
 
         // Verileri doldur
