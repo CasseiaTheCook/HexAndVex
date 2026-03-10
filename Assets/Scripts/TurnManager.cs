@@ -250,8 +250,8 @@ public class TurnManager : MonoBehaviour
         float elapsed = 0f;
         
         // Küçükten büyüyen bir efekt için scale değerleri
-        Vector3 startScale = Vector3.one * 0.4f; 
-        Vector3 endScale = Vector3.one * 1.5f;
+        Vector3 startScale = Vector3.one * 0.8f;
+        Vector3 endScale = Vector3.one * 3.0f;
 
         while (elapsed < duration)
         {
@@ -525,7 +525,7 @@ public class TurnManager : MonoBehaviour
         GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
         float duration = 0.4f; float elapsed = 0f;
-        Vector3 startScale = Vector3.one * 2f; Vector3 endScale = Vector3.one * 0.2f;
+        Vector3 startScale = Vector3.one * 4f; Vector3 endScale = Vector3.one * 0.4f;
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime; float t = elapsed / duration;
