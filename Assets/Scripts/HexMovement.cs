@@ -2,6 +2,7 @@
 using UnityEngine.Tilemaps;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 public class HexMovement : MonoBehaviour
 {
@@ -27,11 +28,20 @@ public class HexMovement : MonoBehaviour
     private bool isMoving = false;
     private bool isKnockbackMove = false;
 
-    private List<Vector3Int> activeHighlightCells = new List<Vector3Int>();
-    private Coroutine highlightFadeCoroutine;
+    private class HighlightData
+    {
+        public float currentAlpha;
+        public float targetAlpha;
+        public float fadeSpeed;
+    }
+    private Dictionary<Vector3Int, HighlightData> highlights = new Dictionary<Vector3Int, HighlightData>();
 
-    // YENİ: Saydamlık kilidi
     private float targetAlphaValue = 1f;
+
+    // ========================================================
+    // YENİ: ZAMANI DONDURMAK İÇİN GİZLİ KALIP
+    // ========================================================
+    private Tile frozenDummyTile;
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -45,6 +55,9 @@ public class HexMovement : MonoBehaviour
         if (visualRenderer == null) visualRenderer = GetComponentInChildren<SpriteRenderer>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
+        // Oyun başlarken zaman dondurma tile'ımızı bir kereye mahsus yaratıyoruz
+        frozenDummyTile = ScriptableObject.CreateInstance<Tile>();
+
         currentCellPosition = groundMap.WorldToCell(transform.position);
         targetWorldPosition = groundMap.GetCellCenterWorld(currentCellPosition);
         targetWorldPosition.z = 0;
@@ -56,6 +69,8 @@ public class HexMovement : MonoBehaviour
     void Update()
     {
         HandleMovement();
+        
+        ProcessHighlights();
 
         if (!isMoving && TurnManager.instance != null && TurnManager.instance.isPlayerTurn && !TurnManager.instance.isNecroShotTargeting)
         {
@@ -67,21 +82,18 @@ public class HexMovement : MonoBehaviour
     {
         if (visualRenderer != null)
         {
-            // TurnManager'dan kontrol et: Bizim sıramız değilse VEYA bu el zaten vurduysak soluklaş
             bool canAttack = false;
             
             if (TurnManager.instance != null)
             {
                 canAttack = TurnManager.instance.isPlayerTurn && !TurnManager.instance.hasAttackedThisTurn;
                 
-                // Kılıç inene kadar parlak kalsın
                 if (TurnManager.instance.isAttackAnimationPlaying)
                 {
                     canAttack = true; 
                 }
             }
 
-            // Gidilecek saydamlığı belirle (Vurabiliyorsa 1f, vuramıyorsa veya sıra onda değilse 0.5f)
             targetAlphaValue = canAttack ? 1f : 0.5f;
 
             Color c = visualRenderer.color;
@@ -90,7 +102,6 @@ public class HexMovement : MonoBehaviour
         }
     }
 
-    // TurnManager.cs eskiden bu fonksiyonu arıyordu, artık sadece LateUpdate içindeki mantığı destekleyecek kadar bıraktık
     public void SetVisualAlpha(float targetAlpha)
     {
         targetAlphaValue = targetAlpha;
@@ -103,16 +114,42 @@ public class HexMovement : MonoBehaviour
             Vector3 worldPoint = GetMousePositionOnZPlane();
             Vector3Int clickedCell = groundMap.WorldToCell(worldPoint);
 
-            if (IsNeighbor(currentCellPosition, clickedCell) &&
-                groundMap.HasTile(clickedCell) &&
-                !LevelGenerator.instance.hazardCells.Contains(clickedCell) &&
-                !TurnManager.instance.IsEnemyAtCell(clickedCell))
+            if (highlights.ContainsKey(clickedCell) && highlights[clickedCell].targetAlpha > 0f)
             {
                 isKnockbackMove = false;
                 TurnManager.instance.isPlayerTurn = false;
-
                 TurnManager.instance.HideAllEnemyIntents();
-                ClearHighlights();
+                
+                // ========================================================
+                // EFSANEVİ DOKUNUŞ: TIKLANAN KARENİN ANİMASYONUNU DONDUR!
+                // ========================================================
+                Sprite currentFrameSprite = highlightMap.GetSprite(clickedCell);
+                if (currentFrameSprite != null)
+                {
+                    // O milisaniyedeki resmi gizlice al ve donuk kalıba yapıştır
+                    frozenDummyTile.sprite = currentFrameSprite;
+                    
+                    // Hareketli kareyi sök, yerine donuk resmi bas!
+                    highlightMap.SetTile(clickedCell, frozenDummyTile);
+                    highlightMap.SetTileFlags(clickedCell, TileFlags.None);
+                }
+
+                // Silinme tepkimeleri
+                foreach (var kvp in highlights)
+                {
+                    if (kvp.Key != clickedCell)
+                    {
+                        kvp.Value.targetAlpha = 0f;
+                        kvp.Value.fadeSpeed = 15f; // Diğerleri toz olur
+                    }
+                    else
+                    {
+                        kvp.Value.currentAlpha = 1f; // Donan kare anında tam parlar
+                        kvp.Value.targetAlpha = 0f;  // Sonra tamamen yok olmaya başlar
+                        kvp.Value.fadeSpeed = 2.5f;  // Yavaşça söner
+                    }
+                }
+                
                 MoveCharacter(clickedCell);
             }
         }
@@ -215,21 +252,10 @@ public class HexMovement : MonoBehaviour
 
     public bool IsMoving() => isMoving;
 
-    private bool IsNeighbor(Vector3Int cell1, Vector3Int cell2)
-    {
-        Vector3Int[] offsets = (cell1.y % 2 != 0) ? evenOffsets : oddOffsets;
-        foreach (var off in offsets) if (cell1 + off == cell2) return true;
-        return false;
-    }
-
     public void UpdateHighlights()
     {
-        if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
-
-        highlightMap.ClearAllTiles();
-        activeHighlightCells.Clear();
-
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
+        List<Vector3Int> validCells = new List<Vector3Int>();
 
         foreach (var off in offsets)
         {
@@ -243,73 +269,85 @@ public class HexMovement : MonoBehaviour
                     isHazard = LevelGenerator.instance.hazardCells.Contains(neighbor);
                 }
 
-                if (!isHazard && !TurnManager.instance.IsEnemyAtCell(neighbor))
+                if (!isHazard && TurnManager.instance != null && !TurnManager.instance.IsEnemyAtCell(neighbor))
                 {
-                    activeHighlightCells.Add(neighbor);
+                    validCells.Add(neighbor);
                 }
             }
         }
 
-        if (activeHighlightCells.Count > 0)
+        // ========================================================
+        // ASENKRON ANİMASYONLARI ASKER GİBİ DİZEN KOD
+        // ========================================================
+        foreach (var cell in validCells)
         {
-            highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(true, new List<Vector3Int>(activeHighlightCells)));
+            // Unity'nin animasyon sayacını sıfırlamak için kareyi silip AYNI ANDA geri koyuyoruz!
+            highlightMap.SetTile(cell, null); 
+            highlightMap.SetTile(cell, highlightTile); 
+            highlightMap.SetTileFlags(cell, TileFlags.None);
+            
+            if (!highlights.ContainsKey(cell))
+            {
+                highlights[cell] = new HighlightData { currentAlpha = 0f, targetAlpha = 0.6f, fadeSpeed = 4f };
+            }
+            else
+            {
+                highlights[cell].targetAlpha = 0.6f;
+                highlights[cell].fadeSpeed = 4f;
+            }
+            
+            // Renkleri anında eşitle ki göz kırpması (flicker) olmasın
+            highlightMap.SetColor(cell, new Color(1f, 1f, 1f, highlights[cell].currentAlpha));
+        }
+
+        // Gidilemeyecek eski kareleri söndür
+        foreach (var cell in highlights.Keys.ToList())
+        {
+            if (!validCells.Contains(cell))
+            {
+                highlights[cell].targetAlpha = 0f;
+                highlights[cell].fadeSpeed = 4f; 
+            }
         }
     }
 
     public void ClearHighlights()
     {
-        if (highlightFadeCoroutine != null) StopCoroutine(highlightFadeCoroutine);
-
-        if (activeHighlightCells.Count > 0)
+        foreach (var cell in highlights.Keys.ToList())
         {
-            highlightFadeCoroutine = StartCoroutine(FadeHighlightsCoroutine(false, new List<Vector3Int>(activeHighlightCells)));
+            highlights[cell].targetAlpha = 0f;
+            highlights[cell].fadeSpeed = 4f; 
         }
-
-        activeHighlightCells.Clear();
     }
 
-    private IEnumerator FadeHighlightsCoroutine(bool fadeIn, List<Vector3Int> cellsToAnimate)
+    private void ProcessHighlights()
     {
-        float duration = 0.2f;
-        float elapsed = 0f;
+        List<Vector3Int> cellsToRemove = new List<Vector3Int>();
 
-        float maxAlpha = 0.5f;
-        float startAlpha = fadeIn ? 0f : maxAlpha;
-        float endAlpha = fadeIn ? maxAlpha : 0f;
-
-        if (fadeIn)
+        foreach (var kvp in highlights)
         {
-            foreach (var cell in cellsToAnimate)
+            Vector3Int cell = kvp.Key;
+            HighlightData data = kvp.Value;
+
+            if (data.currentAlpha != data.targetAlpha)
             {
-                highlightMap.SetTile(cell, highlightTile);
-                highlightMap.SetTileFlags(cell, TileFlags.None);
-                highlightMap.SetColor(cell, new Color(1f, 1f, 1f, 0f));
-                highlightMap.RefreshTile(cell);
+                data.currentAlpha = Mathf.MoveTowards(data.currentAlpha, data.targetAlpha, data.fadeSpeed * Time.deltaTime);
+                if (highlightMap.HasTile(cell)) 
+                {
+                    highlightMap.SetColor(cell, new Color(1f, 1f, 1f, data.currentAlpha));
+                }
+            }
+
+            if (data.currentAlpha <= 0.01f && data.targetAlpha <= 0.01f)
+            {
+                if (highlightMap.HasTile(cell)) highlightMap.SetTile(cell, null);
+                cellsToRemove.Add(cell);
             }
         }
 
-        while (elapsed < duration)
+        foreach (var c in cellsToRemove)
         {
-            elapsed += Time.deltaTime;
-            float currentAlpha = Mathf.Lerp(startAlpha, endAlpha, elapsed / duration);
-            Color currentColor = new Color(1f, 1f, 1f, currentAlpha);
-
-            foreach (var cell in cellsToAnimate)
-            {
-                if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, currentColor);
-            }
-            yield return null;
-        }
-
-        Color finalColor = new Color(1f, 1f, 1f, endAlpha);
-        foreach (var cell in cellsToAnimate)
-        {
-            if (highlightMap.HasTile(cell)) highlightMap.SetColor(cell, finalColor);
-        }
-
-        if (!fadeIn)
-        {
-            foreach (var cell in cellsToAnimate) highlightMap.SetTile(cell, null);
+            highlights.Remove(c);
         }
     }
 
