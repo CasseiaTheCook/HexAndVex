@@ -3055,7 +3055,6 @@ MonoBehaviour:
   - {fileID: 1036782846232815647, guid: 326cb9d6ffa3e224eb82cf9698109001, type: 3}
   - {fileID: 5093722096315643738, guid: 0847041e97dcb7648b5897f7f9a83ecf, type: 3}
   - {fileID: 5068179257304331724, guid: cdc2662d0656276448b616cfefe9c9d1, type: 3}
-  - {fileID: 7709780136663571344, guid: 068b670ca0405144384779e69aa54d49, type: 3}
   rarePerks:
   - {fileID: 8170780636646441943, guid: 3512cd5738bf59d47ac77b4450365bf4, type: 3}
   - {fileID: 1986514174070140262, guid: 8d2cf8eb1410c6d44942bc4168924640, type: 3}
@@ -3073,6 +3072,7 @@ MonoBehaviour:
   - {fileID: 2698308610461572902, guid: 8668b9db5b315694d896d602e882685c, type: 3}
   - {fileID: 7573325371218563316, guid: f0d596c3e13ed1e40842b6f14687ae19, type: 3}
   - {fileID: 6899603810289213356, guid: 9ed0fca975cfc2d45bc0595a03b02b05, type: 3}
+  - {fileID: 7709780136663571344, guid: 068b670ca0405144384779e69aa54d49, type: 3}
   legendaryPerks:
   - {fileID: 1109346846490427701, guid: 591fd3e063799564ea700207eeb3e9e0, type: 3}
   - {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
@@ -3104,7 +3104,7 @@ MonoBehaviour:
   - {fileID: 164953103}
   - {fileID: 833440338}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 0}
+  forcedPerk: {fileID: 5068179257304331724, guid: cdc2662d0656276448b616cfefe9c9d1, type: 3}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0

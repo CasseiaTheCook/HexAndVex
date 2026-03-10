@@ -109,8 +109,6 @@ public class HexMovement : MonoBehaviour
                 TurnManager.instance.isPlayerTurn = false;
                 TurnManager.instance.HideAllEnemyIntents();
 
-                if (TurnManager.instance != null) TurnManager.instance.hexesMovedThisTurn++;
-
                 Sprite currentFrameSprite = highlightMap.GetSprite(clickedCell);
                 if (currentFrameSprite != null)
                 {

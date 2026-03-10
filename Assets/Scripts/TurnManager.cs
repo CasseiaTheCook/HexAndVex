@@ -431,6 +431,7 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
+            RunManager.instance.remainingMoves = 0;
             hasAttackedThisTurn = true; isAttackAnimationPlaying = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
@@ -478,7 +479,7 @@ public class TurnManager : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime; float t = elapsed / duration;
-            fx.transform.localScale = Vector3.Lerp(Vector3.one * 0.5f, Vector3.one * 1.3f, t);
+            fx.transform.localScale = Vector3.Lerp(Vector3.one * 0.5f, Vector3.one * 2.6f, t);
             foreach (var sr in renderers) { Color c = sr.color; c.a = Mathf.Lerp(0.8f, 0f, t); sr.color = c; }
             yield return null;
         }
@@ -536,6 +537,7 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
+            RunManager.instance.remainingMoves = 0;
             hasAttackedThisTurn = true; isAttackAnimationPlaying = true;
             yield return StartCoroutine(MultiAttack(adjacentEnemies));
         }
