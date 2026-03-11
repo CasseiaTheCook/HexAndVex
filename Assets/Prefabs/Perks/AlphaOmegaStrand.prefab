@@ -47,7 +47,9 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Alpha-Omega Strand
-  description: +2 to the first and last dice. (+2 each LVL)
+  description: +2 to the first and last die.
   icon: {fileID: -7347702412918682891, guid: 4aefa56b75e4fd044b2257ed9f98059f, type: 3}
   priority: 1
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0

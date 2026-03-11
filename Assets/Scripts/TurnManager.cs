@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.Tilemaps;
-using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
@@ -64,10 +63,6 @@ public class TurnManager : MonoBehaviour
     // Thorn preview
     private GameObject thornPreviewObj;
 
-    // Thorn turn tracking: cell → kaç tur geçti (3. turda kırılır)
-    private readonly Dictionary<Vector3Int, int> thornTurnCounts = new Dictionary<Vector3Int, int>();
-    private readonly Dictionary<Vector3Int, Coroutine> thornBlinkCoroutines = new Dictionary<Vector3Int, Coroutine>();
-
     public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
 
     public int hexesMovedThisTurn = 0;
@@ -113,8 +108,7 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null)
             skipDiceVisuals = RunManager.instance.fastMode;
 
-        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
-        if (!(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1)) && (isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
         {
             Vector3 mousePos = Input.mousePosition;
             mousePos.z = Mathf.Abs(Camera.main.transform.position.z);
@@ -514,6 +508,69 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // LetsGoAgain: Tüm perkler bir kez daha tetiklenir (bomb combat)
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        {
+            var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
+            if (lgaPerk != null && !skipDiceVisuals)
+            {
+                lgaPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(lgaPerk);
+                yield return StartCoroutine(SkippableWait(0.4f));
+            }
+
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in secondPass)
+            {
+                int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < rolls.Count; i++) if (rolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        if (perk.isRerollPerk)
+                        {
+                            foreach (int idx in changedIndices)
+                            {
+                                if (idx < spawnedDiceUI.Count)
+                                {
+                                    Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                    if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                }
+                            }
+                            yield return StartCoroutine(SkippableWait(0.5f));
+                            foreach (int idx in changedIndices)
+                            {
+                                rolls[idx] = payload.diceRolls[idx];
+                                if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                                AnimateSpecificDie(idx, rolls[idx]);
+                            }
+                        }
+                        else
+                        {
+                            foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
+                        }
+                        anyDieChanged = true; yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; }
+                        anyDieChanged = true;
+                    }
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                }
+            }
+        }
+
         if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true;
@@ -695,66 +752,8 @@ public class TurnManager : MonoBehaviour
         isThornPlacementTargeting = false;
         DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
-        thornTurnCounts[cell] = 0;
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
-        // Yerleştirilir yerleştirilmez blink başlasın
-        thornBlinkCoroutines[cell] = StartCoroutine(BlinkThornTile(cell));
         if (player != null) player.UpdateHighlights();
-    }
-
-    private void TickThornTurns()
-    {
-        if (LevelGenerator.instance == null) return;
-        var toRemove = new List<Vector3Int>();
-
-        foreach (var kv in new Dictionary<Vector3Int, int>(thornTurnCounts))
-        {
-            int newCount = kv.Value + 1;
-            thornTurnCounts[kv.Key] = newCount;
-
-            if (newCount >= 3)
-            {
-                // 3. tur: kırıl
-                toRemove.Add(kv.Key);
-            }
-        }
-
-        foreach (var cell in toRemove)
-        {
-            // Blink coroutine'i durdur
-            if (thornBlinkCoroutines.TryGetValue(cell, out Coroutine co))
-            {
-                if (co != null) StopCoroutine(co);
-                thornBlinkCoroutines.Remove(cell);
-            }
-            thornTurnCounts.Remove(cell);
-            LevelGenerator.instance.hazardCells.Remove(cell);
-            if (LevelGenerator.instance.hazardMap != null)
-                LevelGenerator.instance.hazardMap.SetTile(cell, null);
-        }
-    }
-
-    private IEnumerator BlinkThornTile(Vector3Int cell)
-    {
-        if (LevelGenerator.instance?.hazardMap == null) yield break;
-        float elapsed = 0f;
-        float blinkSpeed = 8f;
-        var tile = LevelGenerator.instance.hazardTile as UnityEngine.Tilemaps.Tile;
-
-        // thornTurnCounts'ta var olduğu sürece yanıp sön
-        while (thornTurnCounts.ContainsKey(cell))
-        {
-            if (LevelGenerator.instance?.hazardMap == null) yield break;
-            bool show = Mathf.Sin(elapsed * blinkSpeed) > 0f;
-            if (tile != null)
-                LevelGenerator.instance.hazardMap.SetTileFlags(cell, UnityEngine.Tilemaps.TileFlags.None);
-            LevelGenerator.instance.hazardMap.SetColor(cell, show ? Color.white : new Color(1f, 1f, 1f, 0f));
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-        // Temizlendiğinde rengi sıfırla
-        if (LevelGenerator.instance?.hazardMap != null)
-            LevelGenerator.instance.hazardMap.SetColor(cell, Color.white);
     }
 
     public void LockAllEnemyIntents()
@@ -1071,7 +1070,6 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
-        TickThornTurns();
         EndTurnAndDecreaseStuns();
     }
 
@@ -1157,6 +1155,69 @@ public class TurnManager : MonoBehaviour
             List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
             perksToProcess.Sort((a, b) => { int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
+            {
+                int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < currentRolls.Count; i++) if (currentRolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        if (perk.isRerollPerk)
+                        {
+                            foreach (int idx in changedIndices)
+                            {
+                                if (idx < spawnedDiceUI.Count)
+                                {
+                                    Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                    if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                }
+                            }
+                            yield return StartCoroutine(SkippableWait(0.5f));
+                            foreach (int idx in changedIndices)
+                            {
+                                currentRolls[idx] = payload.diceRolls[idx];
+                                if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                                AnimateSpecificDie(idx, currentRolls[idx]);
+                            }
+                        }
+                        else
+                        {
+                            foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, currentRolls[idx]); }
+                        }
+                        anyDieChanged = true; yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; }
+                        anyDieChanged = true;
+                    }
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                }
+            }
+        }
+
+        // LetsGoAgain: Tüm perkler bir kez daha tetiklenir
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        {
+            var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
+            if (lgaPerk != null && !skipDiceVisuals)
+            {
+                lgaPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(lgaPerk);
+                yield return StartCoroutine(SkippableWait(0.4f));
+            }
+
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in secondPass)
             {
                 int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
                 bool anyDieChanged = false; List<int> changedIndices = new List<int>();

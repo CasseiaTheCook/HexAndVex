@@ -51,3 +51,5 @@ MonoBehaviour:
   icon: {fileID: 1938561639929944937, guid: b4ccb4fd839c0e640b5d62819f3fcdcd, type: 3}
   priority: 1
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0

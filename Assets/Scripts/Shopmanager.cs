@@ -11,6 +11,10 @@ public class Shopmanager : MonoBehaviour
     [Header("Item Havuzu")]
     public List<BaseItem> itemPool = new List<BaseItem>();
 
+    [Header("Secret Item")]
+    public BaseItem secretItem; // SecretPerkOrb — %1 şansla shopta çıkar
+    [Range(0f, 1f)] public float secretItemChance = 0.01f;
+
     [Header("Shop Slot Sistemi")]
     public Transform shopSlotContainer;
     public GameObject shopSlotPrefab;
@@ -110,6 +114,15 @@ public class Shopmanager : MonoBehaviour
 
         GenerateShopItems();
         RefreshCoinDisplay();
+
+        // Tüm aktif perklerin OnShopReroll callback'ini çağır
+        if (RunManager.instance != null)
+        {
+            foreach (var perk in RunManager.instance.activePerks)
+            {
+                if (perk != null) perk.OnShopReroll();
+            }
+        }
     }
 
     public void GenerateShopItems()
@@ -161,6 +174,32 @@ public class Shopmanager : MonoBehaviour
             purchased.Add(false);
 
             SetupSlot(slot, i, item);
+        }
+
+        // %1 şansla secret item slotu ekle
+        if (secretItem != null && Random.value < secretItemChance)
+        {
+            int secretIndex = spawnedSlots.Count;
+
+            GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
+            slotGO.transform.localScale = Vector3.one;
+
+            RectTransform slotRT = slotGO.GetComponent<RectTransform>();
+            if (slotRT != null) slotRT.sizeDelta = new Vector2(65f, 65f);
+
+            var le = slotGO.GetComponent<LayoutElement>();
+            if (le == null) le = slotGO.AddComponent<LayoutElement>();
+            le.preferredWidth = 65f;
+            le.preferredHeight = 65f;
+            le.flexibleWidth = 0f;
+            le.flexibleHeight = 0f;
+
+            ShopSlot slot = slotGO.GetComponent<ShopSlot>();
+            spawnedSlots.Add(slot);
+            currentItems.Add(secretItem);
+            purchased.Add(false);
+
+            SetupSlot(slot, secretIndex, secretItem);
         }
 
         RefreshCoinDisplay();

@@ -47,8 +47,9 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Mutant Swarm
-  description: Gain extra multiplier based on your total dice count. (1.25X each
-    level)
+  description: Gain 1.25X for each die you can roll.
   icon: {fileID: 2887690202466212411, guid: 3d4da4974027a774f8b3dbcca2f31f89, type: 3}
   priority: 2
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0
