@@ -9,6 +9,7 @@ public class VolatileCellsPerk : BasePerk
     {
         payload.triggerExplosion = true;
         payload.explosionDamagePercent = currentLevel * 0.25f; // Lv1=%25, Lv2=%50, Lv3=%75, Lv4=%100
-        TriggerVisualPop();
+        if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+            TriggerVisualPop();
     }
 }

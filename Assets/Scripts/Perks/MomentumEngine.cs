@@ -21,6 +21,7 @@ public class MomentumEnginePerk : BasePerk
         }
 
         // Çalıştığını belli etmek için hoplat
-        TriggerVisualPop();
+        if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+            TriggerVisualPop();
     }
 }
