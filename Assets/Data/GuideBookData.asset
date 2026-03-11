@@ -13,40 +13,109 @@ MonoBehaviour:
   m_Name: GuideBookData
   m_EditorClassIdentifier: Assembly-CSharp::GuideBookData
   pages:
-  - title: How to Move
-    bodyText: "Each turn, you can move to any highlighted hex adjacent to you. Blue
-      hexes show valid moves. Moving into an enemy attacks them \u2014 no separate
-      attack button needed. You start with 1 move per turn. Some perks grant extra
-      moves."
-    illustration: {fileID: -7347702412918682891, guid: 4aefa56b75e4fd044b2257ed9f98059f, type: 3}
-    category: Movement
-  - title: Dice & Damage
-    bodyText: "When you attack an enemy by moving into them, dice are rolled to determine
-      damage. You start with 2 dice. More dice = more potential damage. Critical
-      hits multiply your damage. Watch the dice panel \u2014 combos and crits are
-      highlighted. Some perks modify dice rolls and damage."
+  - title: Movement
+    bodyText: 'Every step counts. Each turn, you can navigate to any adjacent hex
+      highlighted in Yellow. These highlights represent your valid paths across the
+      battlefield.
+
+      You begin your journey with 1 Move per turn. Choose your
+      path wisely, but keep an eye out for powerful Perks that grant extra moves,
+      allowing you to outmaneuver even the swiftest foes.'
     illustration: {fileID: 0}
     category: Combat
-  - title: Enemy Types
-    bodyText: "MELEE: Moves toward you and attacks on contact.\nTELEGRAPH AOE: Shows
-      a warning tile (red hex) before unleashing an area attack. Move out of the
-      highlighted zone!\nTOTEM: Stationary, buffs nearby enemies.\nWARLOCK: Ranged
-      attacker with special abilities.\nBOSS: Powerful enemies with multiple mechanics
-      \u2014 read their patterns carefully."
+  - title: Combat & Damage
+    bodyText: 'There is no separate attack button. Engaging an enemy in close-quarters
+      combat (by moving directly adjacent to them) triggers a Dice Roll to determine
+      your damage. You begin your journey with 2 dice, but as you progress, increasing
+      your dice count is the key to unlocking devastating power. '
+    illustration: {fileID: 0}
+    category: Combat
+  - title: The Dice Panel
+    bodyText: 'Keep a close watch on the Dice Panel: high-impact combos and Critical
+      Hits  (which multiply your total damage) are highlighted in real-time. Strategize
+      with unique Perks to manipulate your rolls and bend the odds in your favor!'
+    illustration: {fileID: 0}
+    category: Combat
+  - title: Enemy Bestiary
+    bodyText: "1. Orc (The Brawler)\n\n\tBehavior: Moves directly toward the player
+      and attacks once in \t\t\t   melee range.\n\n\tAttributes: High strength but
+      low intelligence. Predictable    movement.\n\n\tStrategy: Easy to kite, but
+      don't let them corner you!\n\n2. Hammer (The Crusher)\n\n\tBehavior: Channels
+      a powerful area-of-effect (AoE) attack.\n\n\tMechanic: Displays a Red Hex warning
+      tile before striking.\n\n\tSpawn Rate: Begins appearing after Level 2.\n\n\tStrategy:
+      Step out of the highlighted zone immediately to avoid massive damage.\n\n3.
+      Warlock (The Elusive Sniper)\n\n\tBehavior: A ranged specialist that maintains
+      maximum distance.\n\n\tSpecial Move: Charges a deadly two-attack combo every
+      3rd turn.\n\n\tDefense: Automatically teleports to a new location whenever
+      it takes damage.\n\n\tSpawn Rate: Appears only after the first Boss level."
     illustration: {fileID: 0}
     category: Enemies
-  - title: Items & Shop
-    bodyText: "After each room, a Shop appears. Spend gold to buy items. Items provide
-      powerful one-time or persistent effects. You can reroll the shop for a cost
-      \u2014 rerolling gets more expensive each time. Gold is earned by killing enemies.
-      Some perks increase gold drops."
+  - title: Boss & Special Mechanics
+    bodyText: "4. Totem (The Protector) \n\n\tRole: Stationary structure that grants
+      the Boss invulnerability.  \n\n\tChain Reaction: You must destroy all Totems
+      to damage the Boss.  \n\n\tWave Mechanic: Breaking a Totem instantly clears
+      all remaining minor enemies and triggers a new enemy wave.  \n\n5. The Boss
+      (The Overlord) \n\n\tUltimate Attack: Readies an arena-wide blast every 3rd
+      turn that hits every tile.  \n\n\tReactionary Defense: Teleports away from
+      the player every time he is hit.  \n\n\tReinforcements: Spawns new minions
+      each time he takes \tdamage. \n\n\tStrategy: Timing is everything\u2014break
+      the Totems to drop his shield, then strike quickly before the arena-wide attack
+      triggers!"
+    illustration: {fileID: 0}
+    category: Enemies
+  - title: The Shop & Items
+    bodyText: "The Shop is always accessible throughout your journey via the button
+      located in the top-left corner of the screen. You don\u2019t need to wait for
+      a room to clear; as long as you have the Gold, the Merchant\u2019s inventory
+      is just a click away."
     illustration: {fileID: 0}
     category: Items
-  - title: Perks & Level Up
-    bodyText: "After clearing a room, choose a perk. Perks are passive upgrades that
-      persist for the run. Rarities: Common (grey) \u2192 Rare (blue) \u2192 Epic
-      (purple) \u2192 Legendary (gold) \u2192 Secret. Many perks have multiple levels
-      \u2014 you can pick the same perk again to upgrade it. Build synergies between
-      perks for powerful combinations."
+  - title: Currency and Rerolls
+    bodyText: "Items provide a variety of persistent perks or immediate boosts to
+      your combat efficiency. If the current selection doesn\u2019t suit your build,
+      you can pay to Reroll the inventory. Be tactical with your spending, as the
+      cost of rerolling increases each time you use it.\n"
+    illustration: {fileID: 0}
+    category: Items
+  - title: Funding Your Run
+    bodyText: "Gold is acquired by eliminating enemies. Efficient combat and specific
+      Gold-boosting Perks are the best ways to ensure you can always afford the most
+      powerful items in the Merchant\u2019s collection."
+    illustration: {fileID: 0}
+    category: Items
+  - title: Enhancement Selection
+    bodyText: After successfully clearing a room, you will be granted the opportunity
+      to select a new Implant. These are permanent passive upgrades that integrate
+      into your system and persist for the remainder of your run.
+    illustration: {fileID: 0}
+    category: Perks
+  - title: Rarity & Scaling
+    bodyText: 'Implants are categorized into five distinct tiers of rarity:
+
+
+      Common
+      (Grey)
+
+
+      Rare (Blue)
+
+
+      Epic (Purple)
+
+
+      Legendary (Gold)
+
+
+      ???
+      (???)
+
+'
+    illustration: {fileID: 0}
+    category: Perks
+  - title: Synergies & Combinations
+    bodyText: The key to a successful run lies in your ability to build Synergies.
+      Experiment with different Implant combinations to unlock devastating technical
+      advantages and create a build that can withstand any threat. Keep playing and
+      you may find something interesting like -???-.
     illustration: {fileID: 0}
     category: Perks

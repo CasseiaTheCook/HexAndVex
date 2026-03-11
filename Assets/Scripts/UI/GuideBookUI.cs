@@ -53,7 +53,7 @@ public class GuideBookUI : MonoBehaviour
     private Coroutine animCoroutine;
 
     // Kategori isimleri (ALL yok — filtre butonu olarak 5 kategori)
-    private static readonly string[] CATEGORIES = { "Combat", "Enemies", "Items", "Perks", "Movement" };
+    private static readonly string[] CATEGORIES = { "Combat", "Enemies", "Items", "Perks" };
 
     // Renkler
     private static readonly Color CAT_ACTIVE = new Color(0f, 0.58f, 0.74f, 1f);     // #0093BC
