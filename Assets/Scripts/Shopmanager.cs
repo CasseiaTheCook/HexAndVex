@@ -131,8 +131,12 @@ public class Shopmanager : MonoBehaviour
 
             int idx;
             int safety = 0;
-            do { idx = Random.Range(0, itemPool.Count); if (++safety > 100) break; }
-            while (usedIndices.Contains(idx));
+            do {
+                idx = Random.Range(0, itemPool.Count);
+                if (++safety > 100) break;
+            }
+            while (usedIndices.Contains(idx) ||
+                   (RunManager.instance != null && RunManager.instance.hasPerkReroll && itemPool[idx] is MutationCatalyst));
             usedIndices.Add(idx);
 
             BaseItem item = itemPool[idx];
