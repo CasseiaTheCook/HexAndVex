@@ -16,7 +16,7 @@ public class GuideBookManager : MonoBehaviour
     [HideInInspector] public int currentPageIndex = 0;
     [HideInInspector] public bool isOpen = false;
 
-    // Aktif kategori filtresi ("" = All)
+    // Aktif kategori filtresi ("" = hepsini göster, filtre yok)
     [HideInInspector] public string activeCategory = "";
 
     // Filtrelenmiş sayfa indeksleri (bookData.pages içindeki gerçek indeksler)
@@ -46,15 +46,18 @@ public class GuideBookManager : MonoBehaviour
 
     public void SetCategory(string category)
     {
-        activeCategory = category;
-        RebuildFilter();
+        // Aynı kategoriye tekrar tıklanırsa filtreyi kaldır (toggle)
+        if (activeCategory == category && !string.IsNullOrEmpty(category))
+            activeCategory = "";
+        else
+            activeCategory = category;
 
-        // Filtrelenen sayfalar arasında geçerli sayfa yoksa ilk sayfaya dön
+        RebuildFilter();
         currentPageIndex = 0;
-        if (bookUI != null) bookUI.RefreshPage();
+        RefreshAll();
     }
 
-    private void RebuildFilter()
+    public void RebuildFilter()
     {
         filteredIndices.Clear();
         if (bookData == null) return;
@@ -70,6 +73,8 @@ public class GuideBookManager : MonoBehaviour
 
     public int FilteredPageCount => filteredIndices.Count;
 
+    public List<int> GetFilteredIndices() => filteredIndices;
+
     public GuideBookPage GetCurrentPage()
     {
         if (filteredIndices.Count == 0 || bookData == null) return null;
@@ -77,22 +82,23 @@ public class GuideBookManager : MonoBehaviour
         return bookData.pages[filteredIndices[clampedIndex]];
     }
 
-    // ── Navigasyon ───────────────────────────────────────────
-
-    public void NextPage()
+    public GuideBookPage GetPageAt(int dataIndex)
     {
-        if (filteredIndices.Count == 0) return;
-        currentPageIndex = (currentPageIndex + 1) % filteredIndices.Count;
-        if (bookUI != null) bookUI.RefreshPage();
-        if (AudioManager.instance != null) AudioManager.instance.PlayCard();
+        if (bookData == null || dataIndex < 0 || dataIndex >= bookData.pages.Count) return null;
+        return bookData.pages[dataIndex];
     }
 
-    public void PrevPage()
+    // ── Navigasyon ───────────────────────────────────────────
+
+    /// <summary>
+    /// Sidebar'dan tıklanan filtrelenmiş indekse git.
+    /// filteredIdx = filteredIndices listesindeki sıra numarası.
+    /// </summary>
+    public void GoToFilteredIndex(int filteredIdx)
     {
         if (filteredIndices.Count == 0) return;
-        currentPageIndex--;
-        if (currentPageIndex < 0) currentPageIndex = filteredIndices.Count - 1;
-        if (bookUI != null) bookUI.RefreshPage();
+        currentPageIndex = Mathf.Clamp(filteredIdx, 0, filteredIndices.Count - 1);
+        RefreshAll();
         if (AudioManager.instance != null) AudioManager.instance.PlayCard();
     }
 
@@ -100,12 +106,21 @@ public class GuideBookManager : MonoBehaviour
     {
         if (filteredIndices.Count == 0) return;
         currentPageIndex = Mathf.Clamp(index, 0, filteredIndices.Count - 1);
-        if (bookUI != null) bookUI.RefreshPage();
+        RefreshAll();
     }
 
-    public void GoToCategory(string category)
+    /// <summary>
+    /// Hem içerik hem sidebar'ı güncelle.
+    /// </summary>
+    public void RefreshAll()
     {
-        SetCategory(category);
+        if (bookUI == null) bookUI = GetComponent<GuideBookUI>();
+        if (bookUI == null) bookUI = FindFirstObjectByType<GuideBookUI>();
+        if (bookUI == null) return;
+
+        bookUI.RefreshPage();
+        bookUI.RefreshSidebar();
+        bookUI.RefreshCategoryButtons();
     }
 
     // ── Aç / Kapa ───────────────────────────────────────────
@@ -115,8 +130,8 @@ public class GuideBookManager : MonoBehaviour
         if (isOpen) return;
         isOpen = true;
         currentPageIndex = 0;
+        activeCategory = ""; // Açılışta tüm sayfaları göster
 
-        // Güvenlik — bookUI kayıp olabilir
         if (bookUI == null) bookUI = GetComponent<GuideBookUI>();
         if (bookUI == null) bookUI = FindFirstObjectByType<GuideBookUI>();
 
