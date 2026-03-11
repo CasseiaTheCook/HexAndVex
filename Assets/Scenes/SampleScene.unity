@@ -4790,6 +4790,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 18b48bb0e17c08c43995c00a542f6de4, type: 2}
   - {fileID: 11400000, guid: cb518e6b0f8fefc4389b15930865c72b, type: 2}
   - {fileID: 11400000, guid: 9716d47d8c031c94fb498ea4bf1b366c, type: 2}
+  - {fileID: 11400000, guid: b5e9a3c7d1f8264e0a9b3d5f7c1e4a68, type: 2}
+  secretItem: {fileID: 0}
+  secretItemChance: 1
   shopSlotContainer: {fileID: 1400458065}
   shopSlotPrefab: {fileID: 8164334485540262811, guid: 22dde9155aaf3554f9955e1432f107fd, type: 3}
   shopSlotCount: 3
@@ -6329,7 +6332,6 @@ MonoBehaviour:
   - {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
   - {fileID: 2685890259749979858, guid: 933253f12869f3e4baabefcd1401161d, type: 3}
   - {fileID: 4520883504955689006, guid: 02cb28d0d7f5084419350d73f47a6370, type: 3}
-  - {fileID: 8701619630202089433, guid: 2006924981287ef40a94a3ea53a48712, type: 3}
   choiceButtons:
   - {fileID: 1840497870}
   - {fileID: 990590839}

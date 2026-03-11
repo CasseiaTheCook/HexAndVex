@@ -198,6 +198,9 @@ public class LevelUpManager : MonoBehaviour
         if (legendaryPerks.Contains(perk)) return PerkRarity.Legendary;
         if (epicPerks.Contains(perk))      return PerkRarity.Epic;
         if (rarePerks.Contains(perk))      return PerkRarity.Rare;
+        // Secret perkler normal havuzda olmaz ama güvenlik için kontrol
+        BasePerk bp = perk.GetComponent<BasePerk>();
+        if (bp != null && bp.rarity == PerkRarity.Secret) return PerkRarity.Secret;
         return PerkRarity.Common;
     }
 
@@ -209,6 +212,7 @@ public class LevelUpManager : MonoBehaviour
             case PerkRarity.Rare:      return new Color(0.2f, 0.5f, 1f);   // Mavi
             case PerkRarity.Epic:      return new Color(0.6f, 0.2f, 1f);   // Mor
             case PerkRarity.Legendary: return new Color(1f, 0.6f, 0f);     // Turuncu/Altın
+            case PerkRarity.Secret:    return new Color(1f, 0.27f, 0.27f); // Kırmızı
             default:                   return Color.white;
         }
     }
