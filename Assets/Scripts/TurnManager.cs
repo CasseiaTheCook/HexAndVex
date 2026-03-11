@@ -36,6 +36,9 @@ public class TurnManager : MonoBehaviour
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
     public GameObject criticalText;
+    public GameObject comboTextObj; // Inspector'dan bağla — TMP_Text içermeli
+    public UnityEngine.UI.Image dicePanelBackground; // Inspector'dan bağla, Source Image = None
+
 
     [Header("Coin UI")]
     public TMP_Text coinText;
@@ -53,6 +56,9 @@ public class TurnManager : MonoBehaviour
     [HideInInspector] public bool isPhaseShiftTargeting = false;
     [HideInInspector] public bool isThornPlacementTargeting = false;
 
+    // Thorn preview
+    private GameObject thornPreviewObj;
+
     public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
 
     public int hexesMovedThisTurn = 0;
@@ -64,6 +70,12 @@ public class TurnManager : MonoBehaviour
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
+    public int finalDamage = 0;
+
+    // Combo sistemi
+    private int comboCount = 0;
+    private Coroutine comboFadeCoroutine;
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -72,6 +84,7 @@ public class TurnManager : MonoBehaviour
         if (player == null) player = FindFirstObjectByType<HexMovement>();
         if (groundMap == null) groundMap = GameObject.Find("GroundMap")?.GetComponent<Tilemap>();
         if (totalDamageText == null) totalDamageText = GameObject.Find("TotalDamageText")?.GetComponent<TMP_Text>();
+        if (coinText == null) coinText = GameObject.Find("CoinText")?.GetComponent<TMP_Text>();
     }
 
     void Start()
@@ -99,7 +112,36 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // Thorn preview follows mouse during placement
+        if (isThornPlacementTargeting && thornPreviewObj != null)
+        {
+            Vector3 mPos = Input.mousePosition;
+            mPos.z = Mathf.Abs(Camera.main.transform.position.z);
+            Vector3 wp = Camera.main.ScreenToWorldPoint(mPos);
+            wp.z = 0;
+            Vector3Int hoverCell = groundMap.WorldToCell(wp);
+
+            if (groundMap.HasTile(hoverCell) && !IsThornCellBlocked(hoverCell))
+            {
+                Vector3 snapPos = groundMap.GetCellCenterWorld(hoverCell);
+                snapPos.z = 0;
+                thornPreviewObj.transform.position = snapPos;
+                thornPreviewObj.SetActive(true);
+            }
+            else
+            {
+                thornPreviewObj.SetActive(false);
+            }
+        }
+
 #if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.F6))
+        {
+            foreach (var e in new List<EnemyAI>(enemies))
+                if (e != null && e.health.currentHP > 0) e.health.TakeDamage(9999);
+            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+            if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+        }
         if (Input.GetKeyDown(KeyCode.F7))
         {
             RunManager.instance.currentGold += 10000;
@@ -128,16 +170,18 @@ public class TurnManager : MonoBehaviour
     private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
     {
         List<Vector3Int> line = new List<Vector3Int>();
-        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
-        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        Vector3Int[] oddOff = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
         int bestDir = 0; float minDist = float.MaxValue;
         Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOff : oddOff;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 6; i++)
+        {
             float d = enemy.Distance(startCell + startOffsets[i], targetCell);
             if (d < minDist) { minDist = d; bestDir = i; }
         }
         Vector3Int cur = startCell;
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++)
+        {
             Vector3Int[] offs = (cur.y % 2 != 0) ? evenOff : oddOff;
             cur += offs[bestDir];
             if (groundMap.HasTile(cur)) line.Add(cur);
@@ -149,16 +193,18 @@ public class TurnManager : MonoBehaviour
     {
         if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null) return;
         Vector3Int playerCell = player.GetCurrentCellPosition();
-        Vector3Int[] oddOff = { new Vector3Int(+1,0,0), new Vector3Int(0,+1,0), new Vector3Int(-1,+1,0), new Vector3Int(-1,0,0), new Vector3Int(-1,-1,0), new Vector3Int(0,-1,0) };
-        Vector3Int[] evenOff = { new Vector3Int(+1,0,0), new Vector3Int(+1,+1,0), new Vector3Int(0,+1,0), new Vector3Int(-1,0,0), new Vector3Int(0,-1,0), new Vector3Int(+1,-1,0) };
+        Vector3Int[] oddOff = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
+        Vector3Int[] evenOff = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
         Vector3Int[] offsets = (playerCell.y % 2 != 0) ? evenOff : oddOff;
         List<Vector3Int> spawnCells = new List<Vector3Int>();
 
-        int[][] pairs = { new[]{0,3}, new[]{1,4}, new[]{2,5} };
-        foreach (var pair in pairs) {
+        int[][] pairs = { new[] { 0, 3 }, new[] { 1, 4 }, new[] { 2, 5 } };
+        foreach (var pair in pairs)
+        {
             Vector3Int c1 = playerCell + offsets[pair[0]];
             Vector3Int c2 = playerCell + offsets[pair[1]];
-            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2)) {
+            if (groundMap.HasTile(c1) && groundMap.HasTile(c2) && !IsEnemyAtCell(c1) && !IsEnemyAtCell(c2))
+            {
                 Vector3Int[] off1 = (c1.y % 2 != 0) ? evenOff : oddOff; Vector3Int far1 = c1 + off1[pair[0]];
                 Vector3Int[] off2 = (c2.y % 2 != 0) ? evenOff : oddOff; Vector3Int far2 = c2 + off2[pair[1]];
                 if (groundMap.HasTile(far1) && groundMap.HasTile(far2) && !IsEnemyAtCell(far1) && !IsEnemyAtCell(far2)) { spawnCells.Add(far1); spawnCells.Add(far2); break; }
@@ -166,7 +212,8 @@ public class TurnManager : MonoBehaviour
             }
         }
         if (spawnCells.Count < 2) return;
-        foreach (var spawnCell in spawnCells) {
+        foreach (var spawnCell in spawnCells)
+        {
             Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell); spawnPos.z = 0;
             GameObject obj = Instantiate(LevelGenerator.instance.aoeEnemyPrefab, spawnPos, Quaternion.identity);
             EnemyAI ai = obj.GetComponent<EnemyAI>(); ai.groundMap = groundMap;
@@ -184,7 +231,15 @@ public class TurnManager : MonoBehaviour
         hasAttackedThisTurn = false;
         isAttackAnimationPlaying = false;
 
-        if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
+        if (RunManager.instance != null)
+        {
+            int moves = RunManager.instance.extraMovesPerTurn;
+            RunManager.instance.remainingMoves = moves;
+
+            // Surge Boot: her tur başında sıfırla (Use() anında aktifleştirir)
+            RunManager.instance.surgeBootActive = false;
+            RunManager.instance.surgeBootNextTurn = false;
+        }
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
 
@@ -220,6 +275,7 @@ public class TurnManager : MonoBehaviour
     public void PlayerTakeDamage(int amt)
     {
         if (player == null || player.health.currentHP <= 0) return;
+        ResetCombo();
 
         if (player.health.currentHP - amt <= 0)
         {
@@ -228,7 +284,7 @@ public class TurnManager : MonoBehaviour
             {
                 RunManager.instance.currentGold = 0; UpdateCoinUI(); player.health.Heal(9999);
                 RunManager.instance.activePerks.Remove(bribe); Destroy(bribe.gameObject);
-                
+
                 // DODGE EFEKTİNİ COROUTINE İLE ÇAĞIRIYORUZ (Kalkan Kırılma Animasyonu)
                 StartCoroutine(AnimateShieldBreakFX(player.transform.position));
                 return;
@@ -249,7 +305,7 @@ public class TurnManager : MonoBehaviour
 
         float duration = 0.35f;
         float elapsed = 0f;
-        
+
         // Küçükten büyüyen bir efekt için scale değerleri
         Vector3 startScale = Vector3.one * 2.4f;
         Vector3 endScale = Vector3.one * 9.0f;
@@ -258,7 +314,7 @@ public class TurnManager : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            
+
             // Objeyi büyütüyoruz
             fx.transform.localScale = Vector3.Lerp(startScale, endScale, t);
 
@@ -329,21 +385,24 @@ public class TurnManager : MonoBehaviour
     public void TryNecroShotKill(EnemyAI target)
     {
         if (!isNecroShotTargeting || target == null) return;
+        if (target.enemyBehavior == EnemyAI.EnemyBehavior.Boss) return;
         isNecroShotTargeting = false;
         if (player != null) player.TriggerAttackAnimation();
 
         target.health.TakeDamage(9999);
         if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
         {
-            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-            if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-            RunManager.instance.currentGold += coinDrop;
-            if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
+            bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+            int coinDrop = 0;
+            if (isBossRoom) { if (target.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+            else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+            if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop); }
         }
-        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
+        foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(target);
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+        RunManager.instance.totalEnemiesKilled++; // Öldürme sayısını arttır
     }
 
     public void StartBombPlacement() { isBombPlacementTargeting = true; }
@@ -360,15 +419,70 @@ public class TurnManager : MonoBehaviour
             placeholderObj = Instantiate(fragMinePlaceholderPrefab, placeholderPos, Quaternion.identity);
         }
 
-        // Zar animasyonunu göster (sadece baseDiceCount, bonus zar yok)
+        // Zar animasyonunu göster
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         List<int> rolls = new List<int>();
         for (int i = 0; i < diceCount; i++) rolls.Add(Random.Range(1, 7));
+        if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount;
+
+        CombatPayload payload = new CombatPayload(rolls);
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk"))
+            payload.multiplyInsteadOfAdd = true;
 
         yield return StartCoroutine(ShowDiceSequence(rolls));
+        UpdateTotalDamageDisplay(payload.GetFinalDamage());
 
-        int totalDamage = 0;
-        foreach (var r in rolls) totalDamage += r;
+        // Perk zar boost'larını uygula (normal combat ile aynı)
+        if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
+        {
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
+            perksToProcess.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in perksToProcess)
+            {
+                int beforeTotal = payload.GetFinalDamage();
+                perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < rolls.Count; i++) if (rolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (perk.isRerollPerk)
+                    {
+                        foreach (int idx in changedIndices)
+                        {
+                            if (idx < spawnedDiceUI.Count)
+                            {
+                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                            }
+                        }
+                        yield return new WaitForSeconds(0.5f);
+                        foreach (int idx in changedIndices)
+                        {
+                            rolls[idx] = payload.diceRolls[idx];
+                            if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                            AnimateSpecificDie(idx, rolls[idx]);
+                        }
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
+                    }
+                    anyDieChanged = true; yield return new WaitForSeconds(0.3f);
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+            }
+        }
+
+        if (Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true;
+            UpdateTotalDamageDisplay(payload.GetFinalDamage());
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        int totalDamage = payload.GetFinalDamage();
         UpdateTotalDamageDisplay(totalDamage);
         yield return new WaitForSeconds(0.6f);
 
@@ -394,18 +508,21 @@ public class TurnManager : MonoBehaviour
             {
                 if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
                 {
-                    int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                    if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                    RunManager.instance.currentGold += coinDrop;
-                    if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
+                    bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                    int coinDrop = 0;
+                    if (isBossRoom) { if (enemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                    else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                    if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop); }
                 }
-                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
+                foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(enemy);
+                RunManager.instance.totalEnemiesKilled++;
             }
         }
 
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+        else ShowAllEnemyIntents();
     }
 
     public void StartPhaseShiftTargeting() { isPhaseShiftTargeting = true; }
@@ -413,19 +530,125 @@ public class TurnManager : MonoBehaviour
     {
         if (!isPhaseShiftTargeting || target == null) return;
         isPhaseShiftTargeting = false;
-        Vector3Int playerCell = player.GetCurrentCellPosition();
-        Vector3Int enemyCell = target.GetCurrentCellPosition();
-        player.ForceSetPosition(enemyCell); target.ForceSetPosition(playerCell);
+        StartCoroutine(PhaseShiftCoroutine(target));
     }
 
-    public void StartThornPlacement() { isThornPlacementTargeting = true; }
+    private IEnumerator PhaseShiftCoroutine(EnemyAI target)
+    {
+        Vector3Int playerCell = player.GetCurrentCellPosition();
+        Vector3Int enemyCell = target.GetCurrentCellPosition();
+
+        // Oyuncu küçülür
+        float shrinkDur = 0.12f; float elapsed = 0f;
+        while (elapsed < shrinkDur)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / shrinkDur;
+            player.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.zero, t);
+            yield return null;
+        }
+        player.transform.localScale = Vector3.zero;
+
+        // Konumları değiştir
+        player.ForceSetPosition(enemyCell);
+        target.ForceSetPosition(playerCell);
+
+        // Oyuncu büyür
+        elapsed = 0f;
+        while (elapsed < shrinkDur)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / shrinkDur;
+            player.transform.localScale = Vector3.Lerp(Vector3.zero, Vector3.one, t);
+            yield return null;
+        }
+        player.transform.localScale = Vector3.one;
+
+        // Swap sonrası mayın kontrolü: düşman mayının üstüne geldiyse hemen patlat
+        if (activeMineCell.y != -999 && target.GetCurrentCellPosition() == activeMineCell)
+        {
+            yield return new WaitForSeconds(0.1f);
+            var phantomPerk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
+            float mineDamagePercent = phantomPerk != null ? phantomPerk.currentLevel * 0.25f : 0.25f;
+            TriggerExplosion(activeMineCell, mineDamagePercent);
+
+            if (target != null && target.health.currentHP > 0)
+                target.ApplyStun(2, true);
+
+            if (activeMineObj != null) Destroy(activeMineObj);
+            activeMineCell = new Vector3Int(-999, -999, -999);
+
+            List<EnemyAI> mineKills = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+            foreach (var deadEnemy in mineKills)
+            {
+                if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+                {
+                    bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                    int coinDrop = 0;
+                    if (isBossRoom) { if (deadEnemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                    else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                    if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
+                }
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+            }
+            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+            UpdateCoinUI();
+
+            if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
+        }
+
+        // Highlight ve ok'ları yeni konuma göre güncelle
+        player.UpdateHighlights();
+        LockAllEnemyIntents();
+        ShowAllEnemyIntents();
+    }
+
+    public void StartThornPlacement()
+    {
+        isThornPlacementTargeting = true;
+        CreateThornPreview();
+    }
+
+    private void CreateThornPreview()
+    {
+        if (thornPreviewObj != null) return;
+
+        Sprite previewSprite = null;
+        if (LevelGenerator.instance != null && LevelGenerator.instance.hazardTile is Tile ht && ht.sprite != null)
+            previewSprite = ht.sprite;
+
+        if (previewSprite == null) return;
+
+        thornPreviewObj = new GameObject("ThornPreview");
+        var sr = thornPreviewObj.AddComponent<SpriteRenderer>();
+        sr.sprite = previewSprite;
+        sr.color = new Color(1f, 1f, 1f, 0.45f);
+        sr.sortingOrder = 10;
+        thornPreviewObj.SetActive(false);
+    }
+
+    private void DestroyThornPreview()
+    {
+        if (thornPreviewObj != null) { Destroy(thornPreviewObj); thornPreviewObj = null; }
+    }
+
+    private bool IsThornCellBlocked(Vector3Int cell)
+    {
+        if (player != null && player.GetCurrentCellPosition() == cell) return true;
+        if (IsEnemyAtCell(cell)) return true;
+        if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(cell)) return true;
+        return false;
+    }
+
     private void ExecuteThornAt(Vector3Int cell)
     {
-        if (LevelGenerator.instance == null) { isThornPlacementTargeting = false; return; }
-        if (player.GetCurrentCellPosition() == cell || IsEnemyAtCell(cell) || LevelGenerator.instance.hazardCells.Contains(cell)) return;
+        if (LevelGenerator.instance == null) { isThornPlacementTargeting = false; DestroyThornPreview(); return; }
+        if (IsThornCellBlocked(cell)) return;
         isThornPlacementTargeting = false;
+        DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
+        if (player != null) player.UpdateHighlights();
     }
 
     public void LockAllEnemyIntents()
@@ -437,7 +660,6 @@ public class TurnManager : MonoBehaviour
 
     public void PlayerFinishedMove(Vector3Int playerCell)
     {
-        if (RunManager.instance != null) RunManager.instance.surgeBootNextTurn = false;
         StartCoroutine(HandlePlayerPhase(playerCell));
     }
 
@@ -465,6 +687,11 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator HandleSkipPhase()
     {
+        // OnSkip'i saldırıdan ÖNCE çağır: DormantSpore zarları bu turda kullanılabilsin
+        foreach (var perk in RunManager.instance.activePerks) if (!perk.isDisabled) perk.OnSkip();
+        RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
+        UpdateCoinUI();
+
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
@@ -474,9 +701,6 @@ public class TurnManager : MonoBehaviour
         }
 
         if (enemies.Count <= 0) yield break;
-        foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
-        RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
-        UpdateCoinUI();
         StartCoroutine(EnemyPhase());
     }
 
@@ -509,6 +733,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator AnimateExplosionFX(Vector3 pos)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayExplosion();
         if (explosionPrefab == null) yield break;
         GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
@@ -526,6 +751,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator VacuumVFXCoroutine(Vector3 pos)
     {
         if (vacuumVfxPrefab == null) yield break;
+        if (AudioManager.instance != null) AudioManager.instance.PlayVacuum();
         GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
         float duration = 0.4f; float elapsed = 0f;
@@ -544,6 +770,10 @@ public class TurnManager : MonoBehaviour
     private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
     {
         hexesMovedThisTurn++;
+
+        // Surge Boot: hareketten sonra kapat
+        if (RunManager.instance != null)
+            RunManager.instance.surgeBootActive = false;
 
         if (LevelGenerator.instance.hazardCells.Contains(playerCell))
         {
@@ -629,6 +859,20 @@ public class TurnManager : MonoBehaviour
                 if (activeMineObj != null) Destroy(activeMineObj);
                 activeMineCell = new Vector3Int(-999, -999, -999);
 
+                // Mayınla ölen düşmanlar için coin drop ve perk callback
+                List<EnemyAI> mineKills = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+                foreach (var deadEnemy in mineKills)
+                {
+                    if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+                    {
+                        int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                        if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                        RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
+                        if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                    }
+                    foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+                }
+
                 enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
                 UpdateCoinUI();
 
@@ -636,6 +880,7 @@ public class TurnManager : MonoBehaviour
                 {
                     ClearWarningMap();
                     StartCoroutine(WaitAndTriggerLevelClear());
+                    yield break;
                 }
                 else
                 {
@@ -665,14 +910,19 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
+        // Melee saldırılar AoE'den önce: pozisyon değiştirdiği için önemli
+        if (readyToMeleeAttack.Count > 0)
+        {
+            yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
+        }
+
         if (readyToAoEAttack.Count > 0)
         {
             foreach (var aoeEnemy in readyToAoEAttack) yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
             yield return new WaitForSeconds(0.2f);
         }
 
-        if (readyToMeleeAttack.Count > 0) yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
-        else EndTurnAndDecreaseStuns();
+        EndTurnAndDecreaseStuns();
     }
 
     public void HideAllEnemyIntents() { foreach (var e in enemies) if (e != null) e.SetArrowVisibility(false); }
@@ -727,6 +977,7 @@ public class TurnManager : MonoBehaviour
         foreach (var p in RunManager.instance.activePerks) if (p is DormantSporePerk ambushPerk) { extraDices += ambushPerk.storedExtraDices; ambushPerk.storedExtraDices = 0; }
         if (RunManager.instance.bonusDiceNextCombat > 0) { extraDices += RunManager.instance.bonusDiceNextCombat; RunManager.instance.bonusDiceNextCombat = 0; }
         for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
+        if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
@@ -735,7 +986,7 @@ public class TurnManager : MonoBehaviour
 
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
             perksToProcess.Sort((a, b) => { int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -779,9 +1030,17 @@ public class TurnManager : MonoBehaviour
             if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return new WaitForSeconds(0.5f);
         }
 
-        yield return new WaitForSeconds(0.4f); HideDiceResults();
+        // OverClok: zar gizlenmeden önce 2x hasarı göster
         int finalDamage = payload.GetFinalDamage();
-        if (RunManager.instance.doubleDamageNextCombat) { finalDamage *= 2; RunManager.instance.doubleDamageNextCombat = false; }
+        if (RunManager.instance.doubleDamageNextCombat)
+        {
+            finalDamage *= 2;
+            RunManager.instance.doubleDamageNextCombat = false;
+            UpdateTotalDamageDisplay(finalDamage);
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        yield return new WaitForSeconds(0.4f); HideDiceResults();
 
         int damagePerEnemy = 0;
         if (targets.Count > 0)
@@ -791,13 +1050,14 @@ public class TurnManager : MonoBehaviour
         }
 
         if (player != null) player.TriggerAttackAnimation();
+        if (AudioManager.instance != null) AudioManager.instance.PlaySwing();
         yield return new WaitForSeconds(0.3f);
+        if (AudioManager.instance != null) AudioManager.instance.PlayHit();
         isAttackAnimationPlaying = false;
         hexesMovedThisTurn = 0;
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
 
-        Vector3Int recoilFromCell = (targets.Count > 0 && targets[0] != null) ? targets[0].GetCurrentCellPosition() : Vector3Int.zero;
         var voodooPerk = RunManager.instance.activePerks.Find(p => p is VoodooParasitePerk) as VoodooParasitePerk;
 
         foreach (var enemy in targets)
@@ -805,6 +1065,7 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
             bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
+            RegisterComboHit();
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
             // ========================================================
@@ -813,7 +1074,8 @@ public class TurnManager : MonoBehaviour
             if (voodooPerk != null && enemies.Count > 1)
             {
                 // Hayatta olanları candan (büyükten küçüğe) sıralayıp liste haline getir
-                var others = enemies.Where(e => e != null && e != enemy && e.health.currentHP > 0)
+                var others = enemies.Where(e => e != null && e != enemy && e.health.currentHP > 0
+                                            && e.enemyBehavior != EnemyAI.EnemyBehavior.Boss)
                                     .OrderByDescending(e => e.health.currentHP)
                                     .ToList();
 
@@ -853,14 +1115,42 @@ public class TurnManager : MonoBehaviour
 
         var recoilPerk = RunManager.instance.activePerks.Find(p => p is RecoilSpringPerk) as RecoilSpringPerk;
         bool didRecoil = false;
-        if (recoilPerk != null && recoilFromCell != Vector3Int.zero)
+        if (recoilPerk != null && targets.Count > 0)
         {
             Vector3Int playerOriginal = player.GetCurrentCellPosition();
-            Vector3Int bounceTo = GetOppositeCell(playerOriginal, recoilFromCell);
+            Vector3 playerWorld = groundMap.GetCellCenterWorld(playerOriginal); playerWorld.z = 0;
+
+            // Tüm hedeflerin yönlerini topla, ortalama vektör bul
+            Vector2 avgDir = Vector2.zero;
+            foreach (var t in targets)
+            {
+                if (t == null) continue;
+                Vector3 eWorld = groundMap.GetCellCenterWorld(t.GetCurrentCellPosition()); eWorld.z = 0;
+                avgDir += (Vector2)(eWorld - playerWorld).normalized;
+            }
+
+            Vector3Int bounceTo = playerOriginal;
+            if (avgDir.sqrMagnitude > 0.001f)
+            {
+                // Ortalama vektörün tam tersine en yakın hex komşusunu bul
+                Vector2 recoilDir = -avgDir.normalized;
+                Vector3Int[] offsets = (playerOriginal.y % 2 != 0) ? evenOffsets : oddOffsets;
+                float bestDot = -2f;
+                foreach (var off in offsets)
+                {
+                    Vector3Int neighbor = playerOriginal + off;
+                    if (!groundMap.HasTile(neighbor) || IsEnemyAtCell(neighbor) || neighbor == player.GetCurrentCellPosition()) continue;
+                    Vector3 nWorld = groundMap.GetCellCenterWorld(neighbor); nWorld.z = 0;
+                    Vector2 nDir = (Vector2)(nWorld - playerWorld).normalized;
+                    float dot = Vector2.Dot(recoilDir, nDir);
+                    if (dot > bestDot) { bestDot = dot; bounceTo = neighbor; }
+                }
+            }
+
             if (bounceTo != playerOriginal)
             {
                 recoilPerk.TriggerVisualPop();
-                player.StartKnockbackMovement(bounceTo, true); 
+                player.StartKnockbackMovement(bounceTo, true);
                 didRecoil = true;
             }
         }
@@ -874,12 +1164,14 @@ public class TurnManager : MonoBehaviour
         {
             if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
             {
-                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                RunManager.instance.currentGold += coinDrop;
-                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                int coinDrop = 0;
+                if (isBossRoom) { if (deadEnemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
-            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
@@ -907,16 +1199,35 @@ public class TurnManager : MonoBehaviour
         {
             if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
             {
-                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                RunManager.instance.currentGold += coinDrop;
-                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                int coinDrop = 0;
+                if (isBossRoom) { if (deadEnemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
-            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
+
+        // Recoil Spring: oyuncu spike'a düştüyse hasar + geri itme
+        if (didRecoil && LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
+        {
+            yield return new WaitForSeconds(0.15f);
+            StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
+            if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
+            else PlayerTakeDamage(1);
+
+            Vector3Int safeCell = GetSafeNeighbor(player.GetCurrentCellPosition());
+            player.StartKnockbackMovement(safeCell);
+            yield return new WaitUntil(() => !player.IsMoving());
+        }
 
         if (didRecoil)
         {
@@ -924,12 +1235,14 @@ public class TurnManager : MonoBehaviour
             List<EnemyAI> nextTargets = allAdjacent.Where(e => e != null && e.health.currentHP > 0).ToList();
             if (nextTargets.Count > 0) yield return StartCoroutine(MultiAttack(nextTargets));
         }
+        finalDamage = payload.GetFinalDamage();
+        RunManager.instance.totalDamageDealt += finalDamage; // Toplam hasarı ekle
     }
 
     private IEnumerator EnemyAttackCoroutine(List<EnemyAI> attackers)
     {
         attackers.RemoveAll(a => a.skipTurns > 0);
-        if (attackers.Count == 0) { EndTurnAndDecreaseStuns(); yield break; }
+        if (attackers.Count == 0) { yield break; }
 
         yield return new WaitForSeconds(0.2f);
         bool dodged = false;
@@ -967,8 +1280,6 @@ public class TurnManager : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
         yield return new WaitForSeconds(0.3f);
-
-        EndTurnAndDecreaseStuns();
     }
 
     private void EndTurnAndDecreaseStuns()
@@ -981,6 +1292,7 @@ public class TurnManager : MonoBehaviour
             }
             StartPlayerTurn();
         }
+        RunManager.instance.totalTurnsPlayed++; // Tur sayısını arttır
     }
 
     public void ResumeAfterShop() { StartPlayerTurn(); }
@@ -988,26 +1300,94 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ShowDiceSequence(List<int> rolls)
     {
         foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
-        if (totalDamageText != null) { totalDamageText.gameObject.SetActive(true); totalDamageText.text = "0"; }
-        List<Image> dieImages = new List<Image>(); List<Animator> dieAnimators = new List<Animator>(); List<TMP_Text> dieTexts = new List<TMP_Text>();
+        if (totalDamageText != null)
+        {
+            totalDamageText.gameObject.SetActive(true); totalDamageText.text = "0";
+            Color tc = totalDamageText.color; tc.a = 0f; totalDamageText.color = tc;
+        }
+
+        List<CanvasGroup> dieGroups = new List<CanvasGroup>(); List<Animator> dieAnimators = new List<Animator>(); List<TMP_Text> dieTexts = new List<TMP_Text>(); List<Image> dieImages = new List<Image>();
         for (int i = 0; i < rolls.Count; i++)
         {
             GameObject newDie = Instantiate(dieUIPrefab, diceUIContainer); spawnedDiceUI.Add(newDie);
-            dieImages.Add(newDie.GetComponent<Image>()); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(newDie.GetComponentInChildren<TMP_Text>());
+            // CanvasGroup — Animator kendi animasyonunu oynatır, biz sadece alpha'yı yönetiriz
+            CanvasGroup cg = newDie.GetComponent<CanvasGroup>(); if (cg == null) cg = newDie.AddComponent<CanvasGroup>();
+            cg.alpha = 0f;
+            // Text'i roll boyunca gizle
+            TMP_Text txt = newDie.GetComponentInChildren<TMP_Text>();
+            if (txt != null) { Color tc = txt.color; tc.a = 0f; txt.color = tc; txt.text = ""; }
+            dieGroups.Add(cg); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(txt); dieImages.Add(newDie.GetComponent<Image>());
         }
-        yield return new WaitForSeconds(0.4f);
+
+        if (dicePanelBackground != null)
+        {
+            dicePanelBackground.gameObject.SetActive(true);
+            float e = 0f; Color c = dicePanelBackground.color; c.a = 0f; dicePanelBackground.color = c;
+            while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(0f, 0.9f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+            c.a = 0.9f; dicePanelBackground.color = c;
+        }
+
+        // Animator kendi idle animasyonunu oynatırken CanvasGroup ile fade in
+        if (AudioManager.instance != null) AudioManager.instance.PlayDiceRoll();
+        float rollTime = 0.4f; float rollElapsed = 0f;
+        while (rollElapsed < rollTime)
+        {
+            rollElapsed += Time.deltaTime;
+            float a = Mathf.Clamp01(rollElapsed / (rollTime * 0.5f)); // ilk %50'de 0→1
+            foreach (var cg in dieGroups) cg.alpha = a;
+            yield return null;
+        }
+        foreach (var cg in dieGroups) cg.alpha = 1f;
+
+        // Animator'ı kapat, final sprite + text fade in ile göster
+        if (AudioManager.instance != null) AudioManager.instance.PlayDiceHit();
         for (int i = 0; i < rolls.Count; i++)
         {
             if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
-            dieImages[i].sprite = diceSprites[rolls[i] - 1]; dieTexts[i].text = rolls[i].ToString();
-            StartCoroutine(TextPopAnimation(dieTexts[i]));
+            dieImages[i].sprite = diceSprites[rolls[i] - 1];
+            dieTexts[i].text = rolls[i].ToString();
+            StartCoroutine(TextFadeInAndPop(dieTexts[i]));
         }
         yield return new WaitForSeconds(0.2f);
+    }
+
+    private IEnumerator TextFadeInAndPop(TMP_Text txt)
+    {
+        if (txt == null) yield break;
+        if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
+        float duration = 0.15f; float elapsed = 0f;
+        Transform t = txt.transform; Vector3 startScale = new Vector3(2f, 2f, 2f);
+        t.localScale = startScale;
+        while (elapsed < duration)
+        {
+            float progress = elapsed / duration;
+            float a = Mathf.Lerp(0f, 1f, progress);
+            Color c = txt.color; c.a = a; txt.color = c;
+            t.localScale = Vector3.Lerp(startScale, Vector3.one, 1f - (1f - progress) * (1f - progress));
+            elapsed += Time.deltaTime; yield return null;
+        }
+        Color fc = txt.color; fc.a = 1f; txt.color = fc;
+        t.localScale = Vector3.one;
+    }
+
+    private IEnumerator DiceFadeIn(Image img, TMP_Text txt)
+    {
+        float duration = 0.2f; float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float a = Mathf.Lerp(0f, 1f, elapsed / duration);
+            if (img != null) { Color c = img.color; c.a = a; img.color = c; }
+            if (txt != null) { Color c = txt.color; c.a = a; txt.color = c; }
+            elapsed += Time.deltaTime; yield return null;
+        }
+        if (img != null) { Color c = img.color; c.a = 1f; img.color = c; }
+        if (txt != null) { Color c = txt.color; c.a = 1f; txt.color = c; }
     }
 
     private IEnumerator TextPopAnimation(TMP_Text textElement)
     {
         if (textElement == null) yield break;
+        if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
         Transform t = textElement.transform; Vector3 startScale = new Vector3(3f, 3f, 3f); Vector3 endScale = Vector3.one;
         float duration = 0.15f; float elapsed = 0f;
         while (elapsed < duration)
@@ -1022,26 +1402,149 @@ public class TurnManager : MonoBehaviour
     {
         if (totalDamageText == null) return;
         totalDamageText.gameObject.SetActive(true); totalDamageText.text = val.ToString();
+        StartCoroutine(TotalTextFadeIn(totalDamageText));
         StopCoroutine("TextPopAnimation"); StartCoroutine(TextPopAnimation(totalDamageText));
+    }
+
+    private IEnumerator TotalTextFadeIn(TMP_Text txt)
+    {
+        if (txt == null) yield break;
+        float duration = 0.2f; float elapsed = 0f;
+        Color startColor = txt.color; startColor.a = 0f; txt.color = startColor;
+        while (elapsed < duration)
+        {
+            Color c = txt.color; c.a = Mathf.Lerp(0f, 1f, elapsed / duration); txt.color = c;
+            elapsed += Time.deltaTime; yield return null;
+        }
+        Color fc = txt.color; fc.a = 1f; txt.color = fc;
     }
 
     public void HideDiceResults()
     {
-        foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
+        StartCoroutine(FadeOutAndHideDice());
+    }
+
+    private IEnumerator FadeOutAndHideDice()
+    {
+        float duration = 0.25f; float elapsed = 0f;
+        // CanvasGroup ile dice fade out
+        List<CanvasGroup> dieGroups = new List<CanvasGroup>();
+        foreach (var die in spawnedDiceUI)
+        {
+            if (die == null) continue;
+            CanvasGroup cg = die.GetComponent<CanvasGroup>(); if (cg == null) cg = die.AddComponent<CanvasGroup>();
+            dieGroups.Add(cg);
+        }
+        float totalStartA = totalDamageText != null ? totalDamageText.color.a : 0f;
+        float critStartA = 0f;
+        Image critImage = criticalText != null ? criticalText.GetComponent<Image>() : null;
+        TMP_Text critTMP = criticalText != null ? criticalText.GetComponentInChildren<TMP_Text>() : null;
+        if (critImage != null) critStartA = critImage.color.a;
+        else if (critTMP != null) critStartA = critTMP.color.a;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            foreach (var cg in dieGroups) { if (cg != null) cg.alpha = Mathf.Lerp(1f, 0f, t); }
+            if (totalDamageText != null) { Color c = totalDamageText.color; c.a = Mathf.Lerp(totalStartA, 0f, t); totalDamageText.color = c; }
+            if (critImage != null) { Color c = critImage.color; c.a = Mathf.Lerp(critStartA, 0f, t); critImage.color = c; }
+            if (critTMP != null) { Color c = critTMP.color; c.a = Mathf.Lerp(critStartA, 0f, t); critTMP.color = c; }
+            elapsed += Time.deltaTime; yield return null;
+        }
+
+        foreach (var die in spawnedDiceUI) { if (die != null) Destroy(die); } spawnedDiceUI.Clear();
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
         if (criticalText != null) criticalText.gameObject.SetActive(false);
+        if (dicePanelBackground != null) StartCoroutine(FadeDicePanel());
+    }
+
+    private IEnumerator FadeDicePanel()
+    {
+        if (dicePanelBackground == null) yield break;
+        float e = 0f; Color c = dicePanelBackground.color;
+        float startA = 0.9f;
+        while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(startA, 0f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+        c.a = 0f; dicePanelBackground.color = c;
+        dicePanelBackground.gameObject.SetActive(false);
     }
 
     private IEnumerator CriticalTextPopAnimation()
     {
         if (criticalText == null) yield break;
         criticalText.gameObject.SetActive(true); Transform t = criticalText.transform;
+        // Alpha sıfırla
+        Image critImg = criticalText.GetComponent<Image>(); TMP_Text critTMP = criticalText.GetComponentInChildren<TMP_Text>();
+        if (critImg != null) { Color c = critImg.color; c.a = 0f; critImg.color = c; }
+        if (critTMP != null) { Color c = critTMP.color; c.a = 0f; critTMP.color = c; }
+
         Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f); Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f); Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f);
         float elapsed = 0f; float popDuration = 0.1f;
-        while (elapsed < popDuration) { t.localScale = Vector3.Lerp(startScale, overshootScale, elapsed / popDuration); elapsed += Time.deltaTime; yield return null; }
+        while (elapsed < popDuration)
+        {
+            float prog = elapsed / popDuration;
+            t.localScale = Vector3.Lerp(startScale, overshootScale, prog);
+            if (critImg != null) { Color c = critImg.color; c.a = Mathf.Lerp(0f, 1f, prog); critImg.color = c; }
+            if (critTMP != null) { Color c = critTMP.color; c.a = Mathf.Lerp(0f, 1f, prog); critTMP.color = c; }
+            elapsed += Time.deltaTime; yield return null;
+        }
         elapsed = 0f; float settleDuration = 0.1f;
         while (elapsed < settleDuration) { t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration); elapsed += Time.deltaTime; yield return null; }
         t.localScale = endScale;
+        if (critImg != null) { Color c = critImg.color; c.a = 1f; critImg.color = c; }
+        if (critTMP != null) { Color c = critTMP.color; c.a = 1f; critTMP.color = c; }
+    }
+
+    // ── Combo Sistemi ────────────────────────────────────────────────────
+    public void RegisterComboHit()
+    {
+        comboCount++;
+        if (comboCount >= 2) ShowCombo(comboCount);
+    }
+
+    public void ResetCombo()
+    {
+        comboCount = 0;
+        if (comboTextObj != null) comboTextObj.SetActive(false);
+        if (comboFadeCoroutine != null) { StopCoroutine(comboFadeCoroutine); comboFadeCoroutine = null; }
+    }
+
+    private void ShowCombo(int count)
+    {
+        if (comboTextObj == null) return;
+        var tmp = comboTextObj.GetComponentInChildren<TMP_Text>();
+        if (tmp != null) tmp.text = $"x{count} COMBO!";
+        comboTextObj.SetActive(true);
+        if (comboFadeCoroutine != null) StopCoroutine(comboFadeCoroutine);
+        comboFadeCoroutine = StartCoroutine(ComboPopAndFade());
+    }
+
+    private IEnumerator ComboPopAndFade()
+    {
+        Transform t = comboTextObj.transform;
+        // Pop animasyonu
+        Vector3 start = new Vector3(0.3f, 0.3f, 0.3f);
+        Vector3 over  = new Vector3(0.65f, 0.65f, 0.65f);
+        Vector3 end   = new Vector3(0.5f, 0.5f, 0.5f);
+        float elapsed = 0f;
+        while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(start, over, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
+        elapsed = 0f;
+        while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(over, end, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
+        t.localScale = end;
+
+        // 1.2 sn sonra fade out
+        yield return new WaitForSecondsRealtime(1.2f);
+        var tmp = comboTextObj.GetComponentInChildren<TMP_Text>();
+        if (tmp == null) { comboTextObj.SetActive(false); yield break; }
+        Color c = tmp.color; float fadeDur = 0.3f; elapsed = 0f;
+        while (elapsed < fadeDur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            c.a = Mathf.Lerp(1f, 0f, elapsed / fadeDur);
+            tmp.color = c;
+            yield return null;
+        }
+        c.a = 1f; tmp.color = c;
+        comboTextObj.SetActive(false);
     }
 
     public bool IsEnemyAtCell(Vector3Int cell)

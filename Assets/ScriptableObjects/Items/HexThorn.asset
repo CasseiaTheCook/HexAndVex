@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: HexThorn
   m_EditorClassIdentifier: Assembly-CSharp::HexThorn
   itemName: Hex-Thorn
-  description: Place a spike trap on any empty hex tile
+  description: Place a spike trap on an empty hex tile that enemies can't see
   price: 5
   icon: {fileID: -6242459698676535975, guid: 7181871ca736cd74b8cc273a168af673, type: 3}

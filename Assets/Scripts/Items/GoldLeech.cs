@@ -6,7 +6,7 @@ public class GoldLeech : BaseItem
     void OnEnable()
     {
         itemName = "Gold-Leech";
-        description = "Sonraki düşmandan 2 kat gold düşürt";
+        description = "Next enemy drops 2x gold";
         price = 4;
     }
 

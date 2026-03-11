@@ -21,16 +21,16 @@ public class LevelUpManager : MonoBehaviour
 
     [Header("UI Elemanları (3 Buton)")]
     public Button[] choiceButtons;
-    
-    // ==========================================
-    // YENİ: Ayrı ayrı Text dizileri (Unity'den atamayı unutma!)
-    // ==========================================
-    public TMP_Text[] choiceTitleTexts;       // Sadece başlık için (Örn: "Swift Action")
-    public TMP_Text[] choiceLevelTexts;       // Sadece level için (Örn: "Lv 2")
-    public TMP_Text[] choiceDescriptionTexts; // Sadece açıklama için (Örn: "Grants extra moves...")
-    public TMP_Text[] choiceRarityTexts;      // Rarity etiketi (Örn: "COMMON", "RARE", "EPIC", "LEGENDARY")
-    
+
+    public TMP_Text[] choiceTitleTexts;
+    public TMP_Text[] choiceLevelTexts;
+    public TMP_Text[] choiceDescriptionTexts;
+    public TMP_Text[] choiceRarityTexts;
+
     public Image[] choiceIcons;
+
+    [Header("Reroll Butonu")]
+    public Button rerollPerkButton; // Inspector'dan bağla
 
     private List<GameObject> currentChoices = new List<GameObject>();
 
@@ -65,7 +65,7 @@ public class LevelUpManager : MonoBehaviour
             if (i == 0 && forcedPerk != null && !IsPerkMaxedOut(forcedPerk))
             {
                 randomPerk = forcedPerk;
-                forcedPerk = null; 
+                // forcedPerk max seviyeye ulaşınca SelectPerk'te otomatik temizlenir
             }
 
             while (randomPerk == null || currentChoices.Contains(randomPerk) || IsPerkMaxedOut(randomPerk))
@@ -102,7 +102,7 @@ public class LevelUpManager : MonoBehaviour
                 if (choiceRarityTexts != null && choiceRarityTexts.Length > i && choiceRarityTexts[i] != null)
                 {
                     PerkRarity detectedRarity = GetRarityFromList(randomPerk);
-                    choiceRarityTexts[i].text = detectedRarity.ToString().ToUpper();
+                    choiceRarityTexts[i].text = detectedRarity.ToString().ToUpperInvariant();
                     choiceRarityTexts[i].color = GetRarityColor(detectedRarity);
                 }
 
@@ -131,9 +131,29 @@ public class LevelUpManager : MonoBehaviour
             }
         }
         
+        // Reroll butonu
+        if (rerollPerkButton != null)
+        {
+            rerollPerkButton.gameObject.SetActive(RunManager.instance.hasPerkReroll);
+            rerollPerkButton.onClick.RemoveAllListeners();
+            rerollPerkButton.onClick.AddListener(RerollPerkChoices);
+        }
+
         Time.timeScale = 0f;
         StopAllCoroutines();
-        StartCoroutine(FadeInAndPopRoutine()); 
+        StartCoroutine(FadeInAndPopRoutine());
+    }
+
+    public void RerollPerkChoices()
+    {
+        if (RunManager.instance == null || !RunManager.instance.hasPerkReroll) return;
+        RunManager.instance.hasPerkReroll = false;
+        if (rerollPerkButton != null) rerollPerkButton.gameObject.SetActive(false);
+
+        // Mevcut seçimleri temizleyip yeniden göster
+        currentChoices.Clear();
+        StopAllCoroutines();
+        ShowLevelUpScreen();
     }
 
     private bool IsPerkMaxedOut(GameObject perkPrefab)
@@ -157,10 +177,19 @@ public class LevelUpManager : MonoBehaviour
     public GameObject GetRandomPerkByRarity(bool isBossReward)
     {
         if (isBossReward && legendaryPerks.Count > 0) return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
+
+        // Lv0: Epic %10 / Rare %30 / Common %60
+        // Lv1: Epic %17 / Rare %33 / Common %50
+        // Lv2: Epic %25 / Rare %33 / Common %42
+        // Lv3: Epic %33 / Rare %33 / Common %33
+        int cloverLv = RunManager.instance != null ? RunManager.instance.luckyCloverLevel : 0;
+        float epicThresh  = cloverLv == 0 ? 10f : cloverLv == 1 ? 17f : cloverLv == 2 ? 25f : 33f;
+        float rareThresh  = cloverLv == 0 ? 40f : cloverLv == 1 ? 50f : cloverLv == 2 ? 58f : 66f;
+
         float roll = Random.Range(0f, 100f);
-        if (roll < 10f && epicPerks.Count > 0) return epicPerks[Random.Range(0, epicPerks.Count)]; 
-        else if (roll < 40f && rarePerks.Count > 0) return rarePerks[Random.Range(0, rarePerks.Count)]; 
-        else if (commonPerks.Count > 0) return commonPerks[Random.Range(0, commonPerks.Count)]; 
+        if (roll < epicThresh && epicPerks.Count > 0)       return epicPerks[Random.Range(0, epicPerks.Count)];
+        else if (roll < rareThresh && rarePerks.Count > 0)  return rarePerks[Random.Range(0, rarePerks.Count)];
+        else if (commonPerks.Count > 0)                     return commonPerks[Random.Range(0, commonPerks.Count)];
         return null;
     }
 
@@ -215,10 +244,11 @@ public class LevelUpManager : MonoBehaviour
             if (epicPerks.Contains(chosenPerk)) epicPerks.Remove(chosenPerk);
             if (legendaryPerks.Contains(chosenPerk)) legendaryPerks.Remove(chosenPerk);
             Debug.Log($"🔥 {activeInstance.perkName} Max Seviyeye ulaştı! Havuzdan kalıcı olarak silindi.");
+            if (forcedPerk == chosenPerk) forcedPerk = null;
         }
 
         foreach (var perk in existingPerks)
-            if (perk != null) perk.OnLevelStart();
+            if (perk != null && !perk.isDisabled) perk.OnLevelStart();
 
         StartCoroutine(FadeOutAndShrinkRoutine());
     }
@@ -271,6 +301,7 @@ public class LevelUpManager : MonoBehaviour
 
     private IEnumerator CardPopIn(Transform card)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayCard();
         float dur = 0.25f;
         float elapsed = 0f;
         while (elapsed < dur)

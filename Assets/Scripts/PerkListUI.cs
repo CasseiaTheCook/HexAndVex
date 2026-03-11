@@ -14,8 +14,8 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private CanvasGroup panelCanvasGroup;
     private Coroutine fadeCoroutine;
     private const float fadeDuration = 0.15f;
-    private const float iconSize = 36f;
-    private const float rowSpacing = 6f;
+    private const float iconSize = 24f;
+    private const float rowSpacing = 2f;
 
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
@@ -68,7 +68,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         panelCanvasGroup.alpha = from;
         while (elapsed < fadeDuration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             panelCanvasGroup.alpha = Mathf.Lerp(from, to, elapsed / fadeDuration);
             yield return null;
         }
@@ -112,59 +112,110 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     private GameObject CreatePerkRow(BasePerk perk, TMP_FontAsset font)
     {
-        // Row: HorizontalLayoutGroup
-        GameObject row = new GameObject("PerkRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-        HorizontalLayoutGroup hlg = row.GetComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 8f;
-        hlg.childAlignment = TextAnchor.UpperLeft;
+        // Dış kapsayıcı — dikey: üst satır + açıklama
+        GameObject row = new GameObject("PerkRow", typeof(RectTransform));
+        var rowVL = row.AddComponent<VerticalLayoutGroup>();
+        rowVL.childAlignment = TextAnchor.UpperLeft;
+        rowVL.spacing = 0f;
+        rowVL.childForceExpandWidth = true;
+        rowVL.childForceExpandHeight = false;
+        rowVL.padding = new RectOffset(2, 2, 1, 1);
+        var rowLE = row.AddComponent<LayoutElement>();
+        rowLE.flexibleWidth = 1;
+        var rowCSF = row.AddComponent<ContentSizeFitter>();
+        rowCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        rowCSF.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        // ── Üst satır: ikon + isim + seviye + toggle ──
+        GameObject topRow = new GameObject("TopRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        topRow.transform.SetParent(row.transform, false);
+        HorizontalLayoutGroup hlg = topRow.GetComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 6f;
+        hlg.childAlignment = TextAnchor.MiddleLeft;
         hlg.childControlWidth = false;
-        hlg.childControlHeight = true;
+        hlg.childControlHeight = false;
         hlg.childForceExpandWidth = false;
         hlg.childForceExpandHeight = false;
-
-        ContentSizeFitter rowFitter = row.AddComponent<ContentSizeFitter>();
-        rowFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        var topLE = topRow.AddComponent<LayoutElement>();
+        topLE.preferredHeight = iconSize;
+        topLE.flexibleWidth = 1;
 
         // İkon
         GameObject iconObj = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        iconObj.transform.SetParent(row.transform, false);
-        RectTransform iconRT = iconObj.GetComponent<RectTransform>();
-        iconRT.sizeDelta = new Vector2(iconSize, iconSize);
+        iconObj.transform.SetParent(topRow.transform, false);
+        iconObj.GetComponent<RectTransform>().sizeDelta = new Vector2(iconSize, iconSize);
         LayoutElement iconLE = iconObj.AddComponent<LayoutElement>();
-        iconLE.minWidth = iconSize;
-        iconLE.minHeight = iconSize;
-        iconLE.preferredWidth = iconSize;
-        iconLE.preferredHeight = iconSize;
+        iconLE.minWidth = iconSize; iconLE.preferredWidth = iconSize;
+        iconLE.minHeight = iconSize; iconLE.preferredHeight = iconSize;
         Image iconImg = iconObj.GetComponent<Image>();
-        if (perk.icon != null)
-        {
-            iconImg.sprite = perk.icon;
-            iconImg.color = Color.white;
-        }
-        else
-        {
-            // Placeholder: koyu kare
-            iconImg.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
-        }
+        if (perk.icon != null) { iconImg.sprite = perk.icon; iconImg.color = perk.isDisabled ? new Color(1,1,1,0.3f) : Color.white; }
+        else iconImg.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
 
-        // Metin
+        // Perk adı + seviye
         GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        textObj.transform.SetParent(row.transform, false);
-        RectTransform textRT = textObj.GetComponent<RectTransform>();
-        textRT.sizeDelta = new Vector2(260f, 0f);
+        textObj.transform.SetParent(topRow.transform, false);
+        textObj.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, iconSize);
         LayoutElement textLE = textObj.AddComponent<LayoutElement>();
-        textLE.preferredWidth = 260f;
-        ContentSizeFitter csf = textObj.AddComponent<ContentSizeFitter>();
-        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        textLE.preferredWidth = 180f; textLE.preferredHeight = iconSize;
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
-        tmp.text = $"<color=#FFFFFF>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>\n<size=70%>{perk.description}</size>";
-        tmp.fontSize = 18;
-        tmp.alignment = TextAlignmentOptions.TopLeft;
+        string nameColor = perk.isDisabled ? "#666666" : "#FFFFFF";
+        tmp.text = $"<color={nameColor}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
+        tmp.fontSize = 13;
+        tmp.alignment = TextAlignmentOptions.MidlineLeft;
         tmp.color = Color.white;
         tmp.richText = true;
-        tmp.textWrappingMode = TextWrappingModes.Normal;
         tmp.raycastTarget = false;
         if (font != null) tmp.font = font;
+
+        // ON/OFF toggle butonu
+        GameObject btnObj = new GameObject("ToggleBtn", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(topRow.transform, false);
+        btnObj.GetComponent<RectTransform>().sizeDelta = new Vector2(40f, 18f);
+        LayoutElement btnLE = btnObj.AddComponent<LayoutElement>();
+        btnLE.preferredWidth = 40f; btnLE.preferredHeight = 18f;
+        Image btnImg = btnObj.GetComponent<Image>();
+        btnImg.color = perk.isDisabled ? new Color(0.5f, 0.15f, 0.15f) : new Color(0.15f, 0.45f, 0.15f);
+
+        GameObject lblObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+        lblObj.transform.SetParent(btnObj.transform, false);
+        RectTransform lblRT = lblObj.GetComponent<RectTransform>();
+        lblRT.anchorMin = Vector2.zero; lblRT.anchorMax = Vector2.one;
+        lblRT.offsetMin = lblRT.offsetMax = Vector2.zero;
+        TextMeshProUGUI btnLabel = lblObj.GetComponent<TextMeshProUGUI>();
+        btnLabel.text = perk.isDisabled ? "OFF" : "ON";
+        btnLabel.fontSize = 10;
+        btnLabel.alignment = TextAlignmentOptions.Center;
+        btnLabel.color = Color.white;
+        if (font != null) btnLabel.font = font;
+
+        btnObj.GetComponent<Button>().onClick.AddListener(() =>
+        {
+            perk.SetDisabled(!perk.isDisabled);
+            btnLabel.text = perk.isDisabled ? "OFF" : "ON";
+            btnImg.color = perk.isDisabled ? new Color(0.5f, 0.15f, 0.15f) : new Color(0.15f, 0.45f, 0.15f);
+            if (perk.icon != null) iconImg.color = perk.isDisabled ? new Color(1,1,1,0.3f) : Color.white;
+            string nc = perk.isDisabled ? "#666666" : "#FFFFFF";
+            tmp.text = $"<color={nc}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
+        });
+
+        // ── Açıklama satırı ──
+        if (!string.IsNullOrEmpty(perk.description))
+        {
+            GameObject descObj = new GameObject("Description", typeof(RectTransform), typeof(TextMeshProUGUI));
+            descObj.transform.SetParent(row.transform, false);
+            TextMeshProUGUI descTmp = descObj.GetComponent<TextMeshProUGUI>();
+            descTmp.text = perk.description;
+            descTmp.fontSize = 10;
+            descTmp.color = new Color(0.65f, 0.65f, 0.65f, 1f);
+            descTmp.alignment = TextAlignmentOptions.TopLeft;
+            descTmp.enableWordWrapping = true;
+            descTmp.raycastTarget = false;
+            if (font != null) descTmp.font = font;
+            var descLE = descObj.AddComponent<LayoutElement>();
+            descLE.flexibleWidth = 1;
+            descLE.preferredWidth = 260;
+            descObj.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
 
         return row;
     }

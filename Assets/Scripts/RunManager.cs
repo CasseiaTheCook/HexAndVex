@@ -24,6 +24,7 @@ public class RunManager : MonoBehaviour
     public float dodgeChance = 0f;   // Knight's Plating için
     public bool hasBioBarrier = false; // Bio-Barrier kalkanı için
     public int skipBonusGold = 0;    // Mercenary's Rest için
+    public int luckyCloverLevel = 0; // Lucky Clover — rarity şansını eşitler
 
     [Header("Combat Stats")]
     public float criticalChance = 0f; // 0.0 to 1.0
@@ -39,10 +40,37 @@ public class RunManager : MonoBehaviour
     public bool doubleDamageNextCombat = false;
     public bool cleaveNextCombat = false;
     public bool surgeBootNextTurn = false;
+    [HideInInspector] public bool surgeBootActive = false;
+    public bool hasPerkReroll = false; // Bu tur 2 hex hareket edebilir mi?
 
     [Header("Legendary Stats")]
     public int extraMovesPerTurn = 0; // Swift Action ile artacak (Normalde 0)
     public int remainingMoves;       // O tur içindeki kalan hamle hakkı
+
+    [Header("Run Statistics")]
+    public int totalEnemiesKilled = 0;
+    public int totalDamageDealt = 0;
+    public int totalDamageReceived = 0;
+    public int totalTurnsPlayed = 0;
+    public int totalDiceRolled = 0;
+    public int totalGoldEarned = 0;
+
+    // Best run (PlayerPrefs ile kalıcı)
+    public static int BestKills      => PlayerPrefs.GetInt("best_kills", 0);
+    public static int BestDamage     => PlayerPrefs.GetInt("best_damage", 0);
+    public static int BestTurns      => PlayerPrefs.GetInt("best_turns", 0);
+    public static int BestDice       => PlayerPrefs.GetInt("best_dice", 0);
+    public static int BestGold       => PlayerPrefs.GetInt("best_gold", 0);
+
+    public void SaveBestRun()
+    {
+        if (totalEnemiesKilled > BestKills)  PlayerPrefs.SetInt("best_kills",  totalEnemiesKilled);
+        if (totalDamageDealt   > BestDamage) PlayerPrefs.SetInt("best_damage", totalDamageDealt);
+        if (totalTurnsPlayed   > BestTurns)  PlayerPrefs.SetInt("best_turns",  totalTurnsPlayed);
+        if (totalDiceRolled    > BestDice)   PlayerPrefs.SetInt("best_dice",   totalDiceRolled);
+        if (totalGoldEarned    > BestGold)   PlayerPrefs.SetInt("best_gold",   totalGoldEarned);
+        PlayerPrefs.Save();
+    }
 
     void Awake()
     {
@@ -83,5 +111,22 @@ public class RunManager : MonoBehaviour
             activePerks.Add(newPerk);
             newPerk.OnAcquire();
         }
+    }
+    public string GetStatsSummary()
+    {
+        return $"Turns Played: {totalTurnsPlayed}\n" +
+               $"Dice Rolled: {totalDiceRolled}\n" +
+               $"Damage Dealt: {totalDamageDealt}\n" +
+               $"Enemies Killed: {totalEnemiesKilled}\n" +
+               $"Gold Earned: {totalGoldEarned}";
+    }
+
+    public string GetPerksSummary()
+    {
+        if (activePerks.Count == 0) return "None";
+        var sb = new System.Text.StringBuilder();
+        foreach (var p in activePerks)
+            sb.AppendLine($"{p.perkName}  Lv {p.currentLevel}");
+        return sb.ToString().TrimEnd();
     }
 }

@@ -118,9 +118,7 @@ public class LevelGenerator : MonoBehaviour
         TurnManager.instance.enemies.Clear();
 
         bool isPostBossLevel = RunManager.instance.currentLevel > 1 && RunManager.instance.currentLevel % 5 == 1;
-        int currentRadius = isPostBossLevel
-            ? (baseMapRadius + (RunManager.instance.currentLevel / 6)) * 2
-            : baseMapRadius + (RunManager.instance.currentLevel / 6);
+        int currentRadius = baseMapRadius + (RunManager.instance.currentLevel / 6);
 
         for (int x = -currentRadius; x <= currentRadius; x++)
         {
@@ -163,9 +161,7 @@ public class LevelGenerator : MonoBehaviour
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        int enemyCountToSpawn = isPostBossLevel
-            ? (2 + (RunManager.instance.currentLevel / 3)) * 2
-            : 2 + (RunManager.instance.currentLevel / 3);
+        int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
 
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
         Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerStartCell);
@@ -175,32 +171,35 @@ public class LevelGenerator : MonoBehaviour
             if (validCells.Count == 0) break;
 
             List<Vector3Int> candidates = new List<Vector3Int>();
-            float currentSafeDist = 2.5f;
-            float currentEnemyDist = 2.5f;
+            int minHexDist = 3;
 
-            while (candidates.Count == 0 && currentSafeDist >= 0f)
+            while (candidates.Count == 0 && minHexDist >= 2)
             {
+                int dist = minHexDist;
                 candidates = validCells.FindAll(cell =>
                     !hazardCells.Contains(cell) &&
-                    Vector3.Distance(groundMap.GetCellCenterWorld(cell), playerWorldPos) >= currentSafeDist
+                    HexDistance(cell, playerStartCell) >= dist
                 );
 
                 candidates.RemoveAll(cell =>
-                    spawnedEnemyCells.Any(spawned => Vector3.Distance(groundMap.GetCellCenterWorld(cell), groundMap.GetCellCenterWorld(spawned)) < currentEnemyDist)
+                    spawnedEnemyCells.Any(spawned => HexDistance(cell, spawned) < 2)
                 );
 
                 if (candidates.Count == 0)
-                {
-                    currentSafeDist -= 0.5f;
-                    currentEnemyDist -= 0.5f;
-                }
+                    minHexDist--;
             }
 
             Vector3Int bestSpawnCell;
 
             if (candidates.Count == 0)
             {
-                var safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+                // Fallback: en az oyuncudan 2 hex uzakta güvenli hücre
+                var safeCells = validCells.Where(c =>
+                    !hazardCells.Contains(c) &&
+                    HexDistance(c, playerStartCell) >= 2
+                ).ToList();
+                if (safeCells.Count == 0)
+                    safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
                 bestSpawnCell = safeCells.Count > 0 ? safeCells[Random.Range(0, safeCells.Count)] : validCells[0];
             }
             else if (spawnedEnemyCells.Count == 0)
@@ -261,7 +260,8 @@ public class LevelGenerator : MonoBehaviour
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
-            int finalHP = Mathf.RoundToInt(CurrentEnemyHealth * randomMultiplier);
+            float postBossMultiplier = isPostBossLevel ? 2f : 1f;
+            int finalHP = Mathf.RoundToInt(CurrentEnemyHealth * randomMultiplier * postBossMultiplier);
             enemyAI.health.maxHP = Mathf.Max(1, finalHP);
             enemyAI.health.currentHP = enemyAI.health.maxHP;
 
@@ -293,7 +293,7 @@ public class LevelGenerator : MonoBehaviour
         }
         TurnManager.instance.enemies.Clear();
 
-        int arenaRadius = baseMapRadius + 2 + (RunManager.instance.currentLevel / 10); 
+        int arenaRadius = baseMapRadius + 1 + (RunManager.instance.currentLevel / 10);
 
         for (int x = -arenaRadius; x <= arenaRadius; x++)
         {
@@ -373,8 +373,8 @@ public class LevelGenerator : MonoBehaviour
                 GameObject totemObj = Instantiate(totemPrefab, totemPos, Quaternion.identity);
                 EnemyAI totemAI = totemObj.GetComponent<EnemyAI>();
 
-                totemAI.health.maxHP = 5 + (RunManager.instance.currentLevel / 2);
-                totemAI.health.currentHP = totemAI.health.maxHP;
+                totemAI.health.maxHP = 1;
+                totemAI.health.currentHP = 1;
                 totemAI.health.updateHealth();
 
                 StartCoroutine(totemAI.FadeSpawnCoroutine());
@@ -532,5 +532,17 @@ public class LevelGenerator : MonoBehaviour
             validCells.Remove(c);
             hazardCells.Remove(c);
         }
+    }
+
+    private int HexDistance(Vector3Int a, Vector3Int b)
+    {
+        // Offset koordinatları cube koordinata çevir (odd-row offset)
+        int ax = a.x - (a.y - (a.y & 1)) / 2;
+        int az = a.y;
+        int ay = -ax - az;
+        int bx = b.x - (b.y - (b.y & 1)) / 2;
+        int bz = b.y;
+        int by = -bx - bz;
+        return Mathf.Max(Mathf.Abs(ax - bx), Mathf.Abs(ay - by), Mathf.Abs(az - bz));
     }
 }

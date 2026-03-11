@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement; // Sahne yönetimi için gerekli
-
+using TMPro;
 public class PauseManager : MonoBehaviour
 {
     // Durdurma menüsü panelini (Canvas) buraya sürükleyeceğiz
@@ -9,12 +9,26 @@ public class PauseManager : MonoBehaviour
     // Oyunun durup durmadığını takip eden değişken
     public static bool isPaused = false;
 
+    [Header("Stats UI")]
+    public TMP_Text pauseStatsText; // Duraklatma ekranındaki Text (eski, opsiyonel)
+    public TMP_Text deathStatsText; // Ölme ekranındaki Text (eski, opsiyonel)
+    public StatsPanelUI statsPanelUI;       // Pause menüsündeki stats paneli
+    public StatsPanelUI deathStatsPanelUI;  // Ölüm ekranındaki stats paneli
+
+    private bool deathStatsRefreshed = false;
+
     void Update()
     {
         // EĞER ÖLME EKRANI AÇIKSA, ESC TUŞUNU HİÇ DİNLEME!
         if (deathMenuUI != null && deathMenuUI.activeSelf)
         {
-            return; // Fonksiyondan çık, aşağıdaki ESC kodlarına hiç bakma
+            if (!deathStatsRefreshed)
+            {
+                if (deathStatsPanelUI != null) deathStatsPanelUI.Refresh();
+                else if (deathStatsText != null) deathStatsText.text = RunManager.instance.GetStatsSummary();
+                deathStatsRefreshed = true;
+            }
+            return;
         }
 
         // Normal ESC basma kodun...
@@ -36,8 +50,10 @@ public class PauseManager : MonoBehaviour
     // Oyunu durdurma fonksiyonu
     public void Pause()
     {
-        pauseMenuUI.SetActive(true);  // Menüyü aç
-        Time.timeScale = 0f;          // Zamanı tamamen durdur (Fizik ve hareketler durur)
+        pauseMenuUI.SetActive(true);
+        if (statsPanelUI != null) statsPanelUI.Refresh();
+        else if (pauseStatsText != null) pauseStatsText.text = RunManager.instance.GetStatsSummary();
+        Time.timeScale = 0f;
         isPaused = true;
     }
 

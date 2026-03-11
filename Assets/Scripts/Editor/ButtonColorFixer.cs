@@ -5,9 +5,7 @@ using System.Collections.Generic;
 
 public class ButtonColorFixer : EditorWindow
 {
-    static readonly Color normalColor      = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
-    static readonly Color highlightedColor = new Color32(0x00, 0x08, 0x41, 0xFF); // #000841
-    static readonly Color pressedColor     = new Color32(0x00, 0x93, 0xBC, 0xFF); // #0093BC
+    // Renkler UIStyle.cs'den geliyor — değiştirmek için oradan düzenle
 
     [MenuItem("Tools/Fix Button Colors")]
     public static void FixColors()
@@ -41,14 +39,7 @@ public class ButtonColorFixer : EditorWindow
 
     static void ApplyColorBlock(Button btn)
     {
-        ColorBlock cb = btn.colors;
-        cb.normalColor = normalColor;
-        cb.highlightedColor = highlightedColor;
-        cb.pressedColor = pressedColor;
-        cb.selectedColor = normalColor;
-        cb.disabledColor = normalColor;
-        cb.colorMultiplier = 1f;
-        btn.colors = cb;
+        btn.colors = UIStyle.ButtonColors();
 
         Image img = btn.GetComponent<Image>();
         if (img != null)

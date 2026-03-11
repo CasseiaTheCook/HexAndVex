@@ -75,11 +75,11 @@ public static class ShopSetupTool
         slotRoot.layer = LayerMask.NameToLayer("UI");
 
         RectTransform slotRT = slotRoot.GetComponent<RectTransform>();
-        slotRT.sizeDelta = new Vector2(65f, 65f);
+        slotRT.sizeDelta = new Vector2(UIStyle.ShopSlotSize, UIStyle.ShopSlotSize);
 
         // Arkaplan image
         Image bg = slotRoot.AddComponent<Image>();
-        bg.color = new Color(0.2f, 0.2f, 0.2f, 0.85f);
+        bg.color = UIStyle.ShopSlotBg;
 
         // ShopSlot component
         ShopSlot shopSlot = slotRoot.AddComponent<ShopSlot>();
@@ -123,7 +123,7 @@ public static class ShopSetupTool
         soldRT.offsetMin = Vector2.zero;
         soldRT.offsetMax = Vector2.zero;
         Image soldImg = soldGO.AddComponent<Image>();
-        soldImg.color = new Color(0f, 0f, 0f, 0.65f);
+        soldImg.color = UIStyle.SoldOutOverlay;
 
         // Text icin ayri child GO (Image ve TMP_Text ayni GO'da olamaz)
         GameObject soldTextGO = new GameObject("SoldOutText", typeof(RectTransform));
@@ -139,7 +139,7 @@ public static class ShopSetupTool
         soldTxt.fontSize = 9;
         soldTxt.fontStyle = FontStyles.Bold;
         soldTxt.alignment = TextAlignmentOptions.Center;
-        soldTxt.color = Color.red;
+        soldTxt.color = UIStyle.TextRed;
         shopSlot.soldOutOverlay = soldGO;
 
         // Prefab klasorunu garantile
@@ -181,7 +181,7 @@ public static class ShopSetupTool
         panelRT.anchorMax = new Vector2(0f, 1f);
         panelRT.pivot     = new Vector2(0f, 1f);
         panelRT.anchoredPosition = new Vector2(10f, -10f);
-        panelRT.sizeDelta = new Vector2(280f, 115f);
+        panelRT.sizeDelta = new Vector2(UIStyle.ShopPanelWidth, UIStyle.ShopPanelHeight);
 
         VerticalLayoutGroup mainVlg = panelGO.AddComponent<VerticalLayoutGroup>();
         mainVlg.spacing = 4;
@@ -197,9 +197,9 @@ public static class ShopSetupTool
         slotRowGO.transform.SetParent(panelGO.transform, false);
         slotRowGO.layer = LayerMask.NameToLayer("UI");
         RectTransform slotRowRT = slotRowGO.AddComponent<RectTransform>();
-        slotRowRT.sizeDelta = new Vector2(0f, 65f);
+        slotRowRT.sizeDelta = new Vector2(0f, UIStyle.ShopSlotRowHeight);
         LayoutElement slotRowLE = slotRowGO.AddComponent<LayoutElement>();
-        slotRowLE.preferredHeight = 65f;
+        slotRowLE.preferredHeight = UIStyle.ShopSlotRowHeight;
 
         HorizontalLayoutGroup slotHlg = slotRowGO.AddComponent<HorizontalLayoutGroup>();
         slotHlg.spacing = 8;
@@ -217,9 +217,9 @@ public static class ShopSetupTool
         bottomRowGO.transform.SetParent(panelGO.transform, false);
         bottomRowGO.layer = LayerMask.NameToLayer("UI");
         RectTransform bottomRowRT = bottomRowGO.AddComponent<RectTransform>();
-        bottomRowRT.sizeDelta = new Vector2(0f, 36f);
+        bottomRowRT.sizeDelta = new Vector2(0f, UIStyle.ShopBottomRowH);
         LayoutElement bottomRowLE = bottomRowGO.AddComponent<LayoutElement>();
-        bottomRowLE.preferredHeight = 36f;
+        bottomRowLE.preferredHeight = UIStyle.ShopBottomRowH;
 
         HorizontalLayoutGroup bottomHlg = bottomRowGO.AddComponent<HorizontalLayoutGroup>();
         bottomHlg.spacing = 12;
@@ -236,20 +236,13 @@ public static class ShopSetupTool
         rerollGO.layer = LayerMask.NameToLayer("UI");
 
         LayoutElement rerollLE = rerollGO.AddComponent<LayoutElement>();
-        rerollLE.flexibleWidth = 1.5f;
+        rerollLE.flexibleWidth = UIStyle.RerollFlexWidth;
 
         Image rerollBg = rerollGO.AddComponent<Image>();
         rerollBg.color = Color.white;
         Button rerollBtn = rerollGO.AddComponent<Button>();
         rerollBtn.targetGraphic = rerollBg;
-        ColorBlock rerollCB = rerollBtn.colors;
-        rerollCB.normalColor      = new Color32(0x00, 0x05, 0x0C, 0xFF);
-        rerollCB.highlightedColor = new Color32(0x00, 0x08, 0x41, 0xFF);
-        rerollCB.pressedColor     = new Color32(0x00, 0x93, 0xBC, 0xFF);
-        rerollCB.selectedColor    = new Color32(0x00, 0x05, 0x0C, 0xFF);
-        rerollCB.disabledColor    = new Color32(0x00, 0x05, 0x0C, 0xFF);
-        rerollCB.colorMultiplier  = 1f;
-        rerollBtn.colors = rerollCB;
+        rerollBtn.colors = UIStyle.ButtonColors();
 
         GameObject rerollTxtGO = new GameObject("RerollPriceText", typeof(RectTransform));
         rerollTxtGO.transform.SetParent(rerollGO.transform, false);
@@ -259,9 +252,9 @@ public static class ShopSetupTool
         rpRT.offsetMin = new Vector2(4f, 2f); rpRT.offsetMax = new Vector2(-24f, -2f);
         TMP_Text rerollPriceTxt = rerollTxtGO.AddComponent<TextMeshProUGUI>();
         rerollPriceTxt.text      = "Reroll: 2";
-        rerollPriceTxt.fontSize  = 14;
+        rerollPriceTxt.fontSize  = UIStyle.FontSizeSmall;
         rerollPriceTxt.alignment = TextAlignmentOptions.Center;
-        rerollPriceTxt.color     = Color.white;
+        rerollPriceTxt.color     = UIStyle.TextWhite;
         rerollPriceTxt.raycastTarget = false;
 
         Debug.Log("Reroll butonu olusturuldu.");
@@ -272,10 +265,10 @@ public static class ShopSetupTool
         coinAreaGO.layer = LayerMask.NameToLayer("UI");
 
         LayoutElement coinAreaLE = coinAreaGO.AddComponent<LayoutElement>();
-        coinAreaLE.flexibleWidth = 0.5f;
+        coinAreaLE.flexibleWidth = UIStyle.CoinFlexWidth;
 
         Image coinAreaBg = coinAreaGO.AddComponent<Image>();
-        coinAreaBg.color = new Color32(0x00, 0x05, 0x0C, 0xFF);
+        coinAreaBg.color = UIStyle.BgDark;
         coinAreaBg.raycastTarget = false;
 
         HorizontalLayoutGroup coinHlg = coinAreaGO.AddComponent<HorizontalLayoutGroup>();
@@ -295,9 +288,9 @@ public static class ShopSetupTool
         coinTxtRT.sizeDelta = new Vector2(60f, 26f);
         TMP_Text coinDisplayTxt = coinTxtGO.AddComponent<TextMeshProUGUI>();
         coinDisplayTxt.text = "0";
-        coinDisplayTxt.fontSize = 16;
+        coinDisplayTxt.fontSize = UIStyle.FontSizeMid;
         coinDisplayTxt.alignment = TextAlignmentOptions.Left;
-        coinDisplayTxt.color = new Color(1f, 0.85f, 0.2f, 1f);
+        coinDisplayTxt.color = UIStyle.TextGold;
         coinDisplayTxt.fontStyle = FontStyles.Bold;
         coinDisplayTxt.raycastTarget = false;
 
@@ -316,7 +309,7 @@ public static class ShopSetupTool
         mgr.rerollButton      = rerollBtn;
         mgr.rerollPriceText   = rerollPriceTxt;
         mgr.coinDisplayText   = coinDisplayTxt;
-        mgr.rerollBaseCost    = 2f;
+        mgr.rerollBaseCost    = 10f;
         mgr.rerollMultiplier  = 1.2f;
 
         // Item pool'u otomatik doldur

@@ -52,8 +52,14 @@ public class HealthScript : MonoBehaviour
     {
         if (isDead) return;
 
+        if (AudioManager.instance != null) AudioManager.instance.PlayTakeDamage();
         currentHP -= dmg;
 
+        if (gameObject.CompareTag("Player"))
+        {
+            RunManager.instance.totalDamageReceived += dmg; // Alınan hasarı kaydet
+        }
+        
         if (damageTextPrefab != null)
         {
             // Sayıyı tam düşmanın merkezinde oluştur
@@ -167,6 +173,7 @@ public class HealthScript : MonoBehaviour
 
         if (gameObject.CompareTag("Player"))
         {
+            if (RunManager.instance != null) RunManager.instance.SaveBestRun();
             if (deathMenuUI != null)
             {
                 deathMenuUI.SetActive(true);

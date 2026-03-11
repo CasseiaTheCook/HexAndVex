@@ -263,6 +263,7 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator WallBumpCoroutine(Vector3 direction)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayWall();
         isBumping = true; isMoving = true;
         Vector3 originalPos = groundMap.GetCellCenterWorld(cell); originalPos.z = 0;
         Vector3 bumpPos = originalPos + (direction * 0.10f);
@@ -340,6 +341,7 @@ public class EnemyAI : MonoBehaviour
                 isChargingAttack = true;
                 hasLockedTarget = false;
                 SetArrowVisibility(false);
+                if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
 
@@ -410,7 +412,8 @@ public class EnemyAI : MonoBehaviour
         {
             if (IsNeighbor(cell, lockedTargetCell) &&
                 !TurnManager.instance.IsEnemyAtCell(lockedTargetCell) &&
-                TurnManager.instance.player.GetCurrentCellPosition() != lockedTargetCell)
+                TurnManager.instance.player.GetCurrentCellPosition() != lockedTargetCell &&
+                (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)))
             {
                 cell = lockedTargetCell;
                 targetWorldPos = groundMap.GetCellCenterWorld(cell);
@@ -423,6 +426,7 @@ public class EnemyAI : MonoBehaviour
                 }
 
                 isMoving = true;
+                if (AudioManager.instance != null) AudioManager.instance.PlayMove();
             }
         }
 
@@ -528,8 +532,6 @@ public class EnemyAI : MonoBehaviour
 
     private bool IsCellTargetedByOtherEnemy(Vector3Int targetCell)
     {
-        if (SpawnerBossAI.instance != null && SpawnerBossAI.instance.IsCellTargetedByBoss(targetCell)) return true;
-
         if (TurnManager.instance == null) return false;
         foreach (var e in TurnManager.instance.enemies)
         {
@@ -543,23 +545,52 @@ public class EnemyAI : MonoBehaviour
 
     private void ForceClearWarningCells()
     {
-        if (warningMap == null) return;
+        if (warningMap == null) { warningCells.Clear(); return; }
+        StartCoroutine(FadeClearWarningCells(new List<Vector3Int>(warningCells)));
+        warningCells.Clear();
+    }
 
-        foreach (var c in warningCells)
+    private IEnumerator FadeClearWarningCells(List<Vector3Int> cells)
+    {
+        float duration = 0.3f;
+        float elapsed = 0f;
+
+        // Hücreleri "paylaşılan" ve "sadece bize ait" olarak ayır
+        List<Vector3Int> ownCells = new List<Vector3Int>();
+        List<Vector3Int> sharedCells = new List<Vector3Int>();
+        foreach (var c in cells)
         {
             if (warningMap.HasTile(c))
             {
-                if (!IsCellTargetedByOtherEnemy(c))
-                {
-                    warningMap.SetTile(c, null);
-                }
-                else
-                {
-                    warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f)); 
-                }
+                if (IsCellTargetedByOtherEnemy(c)) sharedCells.Add(c);
+                else ownCells.Add(c);
             }
         }
-        warningCells.Clear();
+
+        // Fade out animasyonu (sadece kendi hücrelerimiz)
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            float alpha = Mathf.Lerp(0.65f, 0f, t);
+            Color fadeColor = new Color(1f, 1f, 1f, alpha);
+            foreach (var c in ownCells)
+            {
+                if (warningMap.HasTile(c)) warningMap.SetColor(c, fadeColor);
+            }
+            yield return null;
+        }
+
+        foreach (var c in ownCells)
+        {
+            if (warningMap.HasTile(c)) warningMap.SetTile(c, null);
+        }
+
+        // Paylaşılan hücreleri kırmızıya çevir
+        foreach (var c in sharedCells)
+        {
+            if (warningMap.HasTile(c)) warningMap.SetColor(c, new Color(1f, 0.2f, 0.2f, 0.65f));
+        }
     }
 
     public IEnumerator ExecuteAoEAttackCoroutine(HexMovement player)
@@ -576,7 +607,8 @@ public class EnemyAI : MonoBehaviour
                 else ownCells.Add(c);
             }
 
-            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f); 
+            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f);
+            if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
 
             foreach (var c in ownCells)
             {
@@ -635,7 +667,11 @@ public class EnemyAI : MonoBehaviour
                     Instantiate(TurnManager.instance.dodgeEffectPrefab, player.transform.position, Quaternion.identity);
                 }
             }
-            else if (RunManager.instance.hasBioBarrier) RunManager.instance.hasBioBarrier = false;
+            else if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
             else player.health.TakeDamage(2);
 
             Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(player.GetCurrentCellPosition(), cell);
@@ -643,8 +679,17 @@ public class EnemyAI : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
 
-        isChargingAttack = false; 
-        ForceClearWarningCells();
+        isChargingAttack = false;
+        // Saldırı kendi fade'ini zaten yaptı, kalan tile'ları anında temizle
+        if (warningMap != null)
+        {
+            foreach (var c in warningCells)
+            {
+                if (warningMap.HasTile(c) && !IsCellTargetedByOtherEnemy(c))
+                    warningMap.SetTile(c, null);
+            }
+        }
+        warningCells.Clear();
         currentCooldown = aoeCooldown;
         yield return new WaitForSeconds(0.2f);
     }
@@ -657,10 +702,17 @@ public class EnemyAI : MonoBehaviour
         queue.Enqueue(cell); cameFrom[cell] = cell;
         Vector3Int targetNeighbor = playerCell; bool foundPath = false;
 
+        // Yol tamamen tıkalıysa en yakın hücreyi takip etmek için
+        Vector3Int closestCell = cell;
+        float closestDist = Distance(cell, playerCell);
+
         while (queue.Count > 0)
         {
             Vector3Int current = queue.Dequeue();
             if (IsNeighbor(current, playerCell)) { targetNeighbor = current; foundPath = true; break; }
+
+            float dist = Distance(current, playerCell);
+            if (dist < closestDist) { closestDist = dist; closestCell = current; }
 
             Vector3Int[] offsets = (current.y % 2 != 0) ? evenOffsets : oddOffsets;
             foreach (var off in offsets)
@@ -677,13 +729,13 @@ public class EnemyAI : MonoBehaviour
             }
         }
 
-        if (foundPath)
-        {
-            Vector3Int step = targetNeighbor;
-            while (cameFrom[step] != cell) step = cameFrom[step];
-            return step;
-        }
-        return cell;
+        // Tam yol bulunamadıysa, en yakın noktaya doğru git
+        Vector3Int destination = foundPath ? targetNeighbor : closestCell;
+        if (destination == cell) return cell;
+
+        Vector3Int step = destination;
+        while (cameFrom.ContainsKey(step) && cameFrom[step] != cell) step = cameFrom[step];
+        return step;
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)

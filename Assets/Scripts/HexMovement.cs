@@ -29,6 +29,11 @@ public class HexMovement : MonoBehaviour
     private bool isKnockbackMove = false;
     private bool _preserveFacingNextMove = false;
 
+    // 2-hex hareket için ara nokta bilgisi
+    private Dictionary<Vector3Int, Vector3Int> waypointMap = new Dictionary<Vector3Int, Vector3Int>();
+    private Vector3Int? currentWaypoint = null;
+    private Vector3Int finalTarget;
+
     private class HighlightData
     {
         public float currentAlpha;
@@ -120,13 +125,24 @@ public class HexMovement : MonoBehaviour
                 foreach (var kvp in highlights)
                 {
                     if (kvp.Key != clickedCell) {
-                        kvp.Value.targetAlpha = 0f; kvp.Value.fadeSpeed = 15f; 
+                        kvp.Value.targetAlpha = 0f; kvp.Value.fadeSpeed = 15f;
                     } else {
-                        kvp.Value.currentAlpha = 1f; kvp.Value.targetAlpha = 0f; kvp.Value.fadeSpeed = 2.5f; 
+                        kvp.Value.currentAlpha = 1f; kvp.Value.targetAlpha = 0f; kvp.Value.fadeSpeed = 2.5f;
                     }
                 }
-                
-                MoveCharacter(clickedCell);
+
+                // 2-hex hareket mi kontrol et
+                if (waypointMap.ContainsKey(clickedCell))
+                {
+                    currentWaypoint = waypointMap[clickedCell];
+                    finalTarget = clickedCell;
+                    MoveCharacter(currentWaypoint.Value);
+                }
+                else
+                {
+                    currentWaypoint = null;
+                    MoveCharacter(clickedCell);
+                }
             }
         }
     }
@@ -148,12 +164,21 @@ public class HexMovement : MonoBehaviour
             if (Vector3.Distance(transform.position, targetWorldPosition) < 0.001f)
             {
                 transform.position = targetWorldPosition;
-                isMoving = false;
 
                 Vector3 checkPos = transform.position;
                 Vector3Int newCell = groundMap.WorldToCell(checkPos);
                 if (newCell != currentCellPosition) currentCellPosition = newCell;
 
+                // Waypoint varsa: ara noktaya ulaştık, şimdi hedef hücreye devam et
+                if (currentWaypoint.HasValue)
+                {
+                    currentWaypoint = null;
+                    MoveCharacter(finalTarget);
+                    // Hâlâ isMoving = true, döngü devam edecek
+                    return;
+                }
+
+                isMoving = false;
                 FaceCombatTarget();
 
                 if (!isKnockbackMove) TurnManager.instance.PlayerFinishedMove(currentCellPosition);
@@ -164,8 +189,7 @@ public class HexMovement : MonoBehaviour
 
     private void MoveCharacter(Vector3Int targetCell)
     {
-        // Otomatik mayın bırakma KODU BURADAN SİLİNDİ.
-        // Artık sadece yürüyecek.
+        if (AudioManager.instance != null) AudioManager.instance.PlayMove();
 
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
         targetWorldPosition.z = 0;
@@ -221,9 +245,11 @@ public class HexMovement : MonoBehaviour
 
     public void UpdateHighlights()
     {
+        waypointMap.Clear();
         Vector3Int[] offsets = (currentCellPosition.y % 2 != 0) ? evenOffsets : oddOffsets;
         List<Vector3Int> validCells = new List<Vector3Int>();
 
+        // Range-1: komşu hücreler
         foreach (var off in offsets)
         {
             Vector3Int neighbor = currentCellPosition + off;
@@ -234,15 +260,40 @@ public class HexMovement : MonoBehaviour
             }
         }
 
+        // Range-2: Surge Boot aktifse, komşuların komşularını da ekle
+        if (RunManager.instance != null && RunManager.instance.surgeBootActive)
+        {
+            List<Vector3Int> range2Cells = new List<Vector3Int>();
+            foreach (var mid in validCells)
+            {
+                Vector3Int[] midOffsets = (mid.y % 2 != 0) ? evenOffsets : oddOffsets;
+                foreach (var off2 in midOffsets)
+                {
+                    Vector3Int far = mid + off2;
+                    if (far == currentCellPosition) continue; // Başlangıç noktasına geri dönme
+                    if (validCells.Contains(far)) continue;   // Zaten range-1'de var
+                    if (range2Cells.Contains(far)) continue;  // Zaten eklendi
+                    if (!groundMap.HasTile(far)) continue;
+                    bool isHazard = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(far);
+                    if (isHazard) continue;
+                    if (TurnManager.instance != null && TurnManager.instance.IsEnemyAtCell(far)) continue;
+
+                    range2Cells.Add(far);
+                    waypointMap[far] = mid; // Bu hücreye gitmek için mid'den geç
+                }
+            }
+            validCells.AddRange(range2Cells);
+        }
+
         foreach (var cell in validCells)
         {
-            highlightMap.SetTile(cell, null); 
-            highlightMap.SetTile(cell, highlightTile); 
+            highlightMap.SetTile(cell, null);
+            highlightMap.SetTile(cell, highlightTile);
             highlightMap.SetTileFlags(cell, TileFlags.None);
-            
+
             if (!highlights.ContainsKey(cell)) highlights[cell] = new HighlightData { currentAlpha = 0f, targetAlpha = 0.6f, fadeSpeed = 4f };
             else { highlights[cell].targetAlpha = 0.6f; highlights[cell].fadeSpeed = 4f; }
-            
+
             highlightMap.SetColor(cell, new Color(1f, 1f, 1f, highlights[cell].currentAlpha));
         }
 

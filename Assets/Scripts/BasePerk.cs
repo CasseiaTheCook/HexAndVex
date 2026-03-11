@@ -17,6 +17,14 @@ public abstract class BasePerk : MonoBehaviour
     [Header("Rarity")]
     public PerkRarity rarity = PerkRarity.Common;
 
+    [Header("Durum")]
+    public bool isDisabled = false;
+
+    public void SetDisabled(bool disabled)
+    {
+        isDisabled = disabled;
+    }
+
     // Perk havuzdan çekilirken gösterilebilir mi? (GeneSplice gibi koşullu perkler override eder)
     public virtual bool CanBeOffered() { return true; }
 
@@ -24,16 +32,16 @@ public abstract class BasePerk : MonoBehaviour
     public virtual void OnAcquire() { }
 
     // 2. Her saldırı yapıldığında, hasar hesaplanırken çalışır
-    public virtual void ModifyCombat(CombatPayload payload) { }
+    public virtual void ModifyCombat(CombatPayload payload) { if (isDisabled) return; }
 
     // 3. Tur geçildiğinde (Skip) çalışır
-    public virtual void OnSkip() { }
+    public virtual void OnSkip() { if (isDisabled) return; }
 
     // Her yeni levele/odaya geçildiğinde çalışır
-    public virtual void OnLevelStart() { }
+    public virtual void OnLevelStart() { if (isDisabled) return; }
 
     // Düşman öldüğünde çalışır
-    public virtual void OnEnemyKilled(EnemyAI enemy) { }
+    public virtual void OnEnemyKilled(EnemyAI enemy) { if (isDisabled) return; }
 
     // ======================================================
     // İŞTE YENİ EKLENEN KISIM BURASI KANKA:
@@ -42,11 +50,9 @@ public abstract class BasePerk : MonoBehaviour
 
     public virtual void Upgrade()
     {
+        if (currentLevel >= maxLevel) return;
         currentLevel++;
         Debug.Log($"{perkName} seviye atladı! Yeni Seviye: {currentLevel}");
-        
-        // İleride yeteneklerine özel Upgrade işlemleri yapmak istersen, 
-        // ReflexFiberPerk gibi alt kodlarda "public override void Upgrade()" diyerek ezeceksin.
     }
     // ======================================================
 

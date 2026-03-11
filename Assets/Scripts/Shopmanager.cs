@@ -22,7 +22,7 @@ public class Shopmanager : MonoBehaviour
     public TMP_Text rerollPriceText;
 
     [Header("Reroll Ayarlari")]
-    public float rerollBaseCost = 2f;
+    public float rerollBaseCost = 10f;
     public float rerollMultiplier = 1.5f;
 
     private List<ShopSlot> spawnedSlots = new List<ShopSlot>();
@@ -47,7 +47,7 @@ public class Shopmanager : MonoBehaviour
             if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
             hlg.spacing = 8;
             hlg.padding = new RectOffset(4, 4, 4, 4);
-            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
             hlg.childControlWidth = false;
             hlg.childControlHeight = false;
             hlg.childForceExpandWidth = false;
@@ -131,8 +131,12 @@ public class Shopmanager : MonoBehaviour
 
             int idx;
             int safety = 0;
-            do { idx = Random.Range(0, itemPool.Count); if (++safety > 100) break; }
-            while (usedIndices.Contains(idx));
+            do {
+                idx = Random.Range(0, itemPool.Count);
+                if (++safety > 100) break;
+            }
+            while (usedIndices.Contains(idx) ||
+                   (RunManager.instance != null && RunManager.instance.hasPerkReroll && itemPool[idx] is MutationCatalyst));
             usedIndices.Add(idx);
 
             BaseItem item = itemPool[idx];
@@ -220,6 +224,7 @@ public class Shopmanager : MonoBehaviour
         }
 
         RunManager.instance.currentGold -= item.price;
+        if (AudioManager.instance != null) AudioManager.instance.PlayPurchase();
         item.Use();
 
         purchased[index] = true;
@@ -276,28 +281,6 @@ public class Shopmanager : MonoBehaviour
             if (vfx != null) coinSpr = vfx.coinSprite;
         }
         if (coinSpr == null) return;
-
-        // Coin area icon (coinDisplayText parent)
-        if (coinDisplayText != null)
-        {
-            Transform coinParent = coinDisplayText.transform.parent;
-            if (coinParent != null && coinParent.Find("ShopCoinIcon") == null)
-            {
-                GameObject iconGO = new GameObject("ShopCoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                iconGO.transform.SetParent(coinParent, false);
-                iconGO.transform.SetAsFirstSibling();
-                iconGO.layer = gameObject.layer;
-                RectTransform iconRT = iconGO.GetComponent<RectTransform>();
-                iconRT.sizeDelta = new Vector2(22f, 22f);
-                LayoutElement iconLE = iconGO.AddComponent<LayoutElement>();
-                iconLE.preferredWidth = 22f;
-                iconLE.preferredHeight = 22f;
-                Image img = iconGO.GetComponent<Image>();
-                img.sprite = coinSpr;
-                img.preserveAspect = true;
-                img.raycastTarget = false;
-            }
-        }
 
         // Reroll button coin icon — placed manually, no HLG
         if (rerollPriceText != null)

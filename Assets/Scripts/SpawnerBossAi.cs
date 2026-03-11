@@ -27,7 +27,8 @@ public class SpawnerBossAI : MonoBehaviour
     private int previousHP; 
 
     private Tilemap groundMap;
-    private Tilemap bossWarningMap; 
+    private Tilemap bossWarningMap;
+    private int arenaRadius;
     
     [Header("BOSS'A ÖZEL UYARI KAROSU (BUNU ATAMALISIN!)")]
     public TileBase warningTile; 
@@ -40,6 +41,7 @@ public class SpawnerBossAI : MonoBehaviour
     {
         myEnemyAI = GetComponent<EnemyAI>();
         groundMap = LevelGenerator.instance.groundMap;
+        arenaRadius = LevelGenerator.instance.baseMapRadius + 1 + (RunManager.instance.currentLevel / 10);
 
         GameObject warnObj = GameObject.Find("BossWarningMap");
         if (warnObj != null) 
@@ -118,7 +120,7 @@ public class SpawnerBossAI : MonoBehaviour
         List<Vector3Int> farCells = new List<Vector3Int>();
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         
-        int radius = LevelGenerator.instance.baseMapRadius + 2;
+        int radius = arenaRadius;
         for (int x = -radius; x <= radius; x++)
         {
             for (int y = -radius; y <= radius; y++)
@@ -188,7 +190,13 @@ public class SpawnerBossAI : MonoBehaviour
 
     public IEnumerator ExecuteBossTurn()
     {
-        if (myEnemyAI.skipTurns > 0 || isTransitioning) yield break;
+        if (myEnemyAI.skipTurns > 0) yield break;
+        // isTransitioning sırasında bile cycle ilerlesin, sadece aksiyon yapmasın
+        if (isTransitioning)
+        {
+            if (aoeCycleStep < 2) aoeCycleStep++;
+            yield break;
+        }
 
         if (aoeCycleStep == 0 || aoeCycleStep == 1)
         {
@@ -196,6 +204,7 @@ public class SpawnerBossAI : MonoBehaviour
         }
         else if (aoeCycleStep == 2)
         {
+            if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
             ShowCheckerboardWarning();
             aoeCycleStep = 3; // Uyarı verildi, 3'e geçti
         }
@@ -226,7 +235,7 @@ public class SpawnerBossAI : MonoBehaviour
         isAoEWarningActive = true;
         aoeWarningCells.Clear();
 
-        int radius = LevelGenerator.instance.baseMapRadius + 2;
+        int radius = arenaRadius;
         for (int x = -radius; x <= radius; x++)
         {
             for (int y = -radius; y <= radius; y++)
@@ -285,8 +294,9 @@ public class SpawnerBossAI : MonoBehaviour
 
         if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f); 
-            
+            if (AudioManager.instance != null) AudioManager.instance.PlayLightning();
+            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f);
+
             foreach (var c in cellsToExplode)
             {
                 if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseBright);
@@ -318,7 +328,21 @@ public class SpawnerBossAI : MonoBehaviour
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         if (cellsToExplode.Contains(playerCell))
         {
-            TurnManager.instance.player.health.TakeDamage(2);
+            bool dodged = Random.value < RunManager.instance.dodgeChance;
+            if (dodged)
+            {
+                if (TurnManager.instance.dodgeEffectPrefab != null)
+                    Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
+            }
+            else if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
+            else
+            {
+                TurnManager.instance.player.health.TakeDamage(2);
+            }
         }
 
         foreach (var c in cellsToExplode)
@@ -340,7 +364,7 @@ public class SpawnerBossAI : MonoBehaviour
         List<Vector3Int> availableCells = new List<Vector3Int>();
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
 
-        int radius = LevelGenerator.instance.baseMapRadius + 2;
+        int radius = arenaRadius;
         for (int x = -radius; x <= radius; x++)
         {
             for (int y = -radius; y <= radius; y++)
@@ -388,15 +412,22 @@ public class SpawnerBossAI : MonoBehaviour
         isSummoning = false; 
     }
 
+    private bool totemSequenceRunning = false;
+
     public void OnTotemDestroyed()
     {
         activeTotems--;
-        StartCoroutine(TotemDestroySequence());
+        if (!totemSequenceRunning)
+            StartCoroutine(TotemDestroySequence());
     }
 
     private IEnumerator TotemDestroySequence()
     {
-        isTransitioning = true; 
+        totemSequenceRunning = true;
+        isTransitioning = true;
+
+        // Kısa süre bekle ki aynı frame'deki birden fazla totem ölümü yakalansın
+        yield return new WaitForSeconds(0.1f);
 
         foreach (var minion in summonedMinions)
         {
@@ -414,7 +445,7 @@ public class SpawnerBossAI : MonoBehaviour
             isShielded = false;
             StartCoroutine(ShatterShieldVisual());
             previousHP = myEnemyAI.health.currentHP;
-            
+
             yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
         }
         else
@@ -422,7 +453,8 @@ public class SpawnerBossAI : MonoBehaviour
             yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
         }
 
-        isTransitioning = false; 
+        isTransitioning = false;
+        totemSequenceRunning = false;
     }
 
     private IEnumerator ShatterShieldVisual()
