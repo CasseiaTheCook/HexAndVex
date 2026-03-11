@@ -186,10 +186,10 @@ public static class ShopSetupTool
         VerticalLayoutGroup mainVlg = panelGO.AddComponent<VerticalLayoutGroup>();
         mainVlg.spacing = 4;
         mainVlg.padding = new RectOffset(0, 0, 0, 0);
-        mainVlg.childAlignment         = TextAnchor.UpperCenter;
-        mainVlg.childControlWidth      = true;
+        mainVlg.childAlignment         = TextAnchor.UpperLeft;
+        mainVlg.childControlWidth      = false;
         mainVlg.childControlHeight     = false;
-        mainVlg.childForceExpandWidth  = true;
+        mainVlg.childForceExpandWidth  = false;
         mainVlg.childForceExpandHeight = false;
 
         // ── 3a. Üst satır: Slot container (HorizontalLayoutGroup) ──
@@ -217,7 +217,7 @@ public static class ShopSetupTool
         bottomRowGO.transform.SetParent(panelGO.transform, false);
         bottomRowGO.layer = LayerMask.NameToLayer("UI");
         RectTransform bottomRowRT = bottomRowGO.AddComponent<RectTransform>();
-        bottomRowRT.sizeDelta = new Vector2(0f, UIStyle.ShopBottomRowH);
+        bottomRowRT.sizeDelta = new Vector2(UIStyle.ShopPanelWidth, UIStyle.ShopBottomRowH);
         LayoutElement bottomRowLE = bottomRowGO.AddComponent<LayoutElement>();
         bottomRowLE.preferredHeight = UIStyle.ShopBottomRowH;
 
