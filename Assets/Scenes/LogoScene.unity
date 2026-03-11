@@ -675,7 +675,7 @@ MonoBehaviour:
   mainCanvas: {fileID: 548851627}
   bananaTransform: {fileID: 477023303}
   explosionObject: {fileID: 1923793335}
-  sfxSource: {fileID: 0}
+  sfxSource: {fileID: 1459070404}
   musicSource: {fileID: 1459070404}
   goofyRunSound: {fileID: 8300000, guid: 3aaa3430294bf83b7b58ff8c8f27edd2, type: 3}
   explosionSound: {fileID: 8300000, guid: 13c200b2c44a438bbae884c9a05c40b4, type: 3}
@@ -683,7 +683,6 @@ MonoBehaviour:
   explosionScaleUpDuration: 0.5
   explosionScaleDownDuration: 0.3
   maxExplosionScale: 5
-  mainLogoDisplayTime: 3
 --- !u!4 &901685545
 Transform:
   m_ObjectHideFlags: 0
@@ -870,8 +869,8 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
-  m_PlayOnAwake: 1
+  m_Resource: {fileID: 8300000, guid: 81e18c324e9441a4eaa27d835c752cfe, type: 3}
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
   Loop: 0
