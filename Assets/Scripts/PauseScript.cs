@@ -72,6 +72,13 @@ public class PauseManager : MonoBehaviour
         SceneManager.LoadScene(sceneIndex);
     }
 
+public void PlayButton(int sceneIndex)
+    {
+        Time.timeScale = 1f; // Zamanı açmayı unutma!
+        ScreenFader.instance.FadeAndLoad(() => {
+        SceneManager.LoadScene(sceneIndex);
+    });
+    }
     // Oyundan tamamen çıkma (Sadece gerçek oyunda çalışır, Unity Editor'da çalışmaz)
     public void QuitGame()
     {
