@@ -47,9 +47,7 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Lucky Clover
-  description: Fortune favors the bold. Each level tilts the odds in your favor,
-    boosting the chance of higher rarity perks. At max level, every rarity is equally
-    likely.
+  description: Highers the your chance to get better rarity implants.
   icon: {fileID: 8348925219702116603, guid: c4bf3e0bec5d5f9469f4e2e7428f037a, type: 3}
   priority: 0
   isRerollPerk: 0
