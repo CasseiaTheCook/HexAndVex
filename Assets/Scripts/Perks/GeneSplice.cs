@@ -50,9 +50,10 @@ public class GeneSplicePerk : BasePerk
             
             // YENİ SİSTEMİMİZ: O yeteneğin kendi özel Upgrade'ini çalıştır!
             selectedPerk.Upgrade();
-            
-            Debug.Log($"✨ Kadim Kutsama: {selectedPerk.perkName} güçlendirildi! (Yeni Seviye: {selectedPerk.currentLevel})");
+
+            Debug.Log($"✨ Gene Splice: {selectedPerk.perkName} güçlendirildi! (Yeni Seviye: {selectedPerk.currentLevel})");
             TriggerVisualPop();
+            if (PerkListUI.instance != null) PerkListUI.instance.TriggerLevelUpAnimForPerk(selectedPerk);
         }
         else
         {

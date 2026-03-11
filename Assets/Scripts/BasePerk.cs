@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public enum PerkRarity { Common, Rare, Epic, Legendary }
+public enum PerkRarity { Common, Rare, Epic, Legendary, Secret }
 
 public abstract class BasePerk : MonoBehaviour
 {

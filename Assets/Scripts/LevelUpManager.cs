@@ -368,28 +368,31 @@ public class LevelUpManager : MonoBehaviour
     private IEnumerator FadeOutAndShrinkRoutine()
     {
         Transform panelTransform = levelUpPanel.transform;
-        float duration = 0.2f; 
+        float duration = 0.2f;
         float elapsed = 0f;
-        
+
         Vector3 startScale = panelTransform.localScale;
-        Vector3 endScale = new Vector3(0.2f, 0.2f, 0.2f); 
-        
+        Vector3 endScale = new Vector3(0.2f, 0.2f, 0.2f);
+
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = elapsed / duration;
             float easeInQuad = t * t;
-            
+
             if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = Mathf.Lerp(1f, 0f, easeInQuad);
             panelTransform.localScale = Vector3.Lerp(startScale, endScale, easeInQuad);
             yield return null;
         }
-        
+
         levelUpPanel.SetActive(false);
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(false);
         foreach (var btn in choiceButtons) btn.interactable = true;
 
         Time.timeScale = 1f;
+
+        // Gene Splice gibi upgrade sekanslarının görünmesi için kısa bekleme
+        yield return new WaitForSeconds(1f);
 
         if (ScreenFader.instance != null)
         {

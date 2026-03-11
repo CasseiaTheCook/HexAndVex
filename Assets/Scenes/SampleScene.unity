@@ -11994,6 +11994,7 @@ MonoBehaviour:
   coinText: {fileID: 0}
   coinSprite: {fileID: -3424034131817855405, guid: 496580030e4fa8a41ba454a468500dfc, type: 3}
   skipDiceAnim: 0
+  skipDiceVisuals: 0
   enemies: []
   isLevelClearTriggered: 0
   isPlayerTurn: 1
@@ -12427,7 +12428,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1574552221
 RectTransform:
   m_ObjectHideFlags: 0
