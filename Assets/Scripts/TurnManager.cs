@@ -268,6 +268,10 @@ public class TurnManager : MonoBehaviour
         GameObject warningMapObj = GameObject.Find("WarningMap");
         if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
 
+        // Warlock uyarı haritasını da temizle
+        GameObject warlockWarnObj = GameObject.Find("WarlockWarningMap");
+        if (warlockWarnObj != null) warlockWarnObj.GetComponent<Tilemap>().ClearAllTiles();
+
         if (activeMineObj != null) Destroy(activeMineObj);
         activeMineCell = new Vector3Int(-999, -999, -999);
     }
@@ -893,6 +897,8 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> readyToBossAttack = new List<EnemyAI>();
         List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
         List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
+        List<WarlockEnemyAI> readyWarlockAttack1 = new List<WarlockEnemyAI>();
+        List<WarlockEnemyAI> readyWarlockAttack2 = new List<WarlockEnemyAI>();
 
         foreach (var e in enemies)
         {
@@ -901,12 +907,35 @@ public class TurnManager : MonoBehaviour
                 if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) readyToBossAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) readyToAoEAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) readyToMeleeAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Warlock)
+                {
+                    WarlockEnemyAI warlock = e.GetComponent<WarlockEnemyAI>();
+                    if (warlock != null)
+                    {
+                        if (warlock.IsReadyToExplodeAttack1()) readyWarlockAttack1.Add(warlock);
+                        if (warlock.IsReadyToExplodeAttack2()) readyWarlockAttack2.Add(warlock);
+                    }
+                }
             }
         }
 
         if (readyToBossAttack.Count > 0)
         {
             foreach (var boss in readyToBossAttack) yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 1 (artı paterni)
+        if (readyWarlockAttack1.Count > 0)
+        {
+            foreach (var warlock in readyWarlockAttack1) yield return StartCoroutine(warlock.ExecuteAttack1());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 2 (çapraz paterni)
+        if (readyWarlockAttack2.Count > 0)
+        {
+            foreach (var warlock in readyWarlockAttack2) yield return StartCoroutine(warlock.ExecuteAttack2());
             yield return new WaitForSeconds(0.2f);
         }
 

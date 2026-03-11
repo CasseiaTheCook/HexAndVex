@@ -31,6 +31,11 @@ public class LevelGenerator : MonoBehaviour
     public GameObject bossPrefab;
     public GameObject totemPrefab;
 
+    [Header("Warlock Düşman")]
+    public GameObject warlockEnemyPrefab;
+    public int warlockStartLevel = 6; // İlk bosstan sonra (level 6+)
+    [Range(0f, 1f)] public float warlockSpawnChance = 0.10f;
+
     public float CurrentEnemyHealth
     {
         get { return 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel); }
@@ -164,6 +169,7 @@ public class LevelGenerator : MonoBehaviour
         int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
 
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
+        int spawnedWarlockCount = 0;
         Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerStartCell);
 
         for (int i = 0; i < enemyCountToSpawn; i++)
@@ -240,7 +246,19 @@ public class LevelGenerator : MonoBehaviour
 
             GameObject prefabToSpawn = meleeEnemyPrefab;
 
-            if (RunManager.instance.currentLevel >= aoeStartLevel)
+            // Warlock: max 3, ilk bosstan sonra (level >= warlockStartLevel) veya test için level 0'da da çıksın
+            if (warlockEnemyPrefab != null && spawnedWarlockCount < 3 &&
+                (RunManager.instance.currentLevel >= warlockStartLevel || RunManager.instance.currentLevel == 0))
+            {
+                float effectiveChance = (RunManager.instance.currentLevel == 0) ? 0.50f : warlockSpawnChance;
+                if (Random.value < effectiveChance)
+                {
+                    prefabToSpawn = warlockEnemyPrefab;
+                }
+            }
+
+            // Warlock seçilmediyse AoE şansını dene
+            if (prefabToSpawn == meleeEnemyPrefab && RunManager.instance.currentLevel >= aoeStartLevel)
             {
                 if (Random.value < 0.30f && aoeEnemyPrefab != null)
                 {
@@ -249,6 +267,7 @@ public class LevelGenerator : MonoBehaviour
             }
 
             GameObject newEnemyObj = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
+            if (prefabToSpawn == warlockEnemyPrefab) spawnedWarlockCount++;
             EnemyAI enemyAI = newEnemyObj.GetComponent<EnemyAI>();
             enemyAI.groundMap = this.groundMap;
 
