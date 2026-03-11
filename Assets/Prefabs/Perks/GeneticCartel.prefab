@@ -48,7 +48,7 @@ MonoBehaviour:
   maxLevel: 1
   perkName: GeneticCartel
   description: +1 to all your dies for each time you rerolled your shop this run.
-  icon: {fileID: 1069814668140953185, guid: 5809d577d897fca43a4d2a132fa3718f, type: 3}
+  icon: {fileID: -1501830745789406389, guid: ad2b30684b497194f9a5dec48fc39f3c, type: 3}
   priority: 0
   isRerollPerk: 0
   rarity: 4

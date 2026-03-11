@@ -4790,9 +4790,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 18b48bb0e17c08c43995c00a542f6de4, type: 2}
   - {fileID: 11400000, guid: cb518e6b0f8fefc4389b15930865c72b, type: 2}
   - {fileID: 11400000, guid: 9716d47d8c031c94fb498ea4bf1b366c, type: 2}
-  - {fileID: 0}
-  secretItem: {fileID: 0}
-  secretItemChance: 0.01
+  - {fileID: 11400000, guid: b5e9a3c7d1f8264e0a9b3d5f7c1e4a68, type: 2}
+  secretItem: {fileID: 11400000, guid: b5e9a3c7d1f8264e0a9b3d5f7c1e4a68, type: 2}
+  secretItemChance: 1
   shopSlotContainer: {fileID: 1400458065}
   shopSlotPrefab: {fileID: 8164334485540262811, guid: 22dde9155aaf3554f9955e1432f107fd, type: 3}
   shopSlotCount: 3
@@ -9733,6 +9733,50 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 691.2522, y: 368.65186, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1259423053
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1259423055}
+  - component: {fileID: 1259423054}
+  m_Layer: 0
+  m_Name: SecretPerkCinematic
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1259423054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259423053}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6c2b7295e8fbc14e84b3572acf98060, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SecretPerkCinematic
+--- !u!4 &1259423055
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1259423053}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -16505,3 +16549,4 @@ SceneRoots:
   - {fileID: 663098664}
   - {fileID: 147153417}
   - {fileID: 1732850550}
+  - {fileID: 1259423055}
