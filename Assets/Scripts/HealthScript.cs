@@ -74,6 +74,8 @@ public class HealthScript : MonoBehaviour
         {
             enemy.skipTurns = Mathf.Max(enemy.skipTurns, 1);
             enemy.SetStunVisual(true);
+            // Stun alpha'sını hemen başlat (sonra TriggerExplosion tarafından reset edilebilsin)
+            SetStunnedAlpha(true);
         }
 
         OnDamaged?.Invoke(currentHP);
@@ -115,7 +117,10 @@ public class HealthScript : MonoBehaviour
     // --- YENİ: YUMUŞAK SAYDAMLAŞMA (FADE IN / FADE OUT) ---
     public void SetStunnedAlpha(bool deepStun)
     {
-        if (isDeepStunnedAlpha == deepStun || spriteRenderer == null || isDead) return;
+        if (spriteRenderer == null || isDead) return;
+
+        // Eğer zaten ayarlandıysa ve aynı statüdeyse çık
+        if (isDeepStunnedAlpha == deepStun) return;
 
         isDeepStunnedAlpha = deepStun;
         float targetAlpha = deepStun ? 0.45f : 1f;

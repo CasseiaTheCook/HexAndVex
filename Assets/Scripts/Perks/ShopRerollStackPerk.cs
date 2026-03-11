@@ -2,43 +2,30 @@ using UnityEngine;
 
 public class ShopRerollStackPerk : BasePerk
 {
-    private int rerollStack = 0;
-
     public override void OnAcquire()
     {
         perkName = "Reroll Stack";
-        description = "Her shop reroll'da +1 stack kazandıkça, her zarında o kadar bonus damage ekle. Güçlü zar stack mekanizması!";
+        description = GetDescription();
         priority = 30;
-        rerollStack = 0;
     }
 
     public override void OnShopReroll()
     {
-        rerollStack++;
+        // Stack artık RunManager'da tutulup TurnManager'da zarlara ekleniyor
+        // Sadece açıklama güncelle ve visual feedback ver
+        description = GetDescription();
         TriggerVisualPop();
-        Debug.Log($"[ShopRerollStackPerk] Reroll Stack: {rerollStack}");
     }
 
     public override void ModifyCombat(CombatPayload payload)
     {
-        if (rerollStack <= 0) return;
-
-        // İlk zara stack kadar bonus ekle
-        if (payload.diceRolls.Count > 0)
-        {
-            payload.diceRolls[0] += rerollStack;
-            // Eğer 6'yı geçerse, 6'da sabitle
-            if (payload.diceRolls[0] > 6)
-                payload.diceRolls[0] = 6;
-
-            Debug.Log($"[ShopRerollStackPerk] İlk zara +{rerollStack} eklendi. Yeni değer: {payload.diceRolls[0]}");
-        }
+        // Reroll stack bonusu artık doğrudan zar atılırken ekleniyor (TurnManager)
+        // Bu perk artık sadece bilgilendirme amaçlı
     }
 
-    public override void OnLevelStart()
+    private string GetDescription()
     {
-        // Seviye başlarında stackı sıfırla (isteğe göre değiştirebilirsin)
-        rerollStack = 0;
-        Debug.Log("[ShopRerollStackPerk] Seviye başladı, stack reset edildi.");
+        int stack = RunManager.instance != null ? RunManager.instance.shopRerollStack : 0;
+        return $"Her shop reroll'da tüm zarlarına kalıcı +1 bonus. Stack: {stack}";
     }
 }

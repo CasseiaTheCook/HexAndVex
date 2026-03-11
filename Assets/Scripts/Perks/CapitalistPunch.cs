@@ -13,7 +13,8 @@ public class CapitalistPunchPerk : BasePerk
         {
             for (int i = 0; i < payload.diceRolls.Count; i++)
                 payload.diceRolls[i] += bonus;
-            TriggerVisualPop();
+            if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+                TriggerVisualPop();
         }
     }
 }

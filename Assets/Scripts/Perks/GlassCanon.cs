@@ -25,7 +25,6 @@ public class GlassCanonPerk : BasePerk
 
     public override void ModifyCombat(CombatPayload payload)
     {
-        if (isDisabled) return;
         payload.multiplier *= 2f;
         TriggerVisualPop();
     }

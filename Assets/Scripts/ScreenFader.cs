@@ -8,6 +8,9 @@ public class ScreenFader : MonoBehaviour
     public static ScreenFader instance;
     public CanvasGroup faderGroup;
     public float fadeDuration = 1.0f;
+    public string faderTag = "FadeCanvas";
+
+    private bool isTransitioning = false;
 
     void Awake()
     {
@@ -15,70 +18,102 @@ public class ScreenFader : MonoBehaviour
         {
             instance = this;
             DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
         else
         {
             Destroy(gameObject);
             return;
         }
-
-        // İlk açılışta ekran simsiyah olsun
-        if (faderGroup != null)
-        {
-            faderGroup.alpha = 1f;
-            faderGroup.blocksRaycasts = true;
-        }
     }
 
     private void Start()
     {
-        // Sahne ilk yüklendiğinde otomatik olarak ekranı aç (Fade Out)
-        StartCoroutine(Fade(0f));
+        // İlk açılışta fader'ı bul ve aç
+        InitializeFader();
+        if (faderGroup != null) StartCoroutine(Fade(0f));
     }
 
-    // Sahne geçişleri için dışarıdan bunu çağıracaksın
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        InitializeFader();
+        // EĞER FadeAndLoad ile gelmiyorsak (direkt Play dediysek veya başka bir geçişse)
+        if (!isTransitioning)
+        {
+            StartCoroutine(Fade(0f));
+        }
+    }
+
+    void InitializeFader()
+    {
+        GameObject obj = GameObject.FindWithTag(faderTag);
+        if (obj != null)
+        {
+            faderGroup = obj.GetComponent<CanvasGroup>();
+            // BURADAKİ alpha = 1f SATIRINI SİLDİM!
+            // Çünkü ekran zaten ya siyahtır ya da fader çalışıyordur.
+            // Durduk yere 1 yaparsan flickering (parlama/kararma) yapar.
+        }
+    }
+
     public void FadeAndLoad(Action loadAction)
     {
+        if (isTransitioning) return;
         StopAllCoroutines();
         StartCoroutine(FadeAndLoadSequence(loadAction));
     }
 
     private IEnumerator FadeAndLoadSequence(Action loadAction)
     {
-        // 1. Ekranı karart
+        isTransitioning = true;
+
+        // 1. Ekranı kapat
         yield return StartCoroutine(Fade(1f));
 
-        // 2. Sahne yükleme işini yap (Action çalıştır)
+        // 2. Sahneyi yükle
         loadAction?.Invoke();
 
-        // 3. Yeni sahnede ekranı geri aç
-        yield return StartCoroutine(Fade(0f));
+        // Sahnenin tam oturması için 1 kare bekle
+        yield return null;
+
+        // Yeni sahnedeki fader'ı bul
+        InitializeFader();
+
+        // 3. Ekranı aç
+        if (faderGroup != null)
+        {
+            yield return StartCoroutine(Fade(0f));
+        }
+
+        isTransitioning = false;
     }
 
-    // TAM SENİN İSTEDİĞİN LERP MANTIĞI
     IEnumerator Fade(float targetAlpha)
     {
         if (faderGroup == null) yield break;
 
         float startAlpha = faderGroup.alpha;
         float elapsed = 0f;
-
-        // Kararma başladığında tıklamaları engelle
         faderGroup.blocksRaycasts = true;
 
         while (elapsed < fadeDuration)
         {
-            elapsed += Time.unscaledDeltaTime; // Pause olsa bile çalışması için unscaled
-            faderGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / fadeDuration);
+            elapsed += Time.unscaledDeltaTime; 
+            if(faderGroup != null)
+                faderGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / fadeDuration);
             yield return null;
         }
 
-        faderGroup.alpha = targetAlpha;
-
-        // Eğer ekran tamamen açıldıysa (0), arkadaki butonlara tıklanabilsin
-        if (targetAlpha <= 0.05f)
+        if(faderGroup != null)
         {
-            faderGroup.blocksRaycasts = false;
+            faderGroup.alpha = targetAlpha;
+            if (targetAlpha <= 0.05f) faderGroup.blocksRaycasts = false;
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+            SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 }

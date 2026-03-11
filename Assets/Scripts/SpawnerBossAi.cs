@@ -190,7 +190,12 @@ public class SpawnerBossAI : MonoBehaviour
 
     public IEnumerator ExecuteBossTurn()
     {
-        if (myEnemyAI.skipTurns > 0) yield break;
+        if (myEnemyAI.skipTurns > 0) 
+        {
+            // Oyuncu bunun yerine attack yazmışsa durumu sıfırla ki next turda hazırlanabilsin
+            readyToExplodeThisTurn = false;
+            yield break;
+        }
         // isTransitioning sırasında bile cycle ilerlesin, sadece aksiyon yapmasın
         if (isTransitioning)
         {
@@ -302,7 +307,28 @@ public class SpawnerBossAI : MonoBehaviour
                 if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseBright);
             }
 
-            yield return new WaitForSeconds(0.1f); 
+            yield return new WaitForSeconds(0.1f);
+
+            // DAMAGE VERMEK: Visual başladığında HEMEN ver
+            Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
+            if (cellsToExplode.Contains(playerCell))
+            {
+                bool dodged = Random.value < RunManager.instance.dodgeChance;
+                if (dodged)
+                {
+                    if (TurnManager.instance.dodgeEffectPrefab != null)
+                        Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
+                }
+                else if (RunManager.instance.hasBioBarrier)
+                {
+                    foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                    RunManager.instance.hasBioBarrier = false;
+                }
+                else
+                {
+                    TurnManager.instance.player.health.TakeDamage(2);
+                }
+            }
 
             float fadeDur = 0.5f; 
             float elapsed = 0f;
@@ -325,26 +351,6 @@ public class SpawnerBossAI : MonoBehaviour
             }
         }
 
-        Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
-        if (cellsToExplode.Contains(playerCell))
-        {
-            bool dodged = Random.value < RunManager.instance.dodgeChance;
-            if (dodged)
-            {
-                if (TurnManager.instance.dodgeEffectPrefab != null)
-                    Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
-            }
-            else if (RunManager.instance.hasBioBarrier)
-            {
-                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
-                RunManager.instance.hasBioBarrier = false;
-            }
-            else
-            {
-                TurnManager.instance.player.health.TakeDamage(2);
-            }
-        }
-
         foreach (var c in cellsToExplode)
         {
             if (bossWarningMap != null && bossWarningMap.HasTile(c))
@@ -361,45 +367,60 @@ public class SpawnerBossAI : MonoBehaviour
         if (isSummoning) yield break; 
         isSummoning = true;
 
-        List<Vector3Int> availableCells = new List<Vector3Int>();
+        // Tüm düşmanları ve bossun konumunu al
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
-
-        int radius = arenaRadius;
-        for (int x = -radius; x <= radius; x++)
+        Vector3Int bossCell = myEnemyAI.GetCurrentCellPosition();
+        List<Vector3Int> occupiedCells = new List<Vector3Int> { playerCell, bossCell };
+        foreach (var minion in summonedMinions)
         {
-            for (int y = -radius; y <= radius; y++)
+            if (minion != null) occupiedCells.Add(minion.GetCurrentCellPosition());
+        }
+
+        // Harita üstünde homojen totem dağılması
+        List<Vector3Int> spawnedThisRound = new List<Vector3Int>();
+        int radius = arenaRadius;
+        int maxAttempts = countToSummon * 10; // Çok attempt yapma
+        int attempts = 0;
+
+        while (spawnedThisRound.Count < countToSummon && attempts < maxAttempts)
+        {
+            attempts++;
+            
+            // Rastgele pozisyon
+            Vector3Int cell = new Vector3Int(
+                Random.Range(-radius, radius + 1),
+                Random.Range(-radius, radius + 1),
+                0
+            );
+
+            // Geçerli konum mu?
+            if (!groundMap.HasTile(cell) || 
+                occupiedCells.Contains(cell) || 
+                myEnemyAI.Distance(cell, playerCell) < 3f ||
+                LevelGenerator.instance.hazardCells.Contains(cell))
+                continue;
+
+            // Diğer bu turda spawn'lanan totems'ten min 4 mesafe?
+            bool tooCloseToSpawned = false;
+            foreach (var spawnedCell in spawnedThisRound)
             {
-                Vector3Int cell = new Vector3Int(x, y, 0);
-                if (groundMap.HasTile(cell) && !TurnManager.instance.IsEnemyAtCell(cell) && 
-                    myEnemyAI.Distance(cell, playerCell) >= 2f && !LevelGenerator.instance.hazardCells.Contains(cell))
+                if (myEnemyAI.Distance(cell, spawnedCell) < 4f)
                 {
-                    availableCells.Add(cell);
+                    tooCloseToSpawned = true;
+                    break;
                 }
             }
-        }
+            if (tooCloseToSpawned) continue;
 
-        for (int i = 0; i < availableCells.Count; i++)
-        {
-            Vector3Int temp = availableCells[i];
-            int randomIndex = Random.Range(i, availableCells.Count);
-            availableCells[i] = availableCells[randomIndex];
-            availableCells[randomIndex] = temp;
-        }
-
-        float baseHealth = 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel);
-
-        for (int i = 0; i < countToSummon && i < availableCells.Count; i++)
-        {
-            Vector3Int spawnCell = availableCells[i];
+            // Spawn et
             GameObject prefab = Random.value > 0.5f ? LevelGenerator.instance.meleeEnemyPrefab : LevelGenerator.instance.aoeEnemyPrefab;
-
-            Vector3 spawnPos = groundMap.GetCellCenterWorld(spawnCell);
+            Vector3 spawnPos = groundMap.GetCellCenterWorld(cell);
             GameObject minionObj = Instantiate(prefab, spawnPos, Quaternion.identity);
 
             EnemyAI minionAI = minionObj.GetComponent<EnemyAI>();
             minionAI.groundMap = this.groundMap;
 
-            int minionHP = Mathf.RoundToInt(baseHealth * 0.7f); 
+            int minionHP = Mathf.RoundToInt(myEnemyAI.health.maxHP * 0.7f); 
             minionAI.health.maxHP = Mathf.Max(1, minionHP);
             minionAI.health.currentHP = minionAI.health.maxHP;
             minionAI.health.updateHealth();
