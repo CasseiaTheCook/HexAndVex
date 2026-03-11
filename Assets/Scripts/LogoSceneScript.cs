@@ -58,7 +58,7 @@ public class LogoSceneScript : MonoBehaviour
 
     IEnumerator SplashSequence()
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(3f);
         // 3. MUZUN DÖNME VE KOŞMA SESİ (Fade bittikten sonra başlar)
         if (goofyRunSound != null)
         {
