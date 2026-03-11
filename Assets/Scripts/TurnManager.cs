@@ -240,7 +240,8 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.surgeBootActive = false;
             RunManager.instance.surgeBootNextTurn = false;
         }
-        player.UpdateHighlights(); LockAllEnemyIntents();
+        player.UpdateHighlights();
+        StartCoroutine(LockIntentsNextFrame());
     }
 
     // ========================================================
@@ -660,6 +661,13 @@ public class TurnManager : MonoBehaviour
         if (player == null || player.health.currentHP <= 0) return;
         Vector3Int pCell = player.GetCurrentCellPosition();
         foreach (var e in enemies) if (e != null) { bool isStunned = e.skipTurns > 0; e.LockNextMove(pCell, isStunned); }
+    }
+
+    private IEnumerator LockIntentsNextFrame()
+    {
+        yield return new WaitForSeconds(0.35f);
+        LockAllEnemyIntents();
+        ShowAllEnemyIntents();
     }
 
     public void PlayerFinishedMove(Vector3Int playerCell)
