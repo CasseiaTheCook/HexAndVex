@@ -15,6 +15,10 @@ public class AudioManager : MonoBehaviour
     public AudioClip purchaseClip;     // Satın alma
     public AudioClip hammerClip;       // Telegraf saldırı hazırlanma
     public AudioClip lightningClip;    // Şimşek (kullanılmıyor şimdilik)
+    public AudioClip diceRollClip;     // Zarlar ortaya çıkarken
+    public AudioClip diceHitClip;      // Her zar yüzü açılırken
+    public AudioClip vacuumClip;       // Vacuum efekti
+    public AudioClip textEffectClip;   // Bam bam zar text animasyonu
 
     [Header("Ses Ayarları")]
     [Range(0f, 1f)] public float masterVolume = 1f;
@@ -55,4 +59,8 @@ public class AudioManager : MonoBehaviour
     public void PlayPurchase()    => Play(purchaseClip);
     public void PlayHammer()      => Play(hammerClip, 0.85f);
     public void PlayLightning()   => Play(lightningClip);
+    public void PlayDiceRoll()    => Play(diceRollClip, 0.9f);
+    public void PlayDiceHit()     => Play(diceHitClip, 0.8f);
+    public void PlayVacuum()      => Play(vacuumClip);
+    public void PlayTextEffect()  => Play(textEffectClip, 0.75f);
 }

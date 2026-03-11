@@ -12407,6 +12407,10 @@ MonoBehaviour:
   purchaseClip: {fileID: 8300000, guid: b2fbb4bb17c9e0e4a955e56e5294c9a0, type: 3}
   hammerClip: {fileID: 8300000, guid: b30dce85d5b546c48883c8652a19d648, type: 3}
   lightningClip: {fileID: 8300000, guid: a26e3478fd925434e92a1c5a2fecd09f, type: 3}
+  diceRollClip: {fileID: 8300000, guid: 0017e3785cfc5f8478e8c3f71e64c991, type: 3}
+  diceHitClip: {fileID: 8300000, guid: 25aa7b59c78a43d41981ab9d83ae702d, type: 3}
+  vacuumClip: {fileID: 8300000, guid: 2bbbcf3b3c8283c4a83a6491c98876bc, type: 3}
+  textEffectClip: {fileID: 8300000, guid: 28598892a072c2349a913948e9baa583, type: 3}
   masterVolume: 1
   sfxVolume: 1
 --- !u!1 &1735267719

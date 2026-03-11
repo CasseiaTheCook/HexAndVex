@@ -749,6 +749,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator VacuumVFXCoroutine(Vector3 pos)
     {
         if (vacuumVfxPrefab == null) yield break;
+        if (AudioManager.instance != null) AudioManager.instance.PlayVacuum();
         GameObject vfx = Instantiate(vacuumVfxPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = vfx.GetComponentsInChildren<SpriteRenderer>();
         float duration = 0.4f; float elapsed = 0f;
@@ -1276,11 +1277,13 @@ public class TurnManager : MonoBehaviour
             GameObject newDie = Instantiate(dieUIPrefab, diceUIContainer); spawnedDiceUI.Add(newDie);
             dieImages.Add(newDie.GetComponent<Image>()); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(newDie.GetComponentInChildren<TMP_Text>());
         }
+        if (AudioManager.instance != null) AudioManager.instance.PlayDiceRoll();
         yield return new WaitForSeconds(0.4f);
         for (int i = 0; i < rolls.Count; i++)
         {
             if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
             dieImages[i].sprite = diceSprites[rolls[i] - 1]; dieTexts[i].text = rolls[i].ToString();
+            if (AudioManager.instance != null) AudioManager.instance.PlayDiceHit();
             StartCoroutine(TextPopAnimation(dieTexts[i]));
         }
         yield return new WaitForSeconds(0.2f);
@@ -1289,6 +1292,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator TextPopAnimation(TMP_Text textElement)
     {
         if (textElement == null) yield break;
+        if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
         Transform t = textElement.transform; Vector3 startScale = new Vector3(3f, 3f, 3f); Vector3 endScale = Vector3.one;
         float duration = 0.15f; float elapsed = 0f;
         while (elapsed < duration)
