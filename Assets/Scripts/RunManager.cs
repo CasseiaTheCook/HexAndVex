@@ -114,6 +114,18 @@ public class RunManager : MonoBehaviour
             // İLK DEFA ALINIYORSA: Obje olarak yarat ve listeye ekle
             GameObject newPerkObj = Instantiate(perkPrefab, transform);
             BasePerk newPerk = newPerkObj.GetComponent<BasePerk>();
+
+            // LevelUpManager listelerinden doğru rarity'i ata
+            if (LevelUpManager.instance != null)
+            {
+                if (LevelUpManager.instance.legendaryPerks.Contains(perkPrefab))
+                    newPerk.rarity = PerkRarity.Legendary;
+                else if (LevelUpManager.instance.epicPerks.Contains(perkPrefab))
+                    newPerk.rarity = PerkRarity.Epic;
+                else if (LevelUpManager.instance.rarePerks.Contains(perkPrefab))
+                    newPerk.rarity = PerkRarity.Rare;
+            }
+
             activePerks.Add(newPerk);
             newPerk.OnAcquire();
         }
