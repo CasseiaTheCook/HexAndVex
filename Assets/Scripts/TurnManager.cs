@@ -402,16 +402,70 @@ public class TurnManager : MonoBehaviour
             placeholderObj = Instantiate(fragMinePlaceholderPrefab, placeholderPos, Quaternion.identity);
         }
 
-        // Zar animasyonunu göster (sadece baseDiceCount, bonus zar yok)
+        // Zar animasyonunu göster
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         List<int> rolls = new List<int>();
         for (int i = 0; i < diceCount; i++) rolls.Add(Random.Range(1, 7));
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount;
 
-        yield return StartCoroutine(ShowDiceSequence(rolls));
+        CombatPayload payload = new CombatPayload(rolls);
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk"))
+            payload.multiplyInsteadOfAdd = true;
 
-        int totalDamage = 0;
-        foreach (var r in rolls) totalDamage += r;
+        yield return StartCoroutine(ShowDiceSequence(rolls));
+        UpdateTotalDamageDisplay(payload.GetFinalDamage());
+
+        // Perk zar boost'larını uygula (normal combat ile aynı)
+        if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
+        {
+            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            perksToProcess.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in perksToProcess)
+            {
+                int beforeTotal = payload.GetFinalDamage();
+                perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < rolls.Count; i++) if (rolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (perk.isRerollPerk)
+                    {
+                        foreach (int idx in changedIndices)
+                        {
+                            if (idx < spawnedDiceUI.Count)
+                            {
+                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                            }
+                        }
+                        yield return new WaitForSeconds(0.5f);
+                        foreach (int idx in changedIndices)
+                        {
+                            rolls[idx] = payload.diceRolls[idx];
+                            if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                            AnimateSpecificDie(idx, rolls[idx]);
+                        }
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
+                    }
+                    anyDieChanged = true; yield return new WaitForSeconds(0.3f);
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+            }
+        }
+
+        if (Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true;
+            UpdateTotalDamageDisplay(payload.GetFinalDamage());
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        int totalDamage = payload.GetFinalDamage();
         UpdateTotalDamageDisplay(totalDamage);
         yield return new WaitForSeconds(0.6f);
 
