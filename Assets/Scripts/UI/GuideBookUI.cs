@@ -5,9 +5,9 @@ using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
-/// GuideBook UI kontrolcüsü — kitap panelini açar/kapar, sayfa içeriğini gösterir.
-/// Tamamen kod ile UI oluşturur — prefab gerekmez.
-/// Editor tool (GuideBookSetupTool) bu scripti sahneye ekler ve referansları bağlar.
+/// GuideBook UI kontrolcüsü — sol sidebar + sağ içerik alanı.
+/// Sidebar'da tıklanabilir sayfa listesi, sağda scrollable içerik.
+/// Editor tool (GuideBookSetupTool) referansları bağlar.
 /// </summary>
 public class GuideBookUI : MonoBehaviour
 {
@@ -15,16 +15,19 @@ public class GuideBookUI : MonoBehaviour
     public RectTransform bookPanel;
     public CanvasGroup bookCanvasGroup;
 
-    [Header("İçerik")]
+    [Header("Sidebar (Sol)")]
+    public ScrollRect sidebarScrollRect;
+    public RectTransform sidebarContent; // VerticalLayoutGroup — sayfa butonları buraya spawn edilir
+
+    [Header("İçerik Alanı (Sağ)")]
     public TMP_Text titleText;
-    public TMP_Text bodyText;
-    public TMP_Text pageNumberText;
     public TMP_Text categoryLabel;
+    public ScrollRect contentScrollRect;
+    public RectTransform contentScrollContent; // VerticalLayoutGroup — bodyText + illustration
+    public TMP_Text bodyText;
     public Image illustrationImage;
 
     [Header("Butonlar")]
-    public Button prevButton;
-    public Button nextButton;
     public Button closeButton;
 
     [Header("Kategori Sekmeleri")]
@@ -41,26 +44,28 @@ public class GuideBookUI : MonoBehaviour
     [Header("Animasyon")]
     public float animDuration = 0.25f;
 
+    // Dinamik sidebar butonları
+    private List<GameObject> sidebarButtonObjects = new List<GameObject>();
+
     // İlk açılış pulse animasyonu
     private bool hasOpenedOnce = false;
     private Coroutine pulseCoroutine;
     private Coroutine animCoroutine;
 
-    // Kategori isimleri
-    private static readonly string[] CATEGORIES = { "", "Combat", "Enemies", "Items", "Perks", "Movement" };
-    private static readonly string[] CATEGORY_LABELS = { "ALL", "COMBAT", "ENEMIES", "ITEMS", "PERKS", "MOVEMENT" };
+    // Kategori isimleri (ALL yok — filtre butonu olarak 5 kategori)
+    private static readonly string[] CATEGORIES = { "Combat", "Enemies", "Items", "Perks", "Movement" };
 
-    // Kategori renkleri
-    private static readonly Color CAT_ACTIVE = new Color(0f, 0.58f, 0.74f, 1f);   // #0093BC
+    // Renkler
+    private static readonly Color CAT_ACTIVE = new Color(0f, 0.58f, 0.74f, 1f);     // #0093BC
+    private static readonly Color CAT_ACTIVE_LIGHT = new Color(0.1f, 0.68f, 0.84f, 1f);
     private static readonly Color CAT_INACTIVE = new Color(0.15f, 0.15f, 0.2f, 1f);
-    private static readonly Color CAT_TEXT_ACTIVE = Color.white;
-    private static readonly Color CAT_TEXT_INACTIVE = new Color(0.6f, 0.6f, 0.6f, 1f);
+    private static readonly Color SIDEBAR_ACTIVE = new Color(0f, 0.58f, 0.74f, 1f);
+    private static readonly Color SIDEBAR_INACTIVE = new Color(0.06f, 0.06f, 0.1f, 1f);
 
     private bool initialized = false;
 
     void Awake()
     {
-        // Buton listener'ları Awake'te bağla — Start panel kapalıyken çalışmayabilir
         InitializeIfNeeded();
     }
 
@@ -74,23 +79,20 @@ public class GuideBookUI : MonoBehaviour
         if (initialized) return;
         initialized = true;
 
-        // Manager'a kendini bağla — gerekirse bir frame bekle
         BindToManager();
 
         // Buton listener'ları
-        if (prevButton != null) prevButton.onClick.AddListener(OnPrevClicked);
-        if (nextButton != null) nextButton.onClick.AddListener(OnNextClicked);
         if (closeButton != null) closeButton.onClick.AddListener(OnCloseClicked);
         if (bookIconButton != null) bookIconButton.onClick.AddListener(OnBookIconClicked);
 
         // Kategori butonları
         for (int i = 0; i < categoryButtons.Count && i < CATEGORIES.Length; i++)
         {
-            int idx = i; // closure capture
+            int idx = i;
             categoryButtons[i].onClick.AddListener(() => OnCategoryClicked(idx));
         }
 
-        // Başlangıçta kitap kapalı — sadece paneli kapat, canvas aktif kalmalı
+        // Başlangıçta kitap kapalı
         if (bookPanel != null)
         {
             bookPanel.gameObject.SetActive(false);
@@ -105,14 +107,9 @@ public class GuideBookUI : MonoBehaviour
     private void BindToManager()
     {
         if (GuideBookManager.instance != null)
-        {
             GuideBookManager.instance.bookUI = this;
-        }
         else
-        {
-            // Aynı GameObject'teyse Awake sırası garanti değil — 1 frame bekle
             StartCoroutine(BindNextFrame());
-        }
     }
 
     private IEnumerator BindNextFrame()
@@ -139,6 +136,7 @@ public class GuideBookUI : MonoBehaviour
 
         bookPanel.gameObject.SetActive(true);
         RefreshPage();
+        RefreshSidebar();
         RefreshCategoryButtons();
 
         if (animCoroutine != null) StopCoroutine(animCoroutine);
@@ -151,7 +149,96 @@ public class GuideBookUI : MonoBehaviour
         animCoroutine = StartCoroutine(AnimateClose());
     }
 
-    // ── Sayfa Yenileme ──────────────────────────────────────
+    // ── Sidebar (Sol Panel — Sayfa Listesi) ─────────────────
+
+    public void RefreshSidebar()
+    {
+        var mgr = GuideBookManager.instance;
+        if (mgr == null || sidebarContent == null) return;
+
+        // Eski butonları temizle
+        foreach (var go in sidebarButtonObjects)
+            if (go != null) Destroy(go);
+        sidebarButtonObjects.Clear();
+
+        var filteredIndices = mgr.GetFilteredIndices();
+
+        for (int i = 0; i < filteredIndices.Count; i++)
+        {
+            int filteredIdx = i;
+            GuideBookPage page = mgr.GetPageAt(filteredIndices[i]);
+            if (page == null) continue;
+
+            bool isActive = (i == mgr.currentPageIndex);
+
+            // Buton GameObject
+            GameObject btnGO = new GameObject($"SidebarBtn_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
+            btnGO.transform.SetParent(sidebarContent, false);
+
+            RectTransform btnRT = btnGO.GetComponent<RectTransform>();
+            LayoutElement le = btnGO.AddComponent<LayoutElement>();
+            le.preferredHeight = 34f;
+            le.flexibleWidth = 1f;
+
+            Image btnImg = btnGO.GetComponent<Image>();
+            btnImg.color = isActive ? SIDEBAR_ACTIVE : SIDEBAR_INACTIVE;
+
+            // ColorBlock — tüm state'leri aynı yap ki Unity override etmesin
+            Button btn = btnGO.GetComponent<Button>();
+            ColorBlock cb = ColorBlock.defaultColorBlock;
+            if (isActive)
+            {
+                cb.normalColor = SIDEBAR_ACTIVE;
+                cb.highlightedColor = CAT_ACTIVE_LIGHT;
+                cb.pressedColor = CAT_ACTIVE_LIGHT;
+                cb.selectedColor = SIDEBAR_ACTIVE;
+                cb.disabledColor = SIDEBAR_ACTIVE;
+            }
+            else
+            {
+                cb.normalColor = SIDEBAR_INACTIVE;
+                cb.highlightedColor = new Color(0.12f, 0.12f, 0.18f, 1f);
+                cb.pressedColor = CAT_ACTIVE;
+                cb.selectedColor = SIDEBAR_INACTIVE;
+                cb.disabledColor = SIDEBAR_INACTIVE;
+            }
+            cb.colorMultiplier = 1f;
+            btn.colors = cb;
+
+            btn.onClick.AddListener(() =>
+            {
+                if (GuideBookManager.instance != null)
+                    GuideBookManager.instance.GoToFilteredIndex(filteredIdx);
+            });
+
+            // Yazı
+            GameObject txtGO = new GameObject("Label", typeof(RectTransform));
+            txtGO.transform.SetParent(btnGO.transform, false);
+            TMP_Text tmp = txtGO.AddComponent<TextMeshProUGUI>();
+            if (customFont != null) tmp.font = customFont;
+            tmp.fontSize = 14;
+            tmp.alignment = TextAlignmentOptions.MidlineLeft;
+            tmp.raycastTarget = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Ellipsis;
+
+            // Başlığı kısalt
+            string title = page.title;
+            if (title.Length > 22) title = title.Substring(0, 19) + "...";
+            tmp.text = title;
+            tmp.color = isActive ? Color.white : new Color(0.6f, 0.6f, 0.6f, 1f);
+
+            RectTransform txtRT = txtGO.GetComponent<RectTransform>();
+            txtRT.anchorMin = Vector2.zero;
+            txtRT.anchorMax = Vector2.one;
+            txtRT.offsetMin = new Vector2(10f, 0); // Sol padding
+            txtRT.offsetMax = new Vector2(-4f, 0);
+
+            sidebarButtonObjects.Add(btnGO);
+        }
+    }
+
+    // ── Sayfa İçerik Yenileme ───────────────────────────────
 
     public void RefreshPage()
     {
@@ -163,7 +250,6 @@ public class GuideBookUI : MonoBehaviour
         {
             if (titleText != null) titleText.text = "Empty";
             if (bodyText != null) bodyText.text = "No pages found.";
-            if (pageNumberText != null) pageNumberText.text = "0 / 0";
             if (categoryLabel != null) categoryLabel.text = "";
             if (illustrationImage != null) illustrationImage.gameObject.SetActive(false);
             return;
@@ -171,8 +257,6 @@ public class GuideBookUI : MonoBehaviour
 
         if (titleText != null) titleText.text = page.title;
         if (bodyText != null) bodyText.text = page.bodyText;
-        if (pageNumberText != null)
-            pageNumberText.text = $"{mgr.currentPageIndex + 1} / {mgr.FilteredPageCount}";
         if (categoryLabel != null)
             categoryLabel.text = string.IsNullOrEmpty(page.category) ? "" : page.category.ToUpper();
 
@@ -190,12 +274,14 @@ public class GuideBookUI : MonoBehaviour
             }
         }
 
-        // Prev/Next buton durumu
-        if (prevButton != null) prevButton.interactable = mgr.FilteredPageCount > 1;
-        if (nextButton != null) nextButton.interactable = mgr.FilteredPageCount > 1;
+        // Scroll'u en üste resetle
+        if (contentScrollRect != null)
+            contentScrollRect.normalizedPosition = new Vector2(0, 1);
     }
 
-    private void RefreshCategoryButtons()
+    // ── Kategori Butonları ──────────────────────────────────
+
+    public void RefreshCategoryButtons()
     {
         var mgr = GuideBookManager.instance;
         if (mgr == null) return;
@@ -203,29 +289,44 @@ public class GuideBookUI : MonoBehaviour
         for (int i = 0; i < categoryButtons.Count && i < CATEGORIES.Length; i++)
         {
             bool isActive = mgr.activeCategory == CATEGORIES[i];
-
-            // Buton arkaplan rengi
-            Image btnImg = categoryButtons[i].GetComponent<Image>();
-            if (btnImg != null)
-                btnImg.color = isActive ? CAT_ACTIVE : CAT_INACTIVE;
-
-            // Yazı rengi
-            if (i < categoryButtonTexts.Count && categoryButtonTexts[i] != null)
-                categoryButtonTexts[i].color = isActive ? CAT_TEXT_ACTIVE : CAT_TEXT_INACTIVE;
+            SetCategoryButtonColors(categoryButtons[i], categoryButtonTexts[i], isActive);
         }
     }
 
+    /// <summary>
+    /// ColorBlock'un TÜM state'lerini ayarla — Unity'nin hover/press override'ını engelle.
+    /// </summary>
+    private void SetCategoryButtonColors(Button btn, TMP_Text txt, bool isActive)
+    {
+        if (btn == null) return;
+
+        ColorBlock cb = ColorBlock.defaultColorBlock;
+        cb.colorMultiplier = 1f;
+
+        if (isActive)
+        {
+            cb.normalColor = CAT_ACTIVE;
+            cb.highlightedColor = CAT_ACTIVE_LIGHT;
+            cb.pressedColor = CAT_ACTIVE_LIGHT;
+            cb.selectedColor = CAT_ACTIVE;
+            cb.disabledColor = CAT_ACTIVE;
+        }
+        else
+        {
+            cb.normalColor = CAT_INACTIVE;
+            cb.highlightedColor = new Color(0.22f, 0.22f, 0.3f, 1f);
+            cb.pressedColor = CAT_ACTIVE;
+            cb.selectedColor = CAT_INACTIVE;
+            cb.disabledColor = CAT_INACTIVE;
+        }
+
+        btn.colors = cb;
+
+        if (txt != null)
+            txt.color = isActive ? Color.white : new Color(0.6f, 0.6f, 0.6f, 1f);
+    }
+
     // ── Buton Callback'leri ─────────────────────────────────
-
-    private void OnPrevClicked()
-    {
-        if (GuideBookManager.instance != null) GuideBookManager.instance.PrevPage();
-    }
-
-    private void OnNextClicked()
-    {
-        if (GuideBookManager.instance != null) GuideBookManager.instance.NextPage();
-    }
 
     private void OnCloseClicked()
     {
@@ -243,7 +344,6 @@ public class GuideBookUI : MonoBehaviour
         if (index < 0 || index >= CATEGORIES.Length) return;
         if (GuideBookManager.instance != null)
             GuideBookManager.instance.SetCategory(CATEGORIES[index]);
-        RefreshCategoryButtons();
         if (AudioManager.instance != null) AudioManager.instance.PlayMove();
     }
 
@@ -260,15 +360,12 @@ public class GuideBookUI : MonoBehaviour
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / animDuration);
 
-            // Ease-out-back: hafif overshoot
             float easeT = 1f - Mathf.Pow(1f - t, 3f);
-            float scaleEase = 1f + (easeT > 0.7f ? (1f - easeT) * 0.1f : easeT * 0.05f);
-
-            float s = Mathf.LerpUnclamped(0.8f, 1f, easeT) * scaleEase;
+            float s = Mathf.LerpUnclamped(0.8f, 1f, easeT);
             bookPanel.localScale = new Vector3(s, s, 1f);
 
             if (bookCanvasGroup != null)
-                bookCanvasGroup.alpha = Mathf.Clamp01(t * 2f); // Hızlı fade in
+                bookCanvasGroup.alpha = Mathf.Clamp01(t * 2f);
 
             yield return null;
         }
@@ -286,7 +383,6 @@ public class GuideBookUI : MonoBehaviour
             elapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(elapsed / animDuration);
 
-            // Ease-in
             float easeT = t * t;
             float s = Mathf.Lerp(1f, 0.8f, easeT);
             bookPanel.localScale = new Vector3(s, s, 1f);
@@ -302,7 +398,6 @@ public class GuideBookUI : MonoBehaviour
         bookPanel.gameObject.SetActive(false);
     }
 
-    // İlk kez oynamaya başlayan oyuncu için kitap ikonu pulse
     private IEnumerator PulseIconLoop()
     {
         while (!hasOpenedOnce)
@@ -313,7 +408,6 @@ public class GuideBookUI : MonoBehaviour
                 bookIconRect.localScale = new Vector3(s, s, 1f);
             yield return null;
         }
-
         if (bookIconRect != null) bookIconRect.localScale = Vector3.one;
     }
 }
