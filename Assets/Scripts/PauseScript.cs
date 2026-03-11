@@ -61,8 +61,9 @@ public class PauseManager : MonoBehaviour
     public void Restart()
     {
         Time.timeScale = 1f; // Önemli: Sahne yüklenmeden zamanı açmalıyız!
-        // Mevcut sahnenin indeksini alıp tekrar yüklüyoruz
+                             // Mevcut sahnenin indeksini alıp tekrar yüklüyoruz
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
     }
 
     // Ana menüye veya başka bir sahneye gitme (Index ile çalışır)
@@ -71,13 +72,36 @@ public class PauseManager : MonoBehaviour
         Time.timeScale = 1f; // Zamanı açmayı unutma!
         SceneManager.LoadScene(sceneIndex);
     }
+    // PauseManager.cs içindeki LoadMainMenu fonksiyonu
+    public void LoadMainMenu()
+    {
+        Time.timeScale = 1f; // Zamanı açmak şart, yoksa sahneler sapıtır
+        
+        if (TurnManager.instance != null)
+        {
+            TurnManager.instance.ResetGame();
+        }
 
-public void PlayButton(int sceneIndex)
+        // ScreenFader instance'ı üzerinden çağırmalıyız
+        if (ScreenFader.instance != null)
+        {
+            ScreenFader.instance.FadeAndLoad(() =>
+            {
+                SceneManager.LoadScene(1); // 1 = Main Menu Index
+            });
+        }
+        else
+        {
+            SceneManager.LoadScene(1);
+        }
+    }
+    public void PlayButton(int sceneIndex)
     {
         Time.timeScale = 1f; // Zamanı açmayı unutma!
-        ScreenFader.instance.FadeAndLoad(() => {
-        SceneManager.LoadScene(sceneIndex);
-    });
+        ScreenFader.instance.FadeAndLoad(() =>
+        {
+            SceneManager.LoadScene(sceneIndex);
+        });
     }
     // Oyundan tamamen çıkma (Sadece gerçek oyunda çalışır, Unity Editor'da çalışmaz)
     public void QuitGame()

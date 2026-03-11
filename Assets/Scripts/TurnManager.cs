@@ -81,6 +81,13 @@ public class TurnManager : MonoBehaviour
     private int comboCount = 0;
     private Coroutine comboFadeCoroutine;
 
+    [Header("Yeni Oyun Başlangıç Ayarları")]
+    public int startingLevel = 1;
+    public int startingGold = 0;
+    public int startingMaxHP = 3;
+    public int startingDiceCount = 2;
+    public float startingCritMultiplier = 1.5f;
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -99,6 +106,7 @@ public class TurnManager : MonoBehaviour
         UpdateCoinUI();
         Invoke("StartPlayerTurn", 0.5f);
     }
+
 
     void Update()
     {
@@ -275,7 +283,53 @@ public class TurnManager : MonoBehaviour
             activeMineObj = Instantiate(phantomMinePrefab, pos, Quaternion.identity);
         }
     }
+public void ResetGame()
+{
+    // 1. Zamanı normale döndür (Pause'dan geliyorsa)
+    Time.timeScale = 1f;
 
+    // 2. RunManager verilerini sıfırla
+    if (RunManager.instance != null)
+    {
+        RunManager rm = RunManager.instance;
+        
+        rm.currentLevel = startingLevel;
+        rm.currentGold = startingGold;
+        rm.playerMaxHealth = startingMaxHP;
+        rm.playerCurrentHealth = startingMaxHP; // Canı fulle
+        rm.baseDiceCount = startingDiceCount;
+        rm.criticalDamageMultiplier = startingCritMultiplier;
+        
+        // Diğer gizli statları sıfırla
+        rm.armorChance = 0f;
+        rm.dodgeChance = 0f;
+        rm.bonusGold = 0;
+        rm.hasBioBarrier = false;
+        rm.luckyCloverLevel = 0;
+        rm.criticalChance = 0f;
+
+        // Perkleri temizle (Sahnedeki objeleri yok et)
+        foreach (BasePerk perk in rm.activePerks)
+        {
+            if (perk != null) Destroy(perk.gameObject);
+        }
+        rm.activePerks.Clear();
+
+        // İstatistikleri (Stats) sıfırla
+        rm.totalEnemiesKilled = 0;
+        rm.totalDamageDealt = 0;
+        rm.totalDamageReceived = 0;
+        rm.totalTurnsPlayed = 0;
+        rm.totalDiceRolled = 0;
+        rm.totalGoldEarned = 0;
+    }
+
+    // 3. TurnManager'ın kendi listelerini temizle
+    enemies.Clear();
+    isLevelClearTriggered = false;
+    hasAttackedThisTurn = false;
+
+}
     public void ClearWarningMap()
     {
         GameObject warningMapObj = GameObject.Find("WarningMap");
@@ -1780,7 +1834,8 @@ public class TurnManager : MonoBehaviour
             elapsed += Time.deltaTime; yield return null;
         }
 
-        foreach (var die in spawnedDiceUI) { if (die != null) Destroy(die); } spawnedDiceUI.Clear();
+        foreach (var die in spawnedDiceUI) { if (die != null) Destroy(die); }
+        spawnedDiceUI.Clear();
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
         if (criticalText != null) criticalText.gameObject.SetActive(false);
         if (dicePanelBackground != null) StartCoroutine(FadeDicePanel());
@@ -1851,8 +1906,8 @@ public class TurnManager : MonoBehaviour
         Transform t = comboTextObj.transform;
         // Pop animasyonu
         Vector3 start = new Vector3(0.3f, 0.3f, 0.3f);
-        Vector3 over  = new Vector3(0.65f, 0.65f, 0.65f);
-        Vector3 end   = new Vector3(0.5f, 0.5f, 0.5f);
+        Vector3 over = new Vector3(0.65f, 0.65f, 0.65f);
+        Vector3 end = new Vector3(0.5f, 0.5f, 0.5f);
         float elapsed = 0f;
         while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(start, over, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
         elapsed = 0f;
