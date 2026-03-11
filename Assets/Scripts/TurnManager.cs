@@ -64,6 +64,10 @@ public class TurnManager : MonoBehaviour
     // Thorn preview
     private GameObject thornPreviewObj;
 
+    // Thorn turn tracking: cell → kaç tur geçti (3. turda kırılır)
+    private readonly Dictionary<Vector3Int, int> thornTurnCounts = new Dictionary<Vector3Int, int>();
+    private readonly Dictionary<Vector3Int, Coroutine> thornBlinkCoroutines = new Dictionary<Vector3Int, Coroutine>();
+
     public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
 
     public int hexesMovedThisTurn = 0;
@@ -691,8 +695,66 @@ public class TurnManager : MonoBehaviour
         isThornPlacementTargeting = false;
         DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
+        thornTurnCounts[cell] = 0;
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
+        // Yerleştirilir yerleştirilmez blink başlasın
+        thornBlinkCoroutines[cell] = StartCoroutine(BlinkThornTile(cell));
         if (player != null) player.UpdateHighlights();
+    }
+
+    private void TickThornTurns()
+    {
+        if (LevelGenerator.instance == null) return;
+        var toRemove = new List<Vector3Int>();
+
+        foreach (var kv in new Dictionary<Vector3Int, int>(thornTurnCounts))
+        {
+            int newCount = kv.Value + 1;
+            thornTurnCounts[kv.Key] = newCount;
+
+            if (newCount >= 3)
+            {
+                // 3. tur: kırıl
+                toRemove.Add(kv.Key);
+            }
+        }
+
+        foreach (var cell in toRemove)
+        {
+            // Blink coroutine'i durdur
+            if (thornBlinkCoroutines.TryGetValue(cell, out Coroutine co))
+            {
+                if (co != null) StopCoroutine(co);
+                thornBlinkCoroutines.Remove(cell);
+            }
+            thornTurnCounts.Remove(cell);
+            LevelGenerator.instance.hazardCells.Remove(cell);
+            if (LevelGenerator.instance.hazardMap != null)
+                LevelGenerator.instance.hazardMap.SetTile(cell, null);
+        }
+    }
+
+    private IEnumerator BlinkThornTile(Vector3Int cell)
+    {
+        if (LevelGenerator.instance?.hazardMap == null) yield break;
+        float elapsed = 0f;
+        float blinkSpeed = 8f;
+        var tile = LevelGenerator.instance.hazardTile as UnityEngine.Tilemaps.Tile;
+
+        // thornTurnCounts'ta var olduğu sürece yanıp sön
+        while (thornTurnCounts.ContainsKey(cell))
+        {
+            if (LevelGenerator.instance?.hazardMap == null) yield break;
+            bool show = Mathf.Sin(elapsed * blinkSpeed) > 0f;
+            if (tile != null)
+                LevelGenerator.instance.hazardMap.SetTileFlags(cell, UnityEngine.Tilemaps.TileFlags.None);
+            LevelGenerator.instance.hazardMap.SetColor(cell, show ? Color.white : new Color(1f, 1f, 1f, 0f));
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        // Temizlendiğinde rengi sıfırla
+        if (LevelGenerator.instance?.hazardMap != null)
+            LevelGenerator.instance.hazardMap.SetColor(cell, Color.white);
     }
 
     public void LockAllEnemyIntents()
@@ -1009,6 +1071,7 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
+        TickThornTurns();
         EndTurnAndDecreaseStuns();
     }
 
