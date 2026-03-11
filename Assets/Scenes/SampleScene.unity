@@ -6054,7 +6054,7 @@ MonoBehaviour:
   secretItemChance: 1
   shopSlotContainer: {fileID: 1400458065}
   shopSlotPrefab: {fileID: 8164334485540262811, guid: 22dde9155aaf3554f9955e1432f107fd, type: 3}
-  shopSlotCount: 2
+  shopSlotCount: 3
   coinDisplayText: {fileID: 311926039}
   rerollButton: {fileID: 2099779297}
   rerollPriceText: {fileID: 814757009}
@@ -15074,6 +15074,11 @@ MonoBehaviour:
   hexesMovedThisTurn: 0
   activeMineCell: {x: -999, y: -999, z: -999}
   finalDamage: 0
+  startingLevel: 1
+  startingGold: 0
+  startingMaxHP: 3
+  startingDiceCount: 2
+  startingCritMultiplier: 1.5
 --- !u!4 &1504787228
 Transform:
   m_ObjectHideFlags: 0
@@ -18792,6 +18797,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   faderGroup: {fileID: 1953228747}
   fadeDuration: 0.5
+  faderTag: FadeCanvas
 --- !u!225 &1953228747
 CanvasGroup:
   m_ObjectHideFlags: 0
