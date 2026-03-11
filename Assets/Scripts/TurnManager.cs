@@ -36,6 +36,7 @@ public class TurnManager : MonoBehaviour
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
     public GameObject criticalText;
+    public GameObject comboTextObj; // Inspector'dan bağla — TMP_Text içermeli
 
     [Header("Coin UI")]
     public TMP_Text coinText;
@@ -68,6 +69,11 @@ public class TurnManager : MonoBehaviour
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
     public int finalDamage = 0;
+
+    // Combo sistemi
+    private int comboCount = 0;
+    private Coroutine comboFadeCoroutine;
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -260,6 +266,7 @@ public class TurnManager : MonoBehaviour
     public void PlayerTakeDamage(int amt)
     {
         if (player == null || player.health.currentHP <= 0) return;
+        ResetCombo();
 
         if (player.health.currentHP - amt <= 0)
         {
@@ -988,6 +995,7 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
             bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
+            RegisterComboHit();
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
             // ========================================================
@@ -1228,6 +1236,59 @@ public class TurnManager : MonoBehaviour
         elapsed = 0f; float settleDuration = 0.1f;
         while (elapsed < settleDuration) { t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration); elapsed += Time.deltaTime; yield return null; }
         t.localScale = endScale;
+    }
+
+    // ── Combo Sistemi ────────────────────────────────────────────────────
+    public void RegisterComboHit()
+    {
+        comboCount++;
+        if (comboCount >= 2) ShowCombo(comboCount);
+    }
+
+    public void ResetCombo()
+    {
+        comboCount = 0;
+        if (comboTextObj != null) comboTextObj.SetActive(false);
+        if (comboFadeCoroutine != null) { StopCoroutine(comboFadeCoroutine); comboFadeCoroutine = null; }
+    }
+
+    private void ShowCombo(int count)
+    {
+        if (comboTextObj == null) return;
+        var tmp = comboTextObj.GetComponentInChildren<TMP_Text>();
+        if (tmp != null) tmp.text = $"x{count} COMBO!";
+        comboTextObj.SetActive(true);
+        if (comboFadeCoroutine != null) StopCoroutine(comboFadeCoroutine);
+        comboFadeCoroutine = StartCoroutine(ComboPopAndFade());
+    }
+
+    private IEnumerator ComboPopAndFade()
+    {
+        Transform t = comboTextObj.transform;
+        // Pop animasyonu
+        Vector3 start = new Vector3(0.3f, 0.3f, 0.3f);
+        Vector3 over  = new Vector3(0.65f, 0.65f, 0.65f);
+        Vector3 end   = new Vector3(0.5f, 0.5f, 0.5f);
+        float elapsed = 0f;
+        while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(start, over, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
+        elapsed = 0f;
+        while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(over, end, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
+        t.localScale = end;
+
+        // 1.2 sn sonra fade out
+        yield return new WaitForSecondsRealtime(1.2f);
+        var tmp = comboTextObj.GetComponentInChildren<TMP_Text>();
+        if (tmp == null) { comboTextObj.SetActive(false); yield break; }
+        Color c = tmp.color; float fadeDur = 0.3f; elapsed = 0f;
+        while (elapsed < fadeDur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            c.a = Mathf.Lerp(1f, 0f, elapsed / fadeDur);
+            tmp.color = c;
+            yield return null;
+        }
+        c.a = 1f; tmp.color = c;
+        comboTextObj.SetActive(false);
     }
 
     public bool IsEnemyAtCell(Vector3Int cell)

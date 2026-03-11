@@ -172,6 +172,7 @@ public class HealthScript : MonoBehaviour
 
         if (gameObject.CompareTag("Player"))
         {
+            if (RunManager.instance != null) RunManager.instance.SaveBestRun();
             if (deathMenuUI != null)
             {
                 deathMenuUI.SetActive(true);
