@@ -45,13 +45,16 @@ public class ScreenFader : MonoBehaviour
 
     private IEnumerator FadeAndLoadSequence(Action loadAction)
     {
-        // 1. Ekranı karart
+        // 1. Ekranı karart (siyaha kadar)
         yield return StartCoroutine(Fade(1f));
 
-        // 2. Sahne yükleme işini yap (Action çalıştır)
+        // 2. TAM SİYAH KALACAK: 1 saniye kal (sahne yükleme sırasında siyah olsun)
+        yield return new WaitForSecondsRealtime(1f);
+
+        // 3. Sahne yükleme işini yap (Action çalıştır) - SİYAH OLDUĞU SIRADA
         loadAction?.Invoke();
 
-        // 3. Yeni sahnede ekranı geri aç
+        // 4. Yeni sahnede ekranı geri aç
         yield return StartCoroutine(Fade(0f));
     }
 

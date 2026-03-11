@@ -1369,6 +1369,9 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // Hit efekti ve slash animasyonunun bitmesini bekle
+        yield return new WaitForSeconds(0.3f);
+
         foreach (var e in knockedEnemies)
         {
             if (e == null) continue;
