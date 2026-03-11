@@ -263,6 +263,7 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator WallBumpCoroutine(Vector3 direction)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayWall();
         isBumping = true; isMoving = true;
         Vector3 originalPos = groundMap.GetCellCenterWorld(cell); originalPos.z = 0;
         Vector3 bumpPos = originalPos + (direction * 0.10f);
@@ -340,6 +341,7 @@ public class EnemyAI : MonoBehaviour
                 isChargingAttack = true;
                 hasLockedTarget = false;
                 SetArrowVisibility(false);
+                if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
 

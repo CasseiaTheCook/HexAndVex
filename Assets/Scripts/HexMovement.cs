@@ -189,8 +189,7 @@ public class HexMovement : MonoBehaviour
 
     private void MoveCharacter(Vector3Int targetCell)
     {
-        // Otomatik mayın bırakma KODU BURADAN SİLİNDİ.
-        // Artık sadece yürüyecek.
+        if (AudioManager.instance != null) AudioManager.instance.PlayMove();
 
         targetWorldPosition = groundMap.GetCellCenterWorld(targetCell);
         targetWorldPosition.z = 0;
