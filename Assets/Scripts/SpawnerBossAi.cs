@@ -41,7 +41,7 @@ public class SpawnerBossAI : MonoBehaviour
     {
         myEnemyAI = GetComponent<EnemyAI>();
         groundMap = LevelGenerator.instance.groundMap;
-        arenaRadius = LevelGenerator.instance.baseMapRadius + 2 + (RunManager.instance.currentLevel / 10);
+        arenaRadius = LevelGenerator.instance.baseMapRadius + 1 + (RunManager.instance.currentLevel / 10);
 
         GameObject warnObj = GameObject.Find("BossWarningMap");
         if (warnObj != null) 
@@ -190,7 +190,13 @@ public class SpawnerBossAI : MonoBehaviour
 
     public IEnumerator ExecuteBossTurn()
     {
-        if (myEnemyAI.skipTurns > 0 || isTransitioning) yield break;
+        if (myEnemyAI.skipTurns > 0) yield break;
+        // isTransitioning sırasında bile cycle ilerlesin, sadece aksiyon yapmasın
+        if (isTransitioning)
+        {
+            if (aoeCycleStep < 2) aoeCycleStep++;
+            yield break;
+        }
 
         if (aoeCycleStep == 0 || aoeCycleStep == 1)
         {
@@ -404,15 +410,22 @@ public class SpawnerBossAI : MonoBehaviour
         isSummoning = false; 
     }
 
+    private bool totemSequenceRunning = false;
+
     public void OnTotemDestroyed()
     {
         activeTotems--;
-        StartCoroutine(TotemDestroySequence());
+        if (!totemSequenceRunning)
+            StartCoroutine(TotemDestroySequence());
     }
 
     private IEnumerator TotemDestroySequence()
     {
-        isTransitioning = true; 
+        totemSequenceRunning = true;
+        isTransitioning = true;
+
+        // Kısa süre bekle ki aynı frame'deki birden fazla totem ölümü yakalansın
+        yield return new WaitForSeconds(0.1f);
 
         foreach (var minion in summonedMinions)
         {
@@ -430,7 +443,7 @@ public class SpawnerBossAI : MonoBehaviour
             isShielded = false;
             StartCoroutine(ShatterShieldVisual());
             previousHP = myEnemyAI.health.currentHP;
-            
+
             yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
         }
         else
@@ -438,7 +451,8 @@ public class SpawnerBossAI : MonoBehaviour
             yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
         }
 
-        isTransitioning = false; 
+        isTransitioning = false;
+        totemSequenceRunning = false;
     }
 
     private IEnumerator ShatterShieldVisual()

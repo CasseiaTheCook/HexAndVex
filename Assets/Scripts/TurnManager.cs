@@ -675,6 +675,11 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator HandleSkipPhase()
     {
+        // OnSkip'i saldırıdan ÖNCE çağır: DormantSpore zarları bu turda kullanılabilsin
+        foreach (var perk in RunManager.instance.activePerks) if (!perk.isDisabled) perk.OnSkip();
+        RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
+        UpdateCoinUI();
+
         List<EnemyAI> adjacentEnemies = GetAdjacentEnemies(player.GetCurrentCellPosition());
         if (adjacentEnemies.Count > 0 && !hasAttackedThisTurn)
         {
@@ -684,9 +689,6 @@ public class TurnManager : MonoBehaviour
         }
 
         if (enemies.Count <= 0) yield break;
-        foreach (var perk in RunManager.instance.activePerks) if (!perk.isDisabled) perk.OnSkip();
-        RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
-        UpdateCoinUI();
         StartCoroutine(EnemyPhase());
     }
 
