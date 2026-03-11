@@ -102,7 +102,7 @@ public class LevelUpManager : MonoBehaviour
                 if (choiceRarityTexts != null && choiceRarityTexts.Length > i && choiceRarityTexts[i] != null)
                 {
                     PerkRarity detectedRarity = GetRarityFromList(randomPerk);
-                    choiceRarityTexts[i].text = detectedRarity.ToString().ToUpper();
+                    choiceRarityTexts[i].text = detectedRarity.ToString().ToUpperInvariant();
                     choiceRarityTexts[i].color = GetRarityColor(detectedRarity);
                 }
 

@@ -13,7 +13,9 @@ public class SurgeBoot : BaseItem
     public override bool Use()
     {
         if (RunManager.instance == null) return false;
-        RunManager.instance.surgeBootNextTurn = true;
+        RunManager.instance.surgeBootActive = true;
+        if (TurnManager.instance?.player != null)
+            TurnManager.instance.player.UpdateHighlights();
         return true;
     }
 }

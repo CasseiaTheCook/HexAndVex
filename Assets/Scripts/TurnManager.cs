@@ -221,16 +221,9 @@ public class TurnManager : MonoBehaviour
             int moves = RunManager.instance.extraMovesPerTurn;
             RunManager.instance.remainingMoves = moves;
 
-            // Surge Boot: bu tur 2 hex menzil ver, extra tur değil
-            if (RunManager.instance.surgeBootNextTurn)
-            {
-                RunManager.instance.surgeBootActive = true;
-                RunManager.instance.surgeBootNextTurn = false;
-            }
-            else
-            {
-                RunManager.instance.surgeBootActive = false;
-            }
+            // Surge Boot: her tur başında sıfırla (Use() anında aktifleştirir)
+            RunManager.instance.surgeBootActive = false;
+            RunManager.instance.surgeBootNextTurn = false;
         }
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
@@ -666,8 +659,9 @@ public class TurnManager : MonoBehaviour
     {
         hexesMovedThisTurn++;
 
-        // Surge Boot kullanıldıysa bu tur sonrası kapat
-        if (RunManager.instance != null) RunManager.instance.surgeBootActive = false;
+        // Surge Boot: hareketten sonra kapat
+        if (RunManager.instance != null)
+            RunManager.instance.surgeBootActive = false;
 
         if (LevelGenerator.instance.hazardCells.Contains(playerCell))
         {
