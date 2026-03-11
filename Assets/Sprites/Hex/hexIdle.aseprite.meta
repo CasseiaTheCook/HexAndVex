@@ -235,7 +235,7 @@ ScriptedImporter:
   spriteSheetImportData:
   - name: hexIdle_0
     originalName: 
-    pivot: {x: 0.35245913, y: 0.4058342}
+    pivot: {x: 0.33606583, y: 0.40625128}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -256,7 +256,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexIdle_1
     originalName: 
-    pivot: {x: 0.3689916, y: 0.45373783}
+    pivot: {x: 0.35259822, y: 0.4528081}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -277,7 +277,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexIdle_2
     originalName: 
-    pivot: {x: 0.2871435, y: 0.47396967}
+    pivot: {x: 0.26825467, y: 0.4739701}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -298,7 +298,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexIdle_3
     originalName: 
-    pivot: {x: 0.31923327, y: 0.4268438}
+    pivot: {x: 0.30164713, y: 0.4268438}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -319,7 +319,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexIdle_4
     originalName: 
-    pivot: {x: 0.32456195, y: 0.39135218}
+    pivot: {x: 0.30701834, y: 0.39135268}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 

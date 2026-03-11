@@ -47,7 +47,9 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Extra Dendrite
-  description: Roll an extra dice in combat.
+  description: Roll an extra die in combat.
   icon: {fileID: -1441140362585134262, guid: 54ea961fc0d3f204e8b40fc31c8a75cd, type: 3}
   priority: 0
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0

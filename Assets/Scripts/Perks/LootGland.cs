@@ -7,7 +7,7 @@ public class LootGlandPerk : BasePerk
     // İlk alındığında çalışır (1. Seviye)
     public override void OnAcquire()
     {
-        RunManager.instance.bonusGold += 2; // DÜZELTME: Eski kodlarında "bonusGold" olarak geçiyordu, onu kullandım.
+        RunManager.instance.bonusGold += 1; // DÜZELTME: Eski kodlarında "bonusGold" olarak geçiyordu, onu kullandım.
         TriggerVisualPop();
     }
 
@@ -16,7 +16,7 @@ public class LootGlandPerk : BasePerk
     {
         base.Upgrade(); // Seviyeyi 1 artırır ve konsola "Seviye atladı" yazar
         
-        RunManager.instance.bonusGold += 2; // Her seviyede +2 altın daha eklensin
+        RunManager.instance.bonusGold += 1; // Her seviyede +2 altın daha eklensin
         TriggerVisualPop();
     }
 }

@@ -5,6 +5,10 @@ using System.Collections;
 
 public class LogoSceneScript : MonoBehaviour
 {
+    [Header("Fader (Kararma/Açılma)")]
+    public CanvasGroup faderGroup;     // Siyah ekranı kontrol eden CanvasGroup
+    public float fadeDuration = 1.0f;  // Kararma hızı
+
     [Header("Canvas Referansları")]
     public Canvas introCanvas;        
     public Canvas mainCanvas;         
@@ -14,8 +18,8 @@ public class LogoSceneScript : MonoBehaviour
     public Transform explosionObject; 
 
     [Header("Ses ve Müzik")]
-    public AudioSource sfxSource;   // Koşma ve Patlama sesleri için
-    public AudioSource musicSource; // Asıl logonun müziği için
+    public AudioSource sfxSource;   
+    public AudioSource musicSource; 
     public AudioClip goofyRunSound;
     public AudioClip explosionSound;
 
@@ -29,7 +33,9 @@ public class LogoSceneScript : MonoBehaviour
 
     void Start()
     {
-        // Başlangıç kurulumu
+        // 1. BAŞLANGIÇ DURUMU (Her şey karanlık ve hazır)
+        if (faderGroup != null) faderGroup.alpha = 1f; // Ekran simsiyah başlasın
+        
         if (introCanvas != null) introCanvas.enabled = true;
         if (mainCanvas != null) mainCanvas.enabled = false;
         
@@ -52,9 +58,10 @@ public class LogoSceneScript : MonoBehaviour
 
     IEnumerator SplashSequence()
     {
-        yield return new WaitForSeconds(0.5f);
+        // 2. FADE OUT (Ekran Siyahtan Açılıyor)
+        yield return StartCoroutine(Fade(0f)); // Alpha 0'a, yani şeffafa
 
-        // 1. MUZUN DÖNME VE KOŞMA SESİ
+        // 3. MUZUN DÖNME VE KOŞMA SESİ (Fade bittikten sonra başlar)
         if (goofyRunSound != null)
         {
             isRotating = true;
@@ -62,7 +69,7 @@ public class LogoSceneScript : MonoBehaviour
             yield return new WaitForSeconds(goofyRunSound.length);
         }
 
-        // 2. PATLAMA BAŞLANGICI
+        // 4. PATLAMA BAŞLANGICI
         isRotating = false;
         if (bananaTransform != null) bananaTransform.gameObject.SetActive(false); 
 
@@ -71,51 +78,54 @@ public class LogoSceneScript : MonoBehaviour
             explosionObject.gameObject.SetActive(true);
             if (explosionSound != null) sfxSource.PlayOneShot(explosionSound);
 
-            // Patlama en büyük haline gelirken büyüme başlar
             yield return StartCoroutine(ScaleObject(explosionObject, Vector3.zero, Vector3.one * maxExplosionScale, explosionScaleUpDuration));
             
-            // 3. LOGO EKRANI GELDİĞİ AN (TAM PATLAMA ANI)
+            // LOGO EKRANI GELDİĞİ AN
             if (introCanvas != null) introCanvas.enabled = false;
             if (mainCanvas != null) mainCanvas.enabled = true;
             
-            // "Müzik 0.2 saniye daha çalıp duracak"
-            // Burada patlama sesinin kuyruğu veya SFX kanalındaki ses 0.2 saniye daha çalar
             yield return new WaitForSeconds(0.2f);
-            sfxSource.Stop(); // Önceki tüm goofy sesleri ve patlama kuyruğunu aniden keser
+            sfxSource.Stop(); 
 
-            // "Logonun kendi müziği çalmaya başlayacak"
             if (musicSource != null) musicSource.Play();
 
-            // Patlamayı küçültüp yok et (Görsel temizlik)
             yield return StartCoroutine(ScaleObject(explosionObject, Vector3.one * maxExplosionScale, Vector3.zero, explosionScaleDownDuration));
             explosionObject.gameObject.SetActive(false); 
         }
 
-        // 4. MÜZİK BİTİNCE SAHNE DEĞİŞECEK
+        // 5. MÜZİĞİN BİTMESİNİ BEKLE
         if (musicSource != null && musicSource.clip != null)
         {
-            // Müzik çalmaya devam ettiği sürece burada bekle (Goofy müzik bitene kadar)
             yield return new WaitWhile(() => musicSource.isPlaying);
         }
         else
         {
-            // Eğer müzik yoksa güvenlik amacıyla 1 saniye bekle
             yield return new WaitForSeconds(1f);
         }
 
-        // 5. OTOMATİK SONRAKİ SAHNEYE GEÇİŞ (Build index + 1)
+        // 6. FADE IN (Ekran Siyaha Gömülüyor)
+        yield return StartCoroutine(Fade(1f)); // Alpha 1'e, yani siyaha
+
+        // 7. OTOMATİK SAHNE GEÇİŞİ
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
+        SceneManager.LoadScene(nextSceneIndex);
+    }
+
+    // Kararma ve Açılma için yardımcı coroutine
+    IEnumerator Fade(float targetAlpha)
+    {
+        if (faderGroup == null) yield break;
         
-        if (ScreenFader.instance != null)
+        float startAlpha = faderGroup.alpha;
+        float elapsed = 0f;
+
+        while (elapsed < fadeDuration)
         {
-            ScreenFader.instance.FadeAndLoad(() => {
-                SceneManager.LoadScene(nextSceneIndex);
-            });
+            elapsed += Time.deltaTime;
+            faderGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / fadeDuration);
+            yield return null;
         }
-        else
-        {
-            SceneManager.LoadScene(nextSceneIndex);
-        }
+        faderGroup.alpha = targetAlpha;
     }
 
     IEnumerator ScaleObject(Transform target, Vector3 startScale, Vector3 endScale, float duration)

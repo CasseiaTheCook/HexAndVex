@@ -47,7 +47,9 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Toxin Edge
-  description: Adds 1 to all dices. (+1 each LVL)
+  description: Adds 1 to all dice.
   icon: {fileID: 7170327039685137150, guid: 5f47d4b25a1579f4096acb7e47118df3, type: 3}
   priority: 1
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0

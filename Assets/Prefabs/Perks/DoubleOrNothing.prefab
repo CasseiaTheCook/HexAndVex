@@ -47,7 +47,9 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 1
   perkName: Double or Nothing
-  description: If both rolled dice are even numbers, deal double damage.
+  description: If you total dice is even it doubles.
   icon: {fileID: -209639563458556150, guid: 7c07dc4ef2d57874b94297396d84983e, type: 3}
   priority: 2
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0
