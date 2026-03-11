@@ -16,6 +16,7 @@ public class ToxinEdgePerk : BasePerk
             // Zarın değerine direkt yeteneğin seviyesini ekle (Lv 1 ise +1, Lv 3 ise +3 ekler)
             payload.diceRolls[i] += currentLevel;
         }
-        TriggerVisualPop();
+        if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+            TriggerVisualPop();
     }
 }

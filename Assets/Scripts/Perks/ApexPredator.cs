@@ -13,6 +13,7 @@ public class ApexPredatorPerk : BasePerk
         // Çarpanın eksiye veya sıfıra düşmemesini garantiye al (en kötü ihtimal 1x kalır)
         payload.multiplier = Mathf.Max(payload.multiplier, 1.0f);
         
-        TriggerVisualPop();
+        if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+            TriggerVisualPop();
     }
 }

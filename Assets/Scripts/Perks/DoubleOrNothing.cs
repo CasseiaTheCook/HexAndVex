@@ -16,7 +16,8 @@ public class DoubleOrNothingPerk : BasePerk
         {
             // Çiftse ikiye katla
             payload.multiplier *= 2f;
-            TriggerVisualPop();
+            if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+                TriggerVisualPop();
         }
 
     }
