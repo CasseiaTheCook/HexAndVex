@@ -675,8 +675,17 @@ public class EnemyAI : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
 
-        isChargingAttack = false; 
-        ForceClearWarningCells();
+        isChargingAttack = false;
+        // Saldırı kendi fade'ini zaten yaptı, kalan tile'ları anında temizle
+        if (warningMap != null)
+        {
+            foreach (var c in warningCells)
+            {
+                if (warningMap.HasTile(c) && !IsCellTargetedByOtherEnemy(c))
+                    warningMap.SetTile(c, null);
+            }
+        }
+        warningCells.Clear();
         currentCooldown = aoeCooldown;
         yield return new WaitForSeconds(0.2f);
     }
@@ -689,10 +698,17 @@ public class EnemyAI : MonoBehaviour
         queue.Enqueue(cell); cameFrom[cell] = cell;
         Vector3Int targetNeighbor = playerCell; bool foundPath = false;
 
+        // Yol tamamen tıkalıysa en yakın hücreyi takip etmek için
+        Vector3Int closestCell = cell;
+        float closestDist = Distance(cell, playerCell);
+
         while (queue.Count > 0)
         {
             Vector3Int current = queue.Dequeue();
             if (IsNeighbor(current, playerCell)) { targetNeighbor = current; foundPath = true; break; }
+
+            float dist = Distance(current, playerCell);
+            if (dist < closestDist) { closestDist = dist; closestCell = current; }
 
             Vector3Int[] offsets = (current.y % 2 != 0) ? evenOffsets : oddOffsets;
             foreach (var off in offsets)
@@ -709,13 +725,13 @@ public class EnemyAI : MonoBehaviour
             }
         }
 
-        if (foundPath)
-        {
-            Vector3Int step = targetNeighbor;
-            while (cameFrom[step] != cell) step = cameFrom[step];
-            return step;
-        }
-        return cell;
+        // Tam yol bulunamadıysa, en yakın noktaya doğru git
+        Vector3Int destination = foundPath ? targetNeighbor : closestCell;
+        if (destination == cell) return cell;
+
+        Vector3Int step = destination;
+        while (cameFrom.ContainsKey(step) && cameFrom[step] != cell) step = cameFrom[step];
+        return step;
     }
 
     public void StartKnockbackMovement(Vector3Int targetCell)

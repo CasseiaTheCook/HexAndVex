@@ -290,7 +290,7 @@ public class LevelGenerator : MonoBehaviour
         }
         TurnManager.instance.enemies.Clear();
 
-        int arenaRadius = baseMapRadius + 2 + (RunManager.instance.currentLevel / 10); 
+        int arenaRadius = baseMapRadius + 1 + (RunManager.instance.currentLevel / 10);
 
         for (int x = -arenaRadius; x <= arenaRadius; x++)
         {
@@ -370,8 +370,8 @@ public class LevelGenerator : MonoBehaviour
                 GameObject totemObj = Instantiate(totemPrefab, totemPos, Quaternion.identity);
                 EnemyAI totemAI = totemObj.GetComponent<EnemyAI>();
 
-                totemAI.health.maxHP = 5 + (RunManager.instance.currentLevel / 2);
-                totemAI.health.currentHP = totemAI.health.maxHP;
+                totemAI.health.maxHP = 1;
+                totemAI.health.currentHP = 1;
                 totemAI.health.updateHealth();
 
                 StartCoroutine(totemAI.FadeSpawnCoroutine());
