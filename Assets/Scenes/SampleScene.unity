@@ -13310,6 +13310,7 @@ MonoBehaviour:
   diceHitClip: {fileID: 8300000, guid: 25aa7b59c78a43d41981ab9d83ae702d, type: 3}
   vacuumClip: {fileID: 8300000, guid: 2bbbcf3b3c8283c4a83a6491c98876bc, type: 3}
   textEffectClip: {fileID: 8300000, guid: 28598892a072c2349a913948e9baa583, type: 3}
+  secretPerkClip: {fileID: 0}
   masterVolume: 1
   sfxVolume: 1
 --- !u!1 &1735267719
@@ -15103,7 +15104,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13fa172d778447a4e955bdcf5f1d544b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  faderGroup: {fileID: 0}
+  faderGroup: {fileID: 1953228747}
   fadeDuration: 0.5
 --- !u!225 &1953228747
 CanvasGroup:

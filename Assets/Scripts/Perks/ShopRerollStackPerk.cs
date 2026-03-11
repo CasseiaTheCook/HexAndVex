@@ -31,7 +31,6 @@ public class ShopRerollStackPerk : BasePerk
             if (payload.diceRolls[0] > 6)
                 payload.diceRolls[0] = 6;
 
-            TriggerVisualPop();
             Debug.Log($"[ShopRerollStackPerk] İlk zara +{rerollStack} eklendi. Yeni değer: {payload.diceRolls[0]}");
         }
     }

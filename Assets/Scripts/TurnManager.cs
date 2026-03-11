@@ -149,7 +149,7 @@ public class TurnManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F6))
         {
             foreach (var e in new List<EnemyAI>(enemies))
-                if (e != null && e.health.currentHP > 0) e.health.TakeDamage(9999);
+                if (e != null && e.health.currentHP > 0) e.health.TakeDamage(4444);
             enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
             if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
         }
@@ -405,7 +405,7 @@ public class TurnManager : MonoBehaviour
         isNecroShotTargeting = false;
         if (player != null) player.TriggerAttackAnimation();
 
-        target.health.TakeDamage(9999);
+        target.health.TakeDamage(4444);
         if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
         {
             bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
