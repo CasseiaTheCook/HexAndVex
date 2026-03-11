@@ -133,6 +133,13 @@ public class TurnManager : MonoBehaviour
         }
 
 #if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.F6))
+        {
+            foreach (var e in new List<EnemyAI>(enemies))
+                if (e != null && e.health.currentHP > 0) e.health.TakeDamage(9999);
+            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+            if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
+        }
         if (Input.GetKeyDown(KeyCode.F7))
         {
             RunManager.instance.currentGold += 10000;
@@ -383,10 +390,11 @@ public class TurnManager : MonoBehaviour
         target.health.TakeDamage(9999);
         if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
         {
-            int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-            if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-            RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
-            if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
+            bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+            int coinDrop = 0;
+            if (isBossRoom) { if (target.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+            else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+            if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop); }
         }
         foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(target);
         UpdateCoinUI();
@@ -498,10 +506,11 @@ public class TurnManager : MonoBehaviour
             {
                 if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
                 {
-                    int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                    if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                    RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
-                    if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
+                    bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                    int coinDrop = 0;
+                    if (isBossRoom) { if (enemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                    else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                    if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop); }
                 }
                 foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(enemy);
                 RunManager.instance.totalEnemiesKilled++;
@@ -572,10 +581,11 @@ public class TurnManager : MonoBehaviour
             {
                 if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
                 {
-                    int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                    if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                    RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
-                    if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                    bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                    int coinDrop = 0;
+                    if (isBossRoom) { if (deadEnemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                    else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                    if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
                 }
                 foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
             }
@@ -1121,10 +1131,11 @@ public class TurnManager : MonoBehaviour
         {
             if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
             {
-                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
-                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                int coinDrop = 0;
+                if (isBossRoom) { if (deadEnemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
             foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
             RunManager.instance.totalEnemiesKilled++;
@@ -1155,10 +1166,11 @@ public class TurnManager : MonoBehaviour
         {
             if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
             {
-                int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
-                if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
-                if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
+                int coinDrop = 0;
+                if (isBossRoom) { if (deadEnemy.enemyBehavior == EnemyAI.EnemyBehavior.Boss) coinDrop = 20; }
+                else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
+                if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
             foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
             RunManager.instance.totalEnemiesKilled++;

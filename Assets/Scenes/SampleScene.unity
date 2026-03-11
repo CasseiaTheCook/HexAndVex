@@ -2017,8 +2017,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 84.50009, y: -69.52977}
-  m_SizeDelta: {x: -216.33661, y: -418.7879}
+  m_AnchoredPosition: {x: 75.984, y: -68.807}
+  m_SizeDelta: {x: -200.19762, y: -409.699}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &284697697
 MonoBehaviour:
@@ -4940,8 +4940,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 84.4, y: -69.52977}
-  m_SizeDelta: {x: -216.33656, y: -418.7879}
+  m_AnchoredPosition: {x: 75.984, y: -68.807}
+  m_SizeDelta: {x: -200.1976, y: -409.69897}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &797407839
 CanvasRenderer:
@@ -5037,7 +5037,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0.15316105, y: 0, z: 0, w: 0}
+  m_margin: {x: 0.15316105, y: 0, z: 0, w: -0.31571674}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -6092,6 +6092,7 @@ MonoBehaviour:
   - {fileID: 5047546002744779634, guid: eec9c7d0b32c52e418dec796960dfe05, type: 3}
   - {fileID: 3106120126287650368, guid: 838a33db2aca1da4d93374f57d13a821, type: 3}
   - {fileID: 1000000000000001, guid: 7296bb7d11aebe440b7e05ad7d4ce44e, type: 3}
+  - {fileID: 4771058090172884902, guid: 92c8a7614a21ad246ba42cd0c85d41af, type: 3}
   epicPerks:
   - {fileID: 1969263836647659006, guid: cdded615e1c59514abb6dd08f0c3044a, type: 3}
   - {fileID: 8338301390874939306, guid: 92274e630d9983f4692e0d50c90eb926, type: 3}
@@ -14188,8 +14189,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 84.4, y: -69.52977}
-  m_SizeDelta: {x: -216.33656, y: -418.7879}
+  m_AnchoredPosition: {x: 75.98399, y: -68.80701}
+  m_SizeDelta: {x: -200.1976, y: -409.699}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1987711849
 CanvasRenderer:
