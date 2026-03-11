@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.Tilemaps;
+using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
@@ -112,7 +113,8 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null)
             skipDiceVisuals = RunManager.instance.fastMode;
 
-        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
+        if (!(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1)) && (isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
         {
             Vector3 mousePos = Input.mousePosition;
             mousePos.z = Mathf.Abs(Camera.main.transform.position.z);
