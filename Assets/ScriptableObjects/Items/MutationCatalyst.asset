@@ -15,4 +15,4 @@ MonoBehaviour:
   itemName: Mutation Catalyst
   description: Reroll all choices on your next perk selection screen
   price: 6
-  icon: {fileID: 3311521914233651266, guid: 4febbf6710884ed4fa2adbb91cf22af4, type: 3}
+  icon: {fileID: 8711613802454188474, guid: 135b76c47aa7af94391775449b63aa4b, type: 3}

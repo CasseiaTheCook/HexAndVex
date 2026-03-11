@@ -27,12 +27,8 @@ public class PerkListUISetup : EditorWindow
             return;
         }
 
-        // Font asset'i yükle
-        TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/Star Crush SDF.asset");
-        if (font == null)
-        {
-            Debug.LogWarning("Star Crush SDF font bulunamadı, varsayılan font kullanılacak.");
-        }
+        TMP_FontAsset font = UIStyle.LoadFont();
+        if (font == null) Debug.LogWarning("Star Crush SDF font bulunamadı, varsayılan font kullanılacak.");
 
         // 2. Ana buton objesi (sol üst köşe)
         GameObject buttonObj = new GameObject("PerkListButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(PerkListUI));
@@ -49,10 +45,10 @@ public class PerkListUISetup : EditorWindow
         btnRect.anchorMax = new Vector2(1, 1);
         btnRect.pivot = new Vector2(1, 1);
         btnRect.anchoredPosition = new Vector2(-15, -15);
-        btnRect.sizeDelta = new Vector2(160, 45);
+        btnRect.sizeDelta = new Vector2(UIStyle.PerkBtnWidth, UIStyle.PerkBtnHeight);
 
         Image btnImage = buttonObj.GetComponent<Image>();
-        btnImage.color = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
+        btnImage.color = UIStyle.BgDark;
 
         // 3. Buton metni
         GameObject btnTextObj = new GameObject("ButtonText", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -66,9 +62,9 @@ public class PerkListUISetup : EditorWindow
 
         TextMeshProUGUI btnTMP = btnTextObj.GetComponent<TextMeshProUGUI>();
         btnTMP.text = "PERKS";
-        btnTMP.fontSize = 24;
+        btnTMP.fontSize = UIStyle.PerkBtnFontSize;
         btnTMP.alignment = TextAlignmentOptions.Center;
-        btnTMP.color = Color.white;
+        btnTMP.color = UIStyle.TextWhite;
         if (font != null) btnTMP.font = font;
 
         // 4. Perk listesi paneli (hover'da açılacak)
@@ -80,10 +76,10 @@ public class PerkListUISetup : EditorWindow
         panelRect.anchorMax = new Vector2(1, 1);
         panelRect.pivot = new Vector2(1, 1);
         panelRect.anchoredPosition = new Vector2(0, -50);
-        panelRect.sizeDelta = new Vector2(320, 200);
+        panelRect.sizeDelta = new Vector2(UIStyle.PerkPanelWidth, 200);
 
         Image panelImage = panelObj.GetComponent<Image>();
-        panelImage.color = Color.black; // #000000
+        panelImage.color = UIStyle.BgPanel;
 
         VerticalLayoutGroup vlg = panelObj.GetComponent<VerticalLayoutGroup>();
         vlg.padding = new RectOffset(10, 10, 10, 10);
@@ -103,9 +99,9 @@ public class PerkListUISetup : EditorWindow
 
         TextMeshProUGUI listTMP = listTextObj.GetComponent<TextMeshProUGUI>();
         listTMP.text = "No perks yet.";
-        listTMP.fontSize = 18;
+        listTMP.fontSize = UIStyle.PerkListFontSize;
         listTMP.alignment = TextAlignmentOptions.TopLeft;
-        listTMP.color = Color.white;
+        listTMP.color = UIStyle.TextWhite;
         listTMP.richText = true;
         listTMP.enableWordWrapping = true;
         if (font != null) listTMP.font = font;
@@ -118,14 +114,8 @@ public class PerkListUISetup : EditorWindow
 
         panelObj.SetActive(false);
 
-        // Outline ekle
-        Outline btnOutline = buttonObj.AddComponent<Outline>();
-        btnOutline.effectColor = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
-        btnOutline.effectDistance = new Vector2(1.5f, -1.5f);
-
-        Outline panelOutline = panelObj.AddComponent<Outline>();
-        panelOutline.effectColor = new Color32(0x00, 0x05, 0x0C, 0xFF); // #00050C
-        panelOutline.effectDistance = new Vector2(1, -1);
+        UIStyle.AddOutline(buttonObj);
+        UIStyle.AddOutline(panelObj);
 
         Selection.activeGameObject = buttonObj;
         Undo.RegisterCreatedObjectUndo(buttonObj, "Create PerkListUI");
