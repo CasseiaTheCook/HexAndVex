@@ -187,7 +187,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         if (tmp == null) yield break;
 
         // Level yazısını güncelle (perk zaten upgrade edildi)
-        string nameColor = perk.isDisabled ? "#666666" : GetRarityHex(perk.rarity);
+        string nameColor = GetRarityHex(perk.rarity);
         tmp.text = $"<color={nameColor}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
 
         // Scale pop: küçük → büyük → normal
@@ -324,7 +324,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         rowCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         rowCSF.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 
-        // ── Üst satır: ikon + isim + seviye + toggle ──
+        // ── Üst satır: ikon + isim + seviye ──
         GameObject topRow = new GameObject("TopRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
         topRow.transform.SetParent(row.transform, false);
         HorizontalLayoutGroup hlg = topRow.GetComponent<HorizontalLayoutGroup>();
@@ -346,17 +346,17 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         iconLE.minWidth = iconSize; iconLE.preferredWidth = iconSize;
         iconLE.minHeight = iconSize; iconLE.preferredHeight = iconSize;
         Image iconImg = iconObj.GetComponent<Image>();
-        if (perk.icon != null) { iconImg.sprite = perk.icon; iconImg.color = perk.isDisabled ? new Color(1,1,1,0.3f) : Color.white; }
+        if (perk.icon != null) { iconImg.sprite = perk.icon; iconImg.color = Color.white; }
         else iconImg.color = new Color(0.2f, 0.2f, 0.2f, 0.5f);
 
         // Perk adı + seviye
         GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         textObj.transform.SetParent(topRow.transform, false);
-        textObj.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, iconSize);
+        textObj.GetComponent<RectTransform>().sizeDelta = new Vector2(230f, iconSize);
         LayoutElement textLE = textObj.AddComponent<LayoutElement>();
-        textLE.preferredWidth = 180f; textLE.preferredHeight = iconSize;
+        textLE.preferredWidth = 230f; textLE.preferredHeight = iconSize;
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
-        string nameColor = perk.isDisabled ? "#666666" : GetRarityHex(perk.rarity);
+        string nameColor = GetRarityHex(perk.rarity);
         tmp.text = $"<color={nameColor}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
         tmp.fontSize = 13;
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
@@ -364,37 +364,6 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         tmp.richText = true;
         tmp.raycastTarget = false;
         if (font != null) tmp.font = font;
-
-        // ON/OFF toggle butonu
-        GameObject btnObj = new GameObject("ToggleBtn", typeof(RectTransform), typeof(Image), typeof(Button));
-        btnObj.transform.SetParent(topRow.transform, false);
-        btnObj.GetComponent<RectTransform>().sizeDelta = new Vector2(40f, 18f);
-        LayoutElement btnLE = btnObj.AddComponent<LayoutElement>();
-        btnLE.preferredWidth = 40f; btnLE.preferredHeight = 18f;
-        Image btnImg = btnObj.GetComponent<Image>();
-        btnImg.color = perk.isDisabled ? new Color(0.5f, 0.15f, 0.15f) : new Color(0.15f, 0.45f, 0.15f);
-
-        GameObject lblObj = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-        lblObj.transform.SetParent(btnObj.transform, false);
-        RectTransform lblRT = lblObj.GetComponent<RectTransform>();
-        lblRT.anchorMin = Vector2.zero; lblRT.anchorMax = Vector2.one;
-        lblRT.offsetMin = lblRT.offsetMax = Vector2.zero;
-        TextMeshProUGUI btnLabel = lblObj.GetComponent<TextMeshProUGUI>();
-        btnLabel.text = perk.isDisabled ? "OFF" : "ON";
-        btnLabel.fontSize = 10;
-        btnLabel.alignment = TextAlignmentOptions.Center;
-        btnLabel.color = Color.white;
-        if (font != null) btnLabel.font = font;
-
-        btnObj.GetComponent<Button>().onClick.AddListener(() =>
-        {
-            perk.SetDisabled(!perk.isDisabled);
-            btnLabel.text = perk.isDisabled ? "OFF" : "ON";
-            btnImg.color = perk.isDisabled ? new Color(0.5f, 0.15f, 0.15f) : new Color(0.15f, 0.45f, 0.15f);
-            if (perk.icon != null) iconImg.color = perk.isDisabled ? new Color(1,1,1,0.3f) : Color.white;
-            string nc = perk.isDisabled ? "#666666" : GetRarityHex(perk.rarity);
-            tmp.text = $"<color={nc}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
-        });
 
         // ── Açıklama satırı ──
         if (!string.IsNullOrEmpty(perk.description))
