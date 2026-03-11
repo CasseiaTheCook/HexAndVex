@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53e72f983de76b64da2c3ba9d6e008e2, type: 3}
+  m_Name: GuideBookData
+  m_EditorClassIdentifier: Assembly-CSharp::GuideBookData
+  pages:
+  - title: How to Move
+    bodyText: "Each turn, you can move to any highlighted hex adjacent to you. Blue
+      hexes show valid moves. Moving into an enemy attacks them \u2014 no separate
+      attack button needed. You start with 1 move per turn. Some perks grant extra
+      moves."
+    illustration: {fileID: -7347702412918682891, guid: 4aefa56b75e4fd044b2257ed9f98059f, type: 3}
+    category: Movement
+  - title: Dice & Damage
+    bodyText: "When you attack an enemy by moving into them, dice are rolled to determine
+      damage. You start with 2 dice. More dice = more potential damage. Critical
+      hits multiply your damage. Watch the dice panel \u2014 combos and crits are
+      highlighted. Some perks modify dice rolls and damage."
+    illustration: {fileID: 0}
+    category: Combat
+  - title: Enemy Types
+    bodyText: "MELEE: Moves toward you and attacks on contact.\nTELEGRAPH AOE: Shows
+      a warning tile (red hex) before unleashing an area attack. Move out of the
+      highlighted zone!\nTOTEM: Stationary, buffs nearby enemies.\nWARLOCK: Ranged
+      attacker with special abilities.\nBOSS: Powerful enemies with multiple mechanics
+      \u2014 read their patterns carefully."
+    illustration: {fileID: 0}
+    category: Enemies
+  - title: Items & Shop
+    bodyText: "After each room, a Shop appears. Spend gold to buy items. Items provide
+      powerful one-time or persistent effects. You can reroll the shop for a cost
+      \u2014 rerolling gets more expensive each time. Gold is earned by killing enemies.
+      Some perks increase gold drops."
+    illustration: {fileID: 0}
+    category: Items
+  - title: Perks & Level Up
+    bodyText: "After clearing a room, choose a perk. Perks are passive upgrades that
+      persist for the run. Rarities: Common (grey) \u2192 Rare (blue) \u2192 Epic
+      (purple) \u2192 Legendary (gold) \u2192 Secret. Many perks have multiple levels
+      \u2014 you can pick the same perk again to upgrade it. Build synergies between
+      perks for powerful combinations."
+    illustration: {fileID: 0}
+    category: Perks
