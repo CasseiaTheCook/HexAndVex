@@ -171,25 +171,22 @@ public class LevelGenerator : MonoBehaviour
             if (validCells.Count == 0) break;
 
             List<Vector3Int> candidates = new List<Vector3Int>();
-            float currentSafeDist = 4.5f;
-            float currentEnemyDist = 2.5f;
+            int minHexDist = 3;
 
-            while (candidates.Count == 0 && currentSafeDist >= 2.5f)
+            while (candidates.Count == 0 && minHexDist >= 2)
             {
+                int dist = minHexDist;
                 candidates = validCells.FindAll(cell =>
                     !hazardCells.Contains(cell) &&
-                    Vector3.Distance(groundMap.GetCellCenterWorld(cell), playerWorldPos) >= currentSafeDist
+                    HexDistance(cell, playerStartCell) >= dist
                 );
 
                 candidates.RemoveAll(cell =>
-                    spawnedEnemyCells.Any(spawned => Vector3.Distance(groundMap.GetCellCenterWorld(cell), groundMap.GetCellCenterWorld(spawned)) < currentEnemyDist)
+                    spawnedEnemyCells.Any(spawned => HexDistance(cell, spawned) < 2)
                 );
 
                 if (candidates.Count == 0)
-                {
-                    currentSafeDist -= 0.5f;
-                    currentEnemyDist -= 0.5f;
-                }
+                    minHexDist--;
             }
 
             Vector3Int bestSpawnCell;
@@ -199,7 +196,7 @@ public class LevelGenerator : MonoBehaviour
                 // Fallback: en az oyuncudan 2 hex uzakta güvenli hücre
                 var safeCells = validCells.Where(c =>
                     !hazardCells.Contains(c) &&
-                    Vector3.Distance(groundMap.GetCellCenterWorld(c), playerWorldPos) >= 2.5f
+                    HexDistance(c, playerStartCell) >= 2
                 ).ToList();
                 if (safeCells.Count == 0)
                     safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
@@ -535,5 +532,17 @@ public class LevelGenerator : MonoBehaviour
             validCells.Remove(c);
             hazardCells.Remove(c);
         }
+    }
+
+    private int HexDistance(Vector3Int a, Vector3Int b)
+    {
+        // Offset koordinatları cube koordinata çevir (odd-row offset)
+        int ax = a.x - (a.y - (a.y & 1)) / 2;
+        int az = a.y;
+        int ay = -ax - az;
+        int bx = b.x - (b.y - (b.y & 1)) / 2;
+        int bz = b.y;
+        int by = -bx - bz;
+        return Mathf.Max(Mathf.Abs(ax - bx), Mathf.Abs(ay - by), Mathf.Abs(az - bz));
     }
 }

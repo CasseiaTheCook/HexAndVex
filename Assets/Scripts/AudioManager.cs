@@ -7,7 +7,8 @@ public class AudioManager : MonoBehaviour
     [Header("Ses Klipleri")]
     public AudioClip takeDamageClip;   // Hasar yeme (oyuncu + düşman)
     public AudioClip moveClip;         // Tile hareketi
-    public AudioClip hitClip;          // Düşmana vurma
+    public AudioClip swingClip;        // Saldırı animasyonu başında
+    public AudioClip hitClip;          // Düşmana vurma (0.3s sonra)
     public AudioClip wallClip;         // Duvara çarpma
     public AudioClip explosionClip;    // Patlama (mayın, fragmine)
     public AudioClip coinClip;         // Coin düşme
@@ -51,6 +52,7 @@ public class AudioManager : MonoBehaviour
 
     public void PlayTakeDamage()  => Play(takeDamageClip);
     public void PlayMove()        => Play(moveClip, 0.7f);
+    public void PlaySwing()       => Play(swingClip);
     public void PlayHit()         => Play(hitClip);
     public void PlayWall()        => Play(wallClip, 0.9f);
     public void PlayExplosion()   => Play(explosionClip);

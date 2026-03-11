@@ -293,8 +293,9 @@ public class SpawnerBossAI : MonoBehaviour
 
         if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f); 
-            
+            if (AudioManager.instance != null) AudioManager.instance.PlayLightning();
+            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f);
+
             foreach (var c in cellsToExplode)
             {
                 if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseBright);

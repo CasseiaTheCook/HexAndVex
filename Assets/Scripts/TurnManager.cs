@@ -37,6 +37,8 @@ public class TurnManager : MonoBehaviour
     public Sprite[] diceSprites;
     public GameObject criticalText;
     public GameObject comboTextObj; // Inspector'dan bağla — TMP_Text içermeli
+    public UnityEngine.UI.Image dicePanelBackground; // Inspector'dan bağla, Source Image = None
+
 
     [Header("Coin UI")]
     public TMP_Text coinText;
@@ -1048,8 +1050,9 @@ public class TurnManager : MonoBehaviour
         }
 
         if (player != null) player.TriggerAttackAnimation();
-        if (AudioManager.instance != null) AudioManager.instance.PlayHit();
+        if (AudioManager.instance != null) AudioManager.instance.PlaySwing();
         yield return new WaitForSeconds(0.3f);
+        if (AudioManager.instance != null) AudioManager.instance.PlayHit();
         isAttackAnimationPlaying = false;
         hexesMovedThisTurn = 0;
 
@@ -1271,12 +1274,22 @@ public class TurnManager : MonoBehaviour
     {
         foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
         if (totalDamageText != null) { totalDamageText.gameObject.SetActive(true); totalDamageText.text = "0"; }
+
         List<Image> dieImages = new List<Image>(); List<Animator> dieAnimators = new List<Animator>(); List<TMP_Text> dieTexts = new List<TMP_Text>();
         for (int i = 0; i < rolls.Count; i++)
         {
             GameObject newDie = Instantiate(dieUIPrefab, diceUIContainer); spawnedDiceUI.Add(newDie);
             dieImages.Add(newDie.GetComponent<Image>()); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(newDie.GetComponentInChildren<TMP_Text>());
         }
+
+        if (dicePanelBackground != null)
+        {
+            dicePanelBackground.gameObject.SetActive(true);
+            float e = 0f; Color c = dicePanelBackground.color; c.a = 0f; dicePanelBackground.color = c;
+            while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(0f, 0.9f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+            c.a = 0.9f; dicePanelBackground.color = c;
+        }
+
         if (AudioManager.instance != null) AudioManager.instance.PlayDiceRoll();
         yield return new WaitForSeconds(0.4f);
         for (int i = 0; i < rolls.Count; i++)
@@ -1315,6 +1328,17 @@ public class TurnManager : MonoBehaviour
         foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
         if (criticalText != null) criticalText.gameObject.SetActive(false);
+        if (dicePanelBackground != null) StartCoroutine(FadeDicePanel());
+    }
+
+    private IEnumerator FadeDicePanel()
+    {
+        if (dicePanelBackground == null) yield break;
+        float e = 0f; Color c = dicePanelBackground.color;
+        float startA = 0.9f;
+        while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(startA, 0f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+        c.a = 0f; dicePanelBackground.color = c;
+        dicePanelBackground.gameObject.SetActive(false);
     }
 
     private IEnumerator CriticalTextPopAnimation()
