@@ -36,6 +36,7 @@ public class TurnManager : MonoBehaviour
     public TMP_Text totalDamageText;
     public Sprite[] diceSprites;
     public GameObject criticalText;
+    public GameObject comboTextObj; // Inspector'dan bağla — TMP_Text içermeli
 
     [Header("Coin UI")]
     public TMP_Text coinText;
@@ -68,6 +69,11 @@ public class TurnManager : MonoBehaviour
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
 
     public int finalDamage = 0;
+
+    // Combo sistemi
+    private int comboCount = 0;
+    private Coroutine comboFadeCoroutine;
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -260,6 +266,7 @@ public class TurnManager : MonoBehaviour
     public void PlayerTakeDamage(int amt)
     {
         if (player == null || player.health.currentHP <= 0) return;
+        ResetCombo();
 
         if (player.health.currentHP - amt <= 0)
         {
@@ -402,16 +409,70 @@ public class TurnManager : MonoBehaviour
             placeholderObj = Instantiate(fragMinePlaceholderPrefab, placeholderPos, Quaternion.identity);
         }
 
-        // Zar animasyonunu göster (sadece baseDiceCount, bonus zar yok)
+        // Zar animasyonunu göster
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         List<int> rolls = new List<int>();
         for (int i = 0; i < diceCount; i++) rolls.Add(Random.Range(1, 7));
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount;
 
-        yield return StartCoroutine(ShowDiceSequence(rolls));
+        CombatPayload payload = new CombatPayload(rolls);
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk"))
+            payload.multiplyInsteadOfAdd = true;
 
-        int totalDamage = 0;
-        foreach (var r in rolls) totalDamage += r;
+        yield return StartCoroutine(ShowDiceSequence(rolls));
+        UpdateTotalDamageDisplay(payload.GetFinalDamage());
+
+        // Perk zar boost'larını uygula (normal combat ile aynı)
+        if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
+        {
+            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            perksToProcess.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in perksToProcess)
+            {
+                int beforeTotal = payload.GetFinalDamage();
+                perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < rolls.Count; i++) if (rolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (perk.isRerollPerk)
+                    {
+                        foreach (int idx in changedIndices)
+                        {
+                            if (idx < spawnedDiceUI.Count)
+                            {
+                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                            }
+                        }
+                        yield return new WaitForSeconds(0.5f);
+                        foreach (int idx in changedIndices)
+                        {
+                            rolls[idx] = payload.diceRolls[idx];
+                            if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                            AnimateSpecificDie(idx, rolls[idx]);
+                        }
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
+                    }
+                    anyDieChanged = true; yield return new WaitForSeconds(0.3f);
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+            }
+        }
+
+        if (Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true;
+            UpdateTotalDamageDisplay(payload.GetFinalDamage());
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        int totalDamage = payload.GetFinalDamage();
         UpdateTotalDamageDisplay(totalDamage);
         yield return new WaitForSeconds(0.6f);
 
@@ -731,44 +792,6 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
 
         // ========================================================
-        // DİKEN (THORN) KONTROLÜ — düşman yürüyerek thorn'a girdi mi?
-        // ========================================================
-        if (LevelGenerator.instance != null)
-        {
-            List<EnemyAI> thornVictims = new List<EnemyAI>();
-            foreach (var e in enemies)
-                if (e != null && e.health.currentHP > 0 && LevelGenerator.instance.hazardCells.Contains(e.GetCurrentCellPosition()))
-                    thornVictims.Add(e);
-
-            if (thornVictims.Count > 0)
-            {
-                yield return new WaitForSeconds(0.1f);
-                foreach (var v in thornVictims)
-                {
-                    StartCoroutine(FlashHazardTileCoroutine(v.GetCurrentCellPosition()));
-                    v.health.TakeDamage(Mathf.Max(1, v.health.maxHP / 2));
-                }
-
-                var acidPerk = RunManager.instance.activePerks.Find(p => p is AcidBloodPerk) as AcidBloodPerk;
-                if (acidPerk != null) { player.health.Heal(thornVictims.Count * acidPerk.currentLevel); acidPerk.TriggerVisualPop(); }
-
-                yield return new WaitForSeconds(0.2f);
-                foreach (var v in thornVictims)
-                    if (v != null && v.health.currentHP > 0)
-                    {
-                        Vector3Int bounceCell = GetRandomSafeNeighbor(v.GetCurrentCellPosition());
-                        v.StartKnockbackMovement(bounceCell);
-                    }
-
-                yield return new WaitUntil(() => { foreach (var v in thornVictims) if (v != null && v.IsMoving()) return false; return true; });
-
-                enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
-                UpdateCoinUI();
-                if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
-            }
-        }
-
-        // ========================================================
         // MAYIN KONTROLÜ
         // ========================================================
         if (activeMineCell.y != -999)
@@ -972,6 +995,7 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
             bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
+            RegisterComboHit();
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
             // ========================================================
@@ -1212,6 +1236,59 @@ public class TurnManager : MonoBehaviour
         elapsed = 0f; float settleDuration = 0.1f;
         while (elapsed < settleDuration) { t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration); elapsed += Time.deltaTime; yield return null; }
         t.localScale = endScale;
+    }
+
+    // ── Combo Sistemi ────────────────────────────────────────────────────
+    public void RegisterComboHit()
+    {
+        comboCount++;
+        if (comboCount >= 2) ShowCombo(comboCount);
+    }
+
+    public void ResetCombo()
+    {
+        comboCount = 0;
+        if (comboTextObj != null) comboTextObj.SetActive(false);
+        if (comboFadeCoroutine != null) { StopCoroutine(comboFadeCoroutine); comboFadeCoroutine = null; }
+    }
+
+    private void ShowCombo(int count)
+    {
+        if (comboTextObj == null) return;
+        var tmp = comboTextObj.GetComponentInChildren<TMP_Text>();
+        if (tmp != null) tmp.text = $"x{count} COMBO!";
+        comboTextObj.SetActive(true);
+        if (comboFadeCoroutine != null) StopCoroutine(comboFadeCoroutine);
+        comboFadeCoroutine = StartCoroutine(ComboPopAndFade());
+    }
+
+    private IEnumerator ComboPopAndFade()
+    {
+        Transform t = comboTextObj.transform;
+        // Pop animasyonu
+        Vector3 start = new Vector3(0.3f, 0.3f, 0.3f);
+        Vector3 over  = new Vector3(0.65f, 0.65f, 0.65f);
+        Vector3 end   = new Vector3(0.5f, 0.5f, 0.5f);
+        float elapsed = 0f;
+        while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(start, over, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
+        elapsed = 0f;
+        while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(over, end, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
+        t.localScale = end;
+
+        // 1.2 sn sonra fade out
+        yield return new WaitForSecondsRealtime(1.2f);
+        var tmp = comboTextObj.GetComponentInChildren<TMP_Text>();
+        if (tmp == null) { comboTextObj.SetActive(false); yield break; }
+        Color c = tmp.color; float fadeDur = 0.3f; elapsed = 0f;
+        while (elapsed < fadeDur)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            c.a = Mathf.Lerp(1f, 0f, elapsed / fadeDur);
+            tmp.color = c;
+            yield return null;
+        }
+        c.a = 1f; tmp.color = c;
+        comboTextObj.SetActive(false);
     }
 
     public bool IsEnemyAtCell(Vector3Int cell)

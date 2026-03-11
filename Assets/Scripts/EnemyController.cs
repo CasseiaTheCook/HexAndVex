@@ -669,6 +669,7 @@ public class EnemyAI : MonoBehaviour
                 if (!cameFrom.ContainsKey(next))
                 {
                     if (!groundMap.HasTile(next)) continue;
+                    if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(next)) continue;
                     if (TurnManager.instance.IsEnemyAtCell(next) && next != cell) continue;
 
                     cameFrom[next] = current; queue.Enqueue(next);

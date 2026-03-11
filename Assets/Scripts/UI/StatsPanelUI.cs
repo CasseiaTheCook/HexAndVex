@@ -25,13 +25,21 @@ public class StatsPanelUI : MonoBehaviour
         if (RunManager.instance == null) return;
         var rm = RunManager.instance;
 
-        if (turnsValue)  turnsValue.text  = rm.totalTurnsPlayed.ToString();
-        if (diceValue)   diceValue.text   = rm.totalDiceRolled.ToString();
-        if (damageValue) damageValue.text = rm.totalDamageDealt.ToString();
-        if (killsValue)  killsValue.text  = rm.totalEnemiesKilled.ToString();
-        if (goldValue)   goldValue.text   = rm.totalGoldEarned.ToString();
+        if (turnsValue)  turnsValue.text  = FormatWithBest(rm.totalTurnsPlayed,   RunManager.BestTurns);
+        if (diceValue)   diceValue.text   = FormatWithBest(rm.totalDiceRolled,    RunManager.BestDice);
+        if (damageValue) damageValue.text = FormatWithBest(rm.totalDamageDealt,   RunManager.BestDamage);
+        if (killsValue)  killsValue.text  = FormatWithBest(rm.totalEnemiesKilled, RunManager.BestKills);
+        if (goldValue)   goldValue.text   = FormatWithBest(rm.totalGoldEarned,    RunManager.BestGold);
 
         RefreshPerks(rm);
+    }
+
+    // Mevcut değer best'i geçiyorsa altın rengi ve "NEW BEST!" göster
+    private string FormatWithBest(int current, int best)
+    {
+        if (current > best)
+            return $"<color=#FFD700>{current} ★</color>";
+        return $"{current}  <color=#888888><size=11>best {best}</size></color>";
     }
 
     private void RefreshPerks(RunManager rm)
@@ -59,7 +67,7 @@ public class StatsPanelUI : MonoBehaviour
         rowObj.transform.SetParent(perksContainer, false);
 
         var layout = rowObj.AddComponent<HorizontalLayoutGroup>();
-        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childAlignment = TextAnchor.MiddleLeft;
         layout.spacing = 6f;
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
@@ -67,7 +75,8 @@ public class StatsPanelUI : MonoBehaviour
 
         var rowLE = rowObj.AddComponent<LayoutElement>();
         rowLE.preferredHeight = 32;
-        rowLE.flexibleWidth = 1;
+        rowLE.preferredWidth = 380;
+        rowLE.flexibleWidth = 0;
 
         // İkon
         var iconObj = new GameObject("Icon", typeof(RectTransform), typeof(Image));
