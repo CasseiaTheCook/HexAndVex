@@ -39,6 +39,7 @@ public class RunManager : MonoBehaviour
     public bool doubleDamageNextCombat = false;
     public bool cleaveNextCombat = false;
     public bool surgeBootNextTurn = false;
+    [HideInInspector] public bool surgeBootActive = false; // Bu tur 2 hex hareket edebilir mi?
 
     [Header("Legendary Stats")]
     public int extraMovesPerTurn = 0; // Swift Action ile artacak (Normalde 0)

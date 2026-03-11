@@ -68,7 +68,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         panelCanvasGroup.alpha = from;
         while (elapsed < fadeDuration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             panelCanvasGroup.alpha = Mathf.Lerp(from, to, elapsed / fadeDuration);
             yield return null;
         }

@@ -53,6 +53,9 @@ public class TurnManager : MonoBehaviour
     [HideInInspector] public bool isPhaseShiftTargeting = false;
     [HideInInspector] public bool isThornPlacementTargeting = false;
 
+    // Thorn preview
+    private GameObject thornPreviewObj;
+
     public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
 
     public int hexesMovedThisTurn = 0;
@@ -73,6 +76,7 @@ public class TurnManager : MonoBehaviour
         if (player == null) player = FindFirstObjectByType<HexMovement>();
         if (groundMap == null) groundMap = GameObject.Find("GroundMap")?.GetComponent<Tilemap>();
         if (totalDamageText == null) totalDamageText = GameObject.Find("TotalDamageText")?.GetComponent<TMP_Text>();
+        if (coinText == null) coinText = GameObject.Find("CoinText")?.GetComponent<TMP_Text>();
     }
 
     void Start()
@@ -97,6 +101,28 @@ public class TurnManager : MonoBehaviour
             {
                 if (isBombPlacementTargeting) StartCoroutine(ExecuteBombAt(clickedCell));
                 else if (isThornPlacementTargeting) ExecuteThornAt(clickedCell);
+            }
+        }
+
+        // Thorn preview follows mouse during placement
+        if (isThornPlacementTargeting && thornPreviewObj != null)
+        {
+            Vector3 mPos = Input.mousePosition;
+            mPos.z = Mathf.Abs(Camera.main.transform.position.z);
+            Vector3 wp = Camera.main.ScreenToWorldPoint(mPos);
+            wp.z = 0;
+            Vector3Int hoverCell = groundMap.WorldToCell(wp);
+
+            if (groundMap.HasTile(hoverCell) && !IsThornCellBlocked(hoverCell))
+            {
+                Vector3 snapPos = groundMap.GetCellCenterWorld(hoverCell);
+                snapPos.z = 0;
+                thornPreviewObj.transform.position = snapPos;
+                thornPreviewObj.SetActive(true);
+            }
+            else
+            {
+                thornPreviewObj.SetActive(false);
             }
         }
 
@@ -190,7 +216,22 @@ public class TurnManager : MonoBehaviour
         hasAttackedThisTurn = false;
         isAttackAnimationPlaying = false;
 
-        if (RunManager.instance != null) RunManager.instance.remainingMoves = RunManager.instance.extraMovesPerTurn;
+        if (RunManager.instance != null)
+        {
+            int moves = RunManager.instance.extraMovesPerTurn;
+            RunManager.instance.remainingMoves = moves;
+
+            // Surge Boot: bu tur 2 hex menzil ver, extra tur değil
+            if (RunManager.instance.surgeBootNextTurn)
+            {
+                RunManager.instance.surgeBootActive = true;
+                RunManager.instance.surgeBootNextTurn = false;
+            }
+            else
+            {
+                RunManager.instance.surgeBootActive = false;
+            }
+        }
         player.UpdateHighlights(); LockAllEnemyIntents();
     }
 
@@ -462,12 +503,49 @@ public class TurnManager : MonoBehaviour
         ShowAllEnemyIntents();
     }
 
-    public void StartThornPlacement() { isThornPlacementTargeting = true; }
+    public void StartThornPlacement()
+    {
+        isThornPlacementTargeting = true;
+        CreateThornPreview();
+    }
+
+    private void CreateThornPreview()
+    {
+        if (thornPreviewObj != null) return;
+
+        Sprite previewSprite = null;
+        if (LevelGenerator.instance != null && LevelGenerator.instance.hazardTile is Tile ht && ht.sprite != null)
+            previewSprite = ht.sprite;
+
+        if (previewSprite == null) return;
+
+        thornPreviewObj = new GameObject("ThornPreview");
+        var sr = thornPreviewObj.AddComponent<SpriteRenderer>();
+        sr.sprite = previewSprite;
+        sr.color = new Color(1f, 1f, 1f, 0.45f);
+        sr.sortingOrder = 10;
+        thornPreviewObj.SetActive(false);
+    }
+
+    private void DestroyThornPreview()
+    {
+        if (thornPreviewObj != null) { Destroy(thornPreviewObj); thornPreviewObj = null; }
+    }
+
+    private bool IsThornCellBlocked(Vector3Int cell)
+    {
+        if (player != null && player.GetCurrentCellPosition() == cell) return true;
+        if (IsEnemyAtCell(cell)) return true;
+        if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(cell)) return true;
+        return false;
+    }
+
     private void ExecuteThornAt(Vector3Int cell)
     {
-        if (LevelGenerator.instance == null) { isThornPlacementTargeting = false; return; }
-        if (player.GetCurrentCellPosition() == cell || IsEnemyAtCell(cell) || LevelGenerator.instance.hazardCells.Contains(cell)) return;
+        if (LevelGenerator.instance == null) { isThornPlacementTargeting = false; DestroyThornPreview(); return; }
+        if (IsThornCellBlocked(cell)) return;
         isThornPlacementTargeting = false;
+        DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
     }
@@ -481,7 +559,6 @@ public class TurnManager : MonoBehaviour
 
     public void PlayerFinishedMove(Vector3Int playerCell)
     {
-        if (RunManager.instance != null) RunManager.instance.surgeBootNextTurn = false;
         StartCoroutine(HandlePlayerPhase(playerCell));
     }
 
@@ -588,6 +665,9 @@ public class TurnManager : MonoBehaviour
     private IEnumerator HandlePlayerPhase(Vector3Int playerCell)
     {
         hexesMovedThisTurn++;
+
+        // Surge Boot kullanıldıysa bu tur sonrası kapat
+        if (RunManager.instance != null) RunManager.instance.surgeBootActive = false;
 
         if (LevelGenerator.instance.hazardCells.Contains(playerCell))
         {
@@ -823,9 +903,17 @@ public class TurnManager : MonoBehaviour
             if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return new WaitForSeconds(0.5f);
         }
 
-        yield return new WaitForSeconds(0.4f); HideDiceResults();
+        // OverClok: zar gizlenmeden önce 2x hasarı göster
         int finalDamage = payload.GetFinalDamage();
-        if (RunManager.instance.doubleDamageNextCombat) { finalDamage *= 2; RunManager.instance.doubleDamageNextCombat = false; }
+        if (RunManager.instance.doubleDamageNextCombat)
+        {
+            finalDamage *= 2;
+            RunManager.instance.doubleDamageNextCombat = false;
+            UpdateTotalDamageDisplay(finalDamage);
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        yield return new WaitForSeconds(0.4f); HideDiceResults();
 
         int damagePerEnemy = 0;
         if (targets.Count > 0)

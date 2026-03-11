@@ -5808,6 +5808,7 @@ MonoBehaviour:
   doubleDamageNextCombat: 0
   cleaveNextCombat: 0
   surgeBootNextTurn: 0
+  surgeBootActive: 0
   extraMovesPerTurn: 0
   remainingMoves: 0
   totalEnemiesKilled: 0
@@ -6885,8 +6886,8 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 3
-  m_Spacing: 8
+  m_ChildAlignment: 0
+  m_Spacing: 12
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 0
