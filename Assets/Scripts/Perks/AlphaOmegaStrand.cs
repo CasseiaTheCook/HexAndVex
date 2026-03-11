@@ -21,7 +21,8 @@ public class AlphaOmegaStrandPerk : BasePerk
                 // Son zara seviyesi x 4 ekler
                 payload.diceRolls[payload.diceRolls.Count - 1] += (3 * currentLevel); 
             }
-            TriggerVisualPop();
+            if (TurnManager.instance != null && !TurnManager.instance.skipDiceVisuals)
+                TriggerVisualPop();
         }
     }
 }

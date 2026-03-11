@@ -47,7 +47,9 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Momentum Engine
-  description: Add +1 to your rolls for every tile moved before attacking.
+  description: Add +1 to your dice for every tile moved before attacking.
   icon: {fileID: -7059076937581865833, guid: 17f2c4d0b8b5abd4bb5ba6b8c0a67dce, type: 3}
   priority: 5
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0

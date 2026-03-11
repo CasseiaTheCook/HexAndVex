@@ -42,13 +42,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7f3a28d5e9c14b6f8d2e7a3b5c9f1e4d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LetsGoAgainPerk
   currentLevel: 1
   maxLevel: 1
-  perkName: "Let's Go Again"
+  perkName: Let's Go Again
   description: After all perks trigger, they all trigger once more.
-  icon: {fileID: 0}
+  icon: {fileID: 8544255112842467430, guid: 4e832db8df449c94498f9978be091fd6, type: 3}
   priority: 0
   isRerollPerk: 0
   rarity: 4

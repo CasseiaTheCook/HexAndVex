@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.Tilemaps;
-using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
@@ -19,6 +18,7 @@ public class TurnManager : MonoBehaviour
     public GameObject explosionPrefab;
     public GameObject dodgeEffectPrefab;
     public GameObject vacuumVfxPrefab;
+    public GameObject slashEffectPrefab; // Düşman hasar alınca çıkan slash efekti
 
     // ========================================================
     // MAYIN PREFABI BURAYA GELECEK
@@ -63,10 +63,6 @@ public class TurnManager : MonoBehaviour
 
     // Thorn preview
     private GameObject thornPreviewObj;
-
-    // Thorn turn tracking: cell → kaç tur geçti (3. turda kırılır)
-    private readonly Dictionary<Vector3Int, int> thornTurnCounts = new Dictionary<Vector3Int, int>();
-    private readonly Dictionary<Vector3Int, Coroutine> thornBlinkCoroutines = new Dictionary<Vector3Int, Coroutine>();
 
     public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
 
@@ -121,8 +117,7 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null)
             skipDiceVisuals = RunManager.instance.fastMode;
 
-        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
-        if (!(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1)) && (isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
         {
             Vector3 mousePos = Input.mousePosition;
             mousePos.z = Mathf.Abs(Camera.main.transform.position.z);
@@ -163,7 +158,7 @@ public class TurnManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F6))
         {
             foreach (var e in new List<EnemyAI>(enemies))
-                if (e != null && e.health.currentHP > 0) e.health.TakeDamage(9999);
+                if (e != null && e.health.currentHP > 0) e.health.TakeDamage(4444);
             enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
             if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
         }
@@ -465,7 +460,7 @@ public void ResetGame()
         isNecroShotTargeting = false;
         if (player != null) player.TriggerAttackAnimation();
 
-        target.health.TakeDamage(9999);
+        target.health.TakeDamage(4444);
         if (target.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
         {
             bool isBossRoom = RunManager.instance.currentLevel % 5 == 0;
@@ -474,7 +469,7 @@ public void ResetGame()
             else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
             if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop); }
         }
-        foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(target);
+        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
@@ -515,7 +510,7 @@ public void ResetGame()
         // Perk zar boost'larını uygula (normal combat ile aynı)
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null);
             perksToProcess.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -569,7 +564,7 @@ public void ResetGame()
         }
 
         // LetsGoAgain: Tüm perkler bir kez daha tetiklenir (bomb combat)
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk))
         {
             var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
             if (lgaPerk != null && !skipDiceVisuals)
@@ -579,8 +574,13 @@ public void ResetGame()
                 yield return StartCoroutine(SkippableWait(0.4f));
             }
 
-            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !(p is LetsGoAgainPerk));
             secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+
+            // İkinci pas için flatBonus ve multiplier sıfırla — zar değerleri kalır
+            payload.flatBonus = 0;
+            payload.multiplier = 1.0f;
+
             foreach (BasePerk perk in secondPass)
             {
                 int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
@@ -629,6 +629,16 @@ public void ResetGame()
                     }
                 }
             }
+
+            // SymbioticFury ikinci pas görsel tetikleyici (bomb combat)
+            var sfPerk = RunManager.instance.activePerks.Find(p => p is SymbioticFuryPerk);
+            if (sfPerk != null && !skipDiceVisuals)
+            {
+                sfPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(sfPerk);
+                UpdateTotalDamageDisplay(payload.GetFinalDamage());
+                yield return StartCoroutine(SkippableWait(0.3f));
+            }
         }
 
         if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
@@ -669,6 +679,14 @@ public void ResetGame()
         foreach (var enemy in hitEnemies)
         {
             enemy.health.TakeDamage(totalDamage);
+            
+            // Slash efekti spawn et
+            if (slashEffectPrefab != null)
+            {
+                Vector3 enemyPos = enemy.transform.position;
+                Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+            }
+            
             if (enemy.health.currentHP <= 0)
             {
                 if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
@@ -679,7 +697,7 @@ public void ResetGame()
                     else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
                     if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop); }
                 }
-                foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(enemy);
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
                 RunManager.instance.totalEnemiesKilled++;
             }
         }
@@ -812,66 +830,8 @@ public void ResetGame()
         isThornPlacementTargeting = false;
         DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
-        thornTurnCounts[cell] = 0;
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
-        // Yerleştirilir yerleştirilmez blink başlasın
-        thornBlinkCoroutines[cell] = StartCoroutine(BlinkThornTile(cell));
         if (player != null) player.UpdateHighlights();
-    }
-
-    private void TickThornTurns()
-    {
-        if (LevelGenerator.instance == null) return;
-        var toRemove = new List<Vector3Int>();
-
-        foreach (var kv in new Dictionary<Vector3Int, int>(thornTurnCounts))
-        {
-            int newCount = kv.Value + 1;
-            thornTurnCounts[kv.Key] = newCount;
-
-            if (newCount >= 3)
-            {
-                // 3. tur: kırıl
-                toRemove.Add(kv.Key);
-            }
-        }
-
-        foreach (var cell in toRemove)
-        {
-            // Blink coroutine'i durdur
-            if (thornBlinkCoroutines.TryGetValue(cell, out Coroutine co))
-            {
-                if (co != null) StopCoroutine(co);
-                thornBlinkCoroutines.Remove(cell);
-            }
-            thornTurnCounts.Remove(cell);
-            LevelGenerator.instance.hazardCells.Remove(cell);
-            if (LevelGenerator.instance.hazardMap != null)
-                LevelGenerator.instance.hazardMap.SetTile(cell, null);
-        }
-    }
-
-    private IEnumerator BlinkThornTile(Vector3Int cell)
-    {
-        if (LevelGenerator.instance?.hazardMap == null) yield break;
-        float elapsed = 0f;
-        float blinkSpeed = 8f;
-        var tile = LevelGenerator.instance.hazardTile as UnityEngine.Tilemaps.Tile;
-
-        // thornTurnCounts'ta var olduğu sürece yanıp sön
-        while (thornTurnCounts.ContainsKey(cell))
-        {
-            if (LevelGenerator.instance?.hazardMap == null) yield break;
-            bool show = Mathf.Sin(elapsed * blinkSpeed) > 0f;
-            if (tile != null)
-                LevelGenerator.instance.hazardMap.SetTileFlags(cell, UnityEngine.Tilemaps.TileFlags.None);
-            LevelGenerator.instance.hazardMap.SetColor(cell, show ? Color.white : new Color(1f, 1f, 1f, 0f));
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-        // Temizlendiğinde rengi sıfırla
-        if (LevelGenerator.instance?.hazardMap != null)
-            LevelGenerator.instance.hazardMap.SetColor(cell, Color.white);
     }
 
     public void LockAllEnemyIntents()
@@ -929,7 +889,7 @@ public void ResetGame()
     private IEnumerator HandleSkipPhase()
     {
         // OnSkip'i saldırıdan ÖNCE çağır: DormantSpore zarları bu turda kullanılabilsin
-        foreach (var perk in RunManager.instance.activePerks) if (!perk.isDisabled) perk.OnSkip();
+        foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
 
@@ -1188,7 +1148,6 @@ public void ResetGame()
             yield return new WaitForSeconds(0.2f);
         }
 
-        TickThornTurns();
         EndTurnAndDecreaseStuns();
     }
 
@@ -1271,7 +1230,7 @@ public void ResetGame()
 
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null);
             perksToProcess.Sort((a, b) => { int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -1324,7 +1283,7 @@ public void ResetGame()
         }
 
         // LetsGoAgain: Tüm perkler bir kez daha tetiklenir
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk))
         {
             var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
             if (lgaPerk != null && !skipDiceVisuals)
@@ -1334,8 +1293,13 @@ public void ResetGame()
                 yield return StartCoroutine(SkippableWait(0.4f));
             }
 
-            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !(p is LetsGoAgainPerk));
             secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+
+            // İkinci pas için flatBonus ve multiplier sıfırla — zar değerleri kalır
+            payload.flatBonus = 0;
+            payload.multiplier = 1.0f;
+
             foreach (BasePerk perk in secondPass)
             {
                 int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
@@ -1383,6 +1347,16 @@ public void ResetGame()
                         perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
                     }
                 }
+            }
+
+            // SymbioticFury ikinci pas görsel tetikleyici
+            var sfPerk = RunManager.instance.activePerks.Find(p => p is SymbioticFuryPerk);
+            if (sfPerk != null && !skipDiceVisuals)
+            {
+                sfPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(sfPerk);
+                UpdateTotalDamageDisplay(payload.GetFinalDamage());
+                yield return StartCoroutine(SkippableWait(0.3f));
             }
         }
 
@@ -1441,6 +1415,14 @@ public void ResetGame()
             if (enemy == null) continue;
             bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
+            
+            // Slash efekti spawn et
+            if (slashEffectPrefab != null)
+            {
+                Vector3 enemyPos = enemy.transform.position;
+                Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+            }
+            
             RegisterComboHit();
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
@@ -1459,6 +1441,13 @@ public void ResetGame()
                 for (int v = 0; v < voodooHits; v++)
                 {
                     others[v].health.TakeDamage(damagePerEnemy);
+                    
+                    // Slash efekti spawn et
+                    if (slashEffectPrefab != null)
+                    {
+                        Vector3 enemyPos = others[v].transform.position;
+                        Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                    }
                 }
                 if (voodooHits > 0) voodooPerk.TriggerVisualPop();
             }
@@ -1546,7 +1535,7 @@ public void ResetGame()
                 else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
                 if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
-            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
             RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -1581,7 +1570,7 @@ public void ResetGame()
                 else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
                 if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
-            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
             RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);

@@ -47,8 +47,10 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 1
   perkName: Bio Magnetism
-  description: Immediately before combat begins, pull all enemies within 2 tiles
+  description: Immediately before combat begins, pull all enemies within two tiles
     toward you.
   icon: {fileID: -7647960425859961904, guid: 5aac3384fc9b4cc409d9557c348e1720, type: 3}
   priority: 1
   isRerollPerk: 0
+  rarity: 0
+  isDisabled: 0
