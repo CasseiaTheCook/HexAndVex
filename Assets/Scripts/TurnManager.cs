@@ -474,7 +474,7 @@ public class TurnManager : MonoBehaviour
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
             }
         }
 
@@ -1009,6 +1009,7 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
+        if (PerkListUI.instance != null) PerkListUI.instance.ForceOpen();
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.5f);
@@ -1049,9 +1050,11 @@ public class TurnManager : MonoBehaviour
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
             }
         }
+
+        if (PerkListUI.instance != null) PerkListUI.instance.ForceClose();
 
         if (Random.value < RunManager.instance.criticalChance)
         {
