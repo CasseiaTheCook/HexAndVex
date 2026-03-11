@@ -731,6 +731,44 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
 
         // ========================================================
+        // DİKEN (THORN) KONTROLÜ — düşman yürüyerek thorn'a girdi mi?
+        // ========================================================
+        if (LevelGenerator.instance != null)
+        {
+            List<EnemyAI> thornVictims = new List<EnemyAI>();
+            foreach (var e in enemies)
+                if (e != null && e.health.currentHP > 0 && LevelGenerator.instance.hazardCells.Contains(e.GetCurrentCellPosition()))
+                    thornVictims.Add(e);
+
+            if (thornVictims.Count > 0)
+            {
+                yield return new WaitForSeconds(0.1f);
+                foreach (var v in thornVictims)
+                {
+                    StartCoroutine(FlashHazardTileCoroutine(v.GetCurrentCellPosition()));
+                    v.health.TakeDamage(Mathf.Max(1, v.health.maxHP / 2));
+                }
+
+                var acidPerk = RunManager.instance.activePerks.Find(p => p is AcidBloodPerk) as AcidBloodPerk;
+                if (acidPerk != null) { player.health.Heal(thornVictims.Count * acidPerk.currentLevel); acidPerk.TriggerVisualPop(); }
+
+                yield return new WaitForSeconds(0.2f);
+                foreach (var v in thornVictims)
+                    if (v != null && v.health.currentHP > 0)
+                    {
+                        Vector3Int bounceCell = GetRandomSafeNeighbor(v.GetCurrentCellPosition());
+                        v.StartKnockbackMovement(bounceCell);
+                    }
+
+                yield return new WaitUntil(() => { foreach (var v in thornVictims) if (v != null && v.IsMoving()) return false; return true; });
+
+                enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+                UpdateCoinUI();
+                if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
+            }
+        }
+
+        // ========================================================
         // MAYIN KONTROLÜ
         // ========================================================
         if (activeMineCell.y != -999)
