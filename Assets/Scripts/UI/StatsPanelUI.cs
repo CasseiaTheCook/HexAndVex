@@ -69,15 +69,17 @@ public class StatsPanelUI : MonoBehaviour
 
         var rowVL = rowObj.AddComponent<VerticalLayoutGroup>();
         rowVL.childAlignment = TextAnchor.UpperLeft;
-        rowVL.spacing = 1f;
+        rowVL.spacing = 0f;
         rowVL.childForceExpandWidth = true;
         rowVL.childForceExpandHeight = false;
-        rowVL.padding = new RectOffset(4, 4, 3, 3);
+        rowVL.padding = new RectOffset(4, 4, 2, 2);
 
         var rowLE = rowObj.AddComponent<LayoutElement>();
-        rowLE.preferredWidth = 380;
         rowLE.flexibleWidth = 1;
-        rowObj.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        rowLE.minHeight = 28;
+        var rowCSF = rowObj.AddComponent<ContentSizeFitter>();
+        rowCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        rowCSF.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
 
         // ── Üst satır: ikon + isim + seviye ─────────────────────────────
         var topRow = new GameObject("TopRow", typeof(RectTransform));
