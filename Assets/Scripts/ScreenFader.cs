@@ -1,97 +1,84 @@
 using UnityEngine;
 using System.Collections;
 using System;
+using UnityEngine.SceneManagement;
 
 public class ScreenFader : MonoBehaviour
 {
     public static ScreenFader instance;
-    public CanvasGroup fadeGroup;
-    public float fadeDuration = 0.5f;
+    public CanvasGroup faderGroup;
+    public float fadeDuration = 1.0f;
 
     void Awake()
     {
-        if (instance == null) 
+        if (instance == null)
         {
             instance = this;
+            DontDestroyOnLoad(gameObject);
         }
-        else if (instance != this)
+        else
         {
             Destroy(gameObject);
             return;
         }
-        
-        if (fadeGroup != null)
+
+        // İlk açılışta ekran simsiyah olsun
+        if (faderGroup != null)
         {
-            fadeGroup.alpha = 1f; 
-            fadeGroup.blocksRaycasts = true; 
+            faderGroup.alpha = 1f;
+            faderGroup.blocksRaycasts = true;
         }
     }
 
-    IEnumerator Start()
+    private void Start()
     {
-        fadeGroup.alpha = 1f; 
-        // Zaman dursa bile çalışsın diye Realtime kullanıyoruz!
-        yield return new WaitForSecondsRealtime(0.4f); 
-        FadeToClear();
+        // Sahne ilk yüklendiğinde otomatik olarak ekranı aç (Fade Out)
+        StartCoroutine(Fade(0f));
     }
 
-    public void FadeToClear()
-    {
-        StopAllCoroutines(); 
-        StartCoroutine(FadeRoutine(fadeGroup.alpha, 0f, null));
-    }
-
+    // Sahne geçişleri için dışarıdan bunu çağıracaksın
     public void FadeAndLoad(Action loadAction)
     {
-        StopAllCoroutines(); 
-        StartCoroutine(FadeAndLoadRoutine(loadAction));
+        StopAllCoroutines();
+        StartCoroutine(FadeAndLoadSequence(loadAction));
     }
 
-    private IEnumerator FadeAndLoadRoutine(Action loadAction)
+    private IEnumerator FadeAndLoadSequence(Action loadAction)
     {
-        fadeGroup.blocksRaycasts = true;
-        float elapsed = 0f;
-        float startAlpha = fadeGroup.alpha; 
+        // 1. Ekranı karart
+        yield return StartCoroutine(Fade(1f));
 
-        while (elapsed < fadeDuration)
-        {
-            // TimeScale 0 olsa bile çalışır
-            elapsed += Time.unscaledDeltaTime;
-            fadeGroup.alpha = Mathf.Lerp(startAlpha, 1f, elapsed / fadeDuration);
-            yield return null;
-        }
-        fadeGroup.alpha = 1f; 
-
-        // EKRAN SİMSİYAHKEN YENİ BÖLÜMÜ YÜKLE
+        // 2. Sahne yükleme işini yap (Action çalıştır)
         loadAction?.Invoke();
-        
-        // Bölüm yüklendikten sonra yine garanti bekleme (Harita dizilsin diye)
-        yield return new WaitForSecondsRealtime(0.4f); 
 
-        elapsed = 0f;
-        while (elapsed < fadeDuration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            fadeGroup.alpha = Mathf.Lerp(1f, 0f, elapsed / fadeDuration);
-            yield return null;
-        }
-        fadeGroup.alpha = 0f; 
-        fadeGroup.blocksRaycasts = false; 
+        // 3. Yeni sahnede ekranı geri aç
+        yield return StartCoroutine(Fade(0f));
     }
 
-    private IEnumerator FadeRoutine(float startAlpha, float endAlpha, Action onComplete)
+    // TAM SENİN İSTEDİĞİN LERP MANTIĞI
+    IEnumerator Fade(float targetAlpha)
     {
-        fadeGroup.blocksRaycasts = true;
+        if (faderGroup == null) yield break;
+
+        float startAlpha = faderGroup.alpha;
         float elapsed = 0f;
+
+        // Kararma başladığında tıklamaları engelle
+        faderGroup.blocksRaycasts = true;
+
         while (elapsed < fadeDuration)
         {
-            elapsed += Time.unscaledDeltaTime;
-            fadeGroup.alpha = Mathf.Lerp(startAlpha, endAlpha, elapsed / fadeDuration);
+            elapsed += Time.unscaledDeltaTime; // Pause olsa bile çalışması için unscaled
+            faderGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / fadeDuration);
             yield return null;
         }
-        fadeGroup.alpha = endAlpha;
-        if (endAlpha == 0f) fadeGroup.blocksRaycasts = false;
-        
-        onComplete?.Invoke();
+
+        faderGroup.alpha = targetAlpha;
+
+        // Eğer ekran tamamen açıldıysa (0), arkadaki butonlara tıklanabilsin
+        if (targetAlpha <= 0.05f)
+        {
+            faderGroup.blocksRaycasts = false;
+        }
     }
 }
