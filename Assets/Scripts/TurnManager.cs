@@ -113,8 +113,8 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null)
             skipDiceVisuals = RunManager.instance.fastMode;
 
-        // UI üstünde click olup olmadığını kontrol et
-        if (!EventSystem.current.IsPointerOverGameObject() && (isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
+        if (!(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1)) && (isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
         {
             Vector3 mousePos = Input.mousePosition;
             mousePos.z = Mathf.Abs(Camera.main.transform.position.z);

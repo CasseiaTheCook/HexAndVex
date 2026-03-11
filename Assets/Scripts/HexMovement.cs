@@ -104,8 +104,8 @@ public class HexMovement : MonoBehaviour
 
     private void HandleMovementInput()
     {
-        // UI üstünde click olup olmadığını kontrol et
-        if (EventSystem.current.IsPointerOverGameObject())
+        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1))
             return;
 
         if (Input.GetMouseButtonDown(0))
