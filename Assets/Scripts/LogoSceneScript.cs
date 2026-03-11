@@ -1,40 +1,38 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI; // Image bileşeni için
+using UnityEngine.UI;
 using System.Collections;
 
 public class LogoSceneScript : MonoBehaviour
 {
     [Header("Canvas Referansları")]
-    public Canvas introCanvas;        // İlk goofy logonun olduğu Canvas
-    public Canvas mainCanvas;         // Asıl oyun logosunun olduğu Canvas
+    public Canvas introCanvas;        
+    public Canvas mainCanvas;         
 
-    [Header("Görsel Elemanlar (Hierarchy'deki Objelere Göre)")]
-    public RectTransform bananaTransform; // 'IntroCanvas' içindeki muz Image objesinin RectTransform'u
-    public Transform explosionObject; // Hierarchy'deki 'ExplosionImage' objesinin Transform'u
+    [Header("Görsel Elemanlar")]
+    public RectTransform bananaTransform; 
+    public Transform explosionObject; 
 
     [Header("Ses ve Müzik")]
-    public AudioSource sfxSource;
-    public AudioSource musicSource;
+    public AudioSource sfxSource;   // Koşma ve Patlama sesleri için
+    public AudioSource musicSource; // Asıl logonun müziği için
     public AudioClip goofyRunSound;
     public AudioClip explosionSound;
 
     [Header("Ayarlar")]
-    public float rotationSpeed = 1500f; // Muzun dönme hızı
-    public float explosionScaleUpDuration = 0.2f; // Patlamanın büyüme süresi
-    public float explosionScaleDownDuration = 0.3f; // Patlamanın küçülme ve yok olma süresi
-    public float maxExplosionScale = 5.0f; // Patlamanın ulaşacağı maksimum büyüklük
-    public float mainLogoDisplayTime = 2f; // Asıl logo ekranda kaç sn duracak?
+    public float rotationSpeed = 1500f; 
+    public float explosionScaleUpDuration = 0.2f; 
+    public float explosionScaleDownDuration = 0.3f; 
+    public float maxExplosionScale = 5.0f; 
 
     private bool isRotating = false;
 
     void Start()
     {
-        // Başlangıç kurulumu: Sadece intro canvas açık
+        // Başlangıç kurulumu
         if (introCanvas != null) introCanvas.enabled = true;
         if (mainCanvas != null) mainCanvas.enabled = false;
         
-        // Patlama objesini başlangıçta gizle ve scale'ini 0 yap
         if (explosionObject != null)
         {
             explosionObject.gameObject.SetActive(false);
@@ -54,10 +52,9 @@ public class LogoSceneScript : MonoBehaviour
 
     IEnumerator SplashSequence()
     {
-        // 1. Ekranın açılmasını bekle
         yield return new WaitForSeconds(0.5f);
 
-        // 2. MUZUN DÖNME VE KOŞMA SESİ AŞAMASI
+        // 1. MUZUN DÖNME VE KOŞMA SESİ
         if (goofyRunSound != null)
         {
             isRotating = true;
@@ -65,38 +62,48 @@ public class LogoSceneScript : MonoBehaviour
             yield return new WaitForSeconds(goofyRunSound.length);
         }
 
-        // 3. PATLAMA VE LOGO REVEAL AŞAMASI
+        // 2. PATLAMA BAŞLANGICI
         isRotating = false;
-        
-        // Patlama başlayınca muz objesini gizle
         if (bananaTransform != null) bananaTransform.gameObject.SetActive(false); 
 
         if (explosionObject != null)
         {
-            // Patlama objesini göster ve sesi çal
             explosionObject.gameObject.SetActive(true);
             if (explosionSound != null) sfxSource.PlayOneShot(explosionSound);
 
-            // a. Patlamayı hızla büyüt
+            // Patlama en büyük haline gelirken büyüme başlar
             yield return StartCoroutine(ScaleObject(explosionObject, Vector3.zero, Vector3.one * maxExplosionScale, explosionScaleUpDuration));
             
-            // b. TAM PATLAMA BÜYÜDÜĞÜNDE: CANVAS DEĞİŞİMİ
+            // 3. LOGO EKRANI GELDİĞİ AN (TAM PATLAMA ANI)
             if (introCanvas != null) introCanvas.enabled = false;
             if (mainCanvas != null) mainCanvas.enabled = true;
             
-            // c. Müziği başlat
+            // "Müzik 0.2 saniye daha çalıp duracak"
+            // Burada patlama sesinin kuyruğu veya SFX kanalındaki ses 0.2 saniye daha çalar
+            yield return new WaitForSeconds(0.2f);
+            sfxSource.Stop(); // Önceki tüm goofy sesleri ve patlama kuyruğunu aniden keser
+
+            // "Logonun kendi müziği çalmaya başlayacak"
             if (musicSource != null) musicSource.Play();
 
-            // d. Patlamayı küçültüp yok et
+            // Patlamayı küçültüp yok et (Görsel temizlik)
             yield return StartCoroutine(ScaleObject(explosionObject, Vector3.one * maxExplosionScale, Vector3.zero, explosionScaleDownDuration));
-            
-            explosionObject.gameObject.SetActive(false); // Patlamayı temizle
+            explosionObject.gameObject.SetActive(false); 
         }
 
-        // 4. ASIL LOGO EKRANDA DURMA SÜRESİ
-        yield return new WaitForSeconds(mainLogoDisplayTime);
+        // 4. MÜZİK BİTİNCE SAHNE DEĞİŞECEK
+        if (musicSource != null && musicSource.clip != null)
+        {
+            // Müzik çalmaya devam ettiği sürece burada bekle (Goofy müzik bitene kadar)
+            yield return new WaitWhile(() => musicSource.isPlaying);
+        }
+        else
+        {
+            // Eğer müzik yoksa güvenlik amacıyla 1 saniye bekle
+            yield return new WaitForSeconds(1f);
+        }
 
-        // 5. SAHNE GEÇİŞİ (Build index + 1)
+        // 5. OTOMATİK SONRAKİ SAHNEYE GEÇİŞ (Build index + 1)
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
         
         if (ScreenFader.instance != null)
@@ -111,7 +118,6 @@ public class LogoSceneScript : MonoBehaviour
         }
     }
 
-    // Objeyi belirli bir sürede scale etmek için yardımcı coroutine
     IEnumerator ScaleObject(Transform target, Vector3 startScale, Vector3 endScale, float duration)
     {
         float elapsed = 0f;
