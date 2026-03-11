@@ -71,7 +71,8 @@ public class SpawnerBossAI : MonoBehaviour
     {
         isTransitioning = true; 
         yield return new WaitForSeconds(0.5f); 
-        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 4);
+        // Normal bölümle aynı formul
+        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
         yield return StartCoroutine(SummonMinions(desiredMinionCount));
         isTransitioning = false; 
     }
@@ -223,6 +224,8 @@ public class SpawnerBossAI : MonoBehaviour
 
     private void TriggerHitSpawn()
     {
+        if (isTransitioning) return; // Totem öldüğü sırada spawn yapma
+        
         summonedMinions.RemoveAll(m => m == null || m.health.currentHP <= 0);
         int currentMinions = summonedMinions.Count;
         int toSpawn = 0;
@@ -379,7 +382,7 @@ public class SpawnerBossAI : MonoBehaviour
         // Harita üstünde homojen totem dağılması
         List<Vector3Int> spawnedThisRound = new List<Vector3Int>();
         int radius = arenaRadius;
-        int maxAttempts = countToSummon * 10; // Çok attempt yapma
+        int maxAttempts = Mathf.Max(50, countToSummon * 20); // Spawn başarısını artır
         int attempts = 0;
 
         while (spawnedThisRound.Count < countToSummon && attempts < maxAttempts)
@@ -396,15 +399,15 @@ public class SpawnerBossAI : MonoBehaviour
             // Geçerli konum mu?
             if (!groundMap.HasTile(cell) || 
                 occupiedCells.Contains(cell) || 
-                myEnemyAI.Distance(cell, playerCell) < 3f ||
+                myEnemyAI.Distance(cell, playerCell) < 2f ||  // 3'ten 2'ye indirdik (az daha yakın olabilir)
                 LevelGenerator.instance.hazardCells.Contains(cell))
                 continue;
 
-            // Diğer bu turda spawn'lanan totems'ten min 4 mesafe?
+            // Diğer bu turda spawn'lanan minions'tan min 2 mesafe?
             bool tooCloseToSpawned = false;
             foreach (var spawnedCell in spawnedThisRound)
             {
-                if (myEnemyAI.Distance(cell, spawnedCell) < 4f)
+                if (myEnemyAI.Distance(cell, spawnedCell) < 2f)
                 {
                     tooCloseToSpawned = true;
                     break;
@@ -420,12 +423,22 @@ public class SpawnerBossAI : MonoBehaviour
             EnemyAI minionAI = minionObj.GetComponent<EnemyAI>();
             minionAI.groundMap = this.groundMap;
 
-            int minionHP = Mathf.RoundToInt(myEnemyAI.health.maxHP * 0.7f); 
+            // Normal bölümdeki gibi random HP hesabı
+            float randomMultiplier = Random.Range(0.8f, 1.25f);
+            if (Random.value < 0.10f)  // %10 ELITE chance
+            {
+                randomMultiplier *= 2.0f;
+                minionObj.name = "ELITE " + minionObj.name;
+            }
+
+            // Boss minionları boss HP'sinin %70'i kadar güçlü olsun (daha zor olsun diye)
+            int minionHP = Mathf.RoundToInt(myEnemyAI.health.maxHP * 0.7f * randomMultiplier);
             minionAI.health.maxHP = Mathf.Max(1, minionHP);
             minionAI.health.currentHP = minionAI.health.maxHP;
             minionAI.health.updateHealth();
 
             summonedMinions.Add(minionAI);
+            spawnedThisRound.Add(cell);  // ÖNEMLİ: Loop için count'ı güncelle
             StartCoroutine(minionAI.FadeSpawnCoroutine());
         }
 
@@ -461,18 +474,36 @@ public class SpawnerBossAI : MonoBehaviour
 
         yield return new WaitForSeconds(0.45f);
 
+        // Normal bölüm sayısı hesapla
+        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
+        int countToSpawn = 0;
+
         if (activeTotems <= 0)
         {
+            // Tüm totemler kırılınca: normal sayı kadar spawn et
             isShielded = false;
             StartCoroutine(ShatterShieldVisual());
             previousHP = myEnemyAI.health.currentHP;
-
-            yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
+            countToSpawn = desiredMinionCount;
         }
         else
         {
-            yield return StartCoroutine(SummonMinions(2 + (RunManager.instance.currentLevel / 4)));
+            // Hala totemler varsa: sayıyı tamamla veya sadece 1 daha spawn et
+            int currentMinionCount = summonedMinions.Count(m => m != null && m.health.currentHP > 0);
+            
+            if (currentMinionCount < desiredMinionCount)
+            {
+                // Tamamla
+                countToSpawn = desiredMinionCount - currentMinionCount;
+            }
+            else
+            {
+                // Sadece 1 tane daha
+                countToSpawn = 1;
+            }
         }
+
+        yield return StartCoroutine(SummonMinions(countToSpawn));
 
         isTransitioning = false;
         totemSequenceRunning = false;
