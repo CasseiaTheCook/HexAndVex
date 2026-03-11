@@ -5,7 +5,7 @@ using TMPro;
 
 public static class StatsPanelSetupTool
 {
-    const string FONT_PATH = "Assets/Star Crush SDF.asset";
+    // Font path UIStyle.FONT_PATH'ten geliyor
 
     // ─────────────────────────────────────────────────────────────────────────
     // DEATH SCREEN
@@ -17,8 +17,8 @@ public static class StatsPanelSetupTool
         if (pauseManager == null) { Debug.LogError("PauseManager bulunamadı!"); return; }
         if (pauseManager.deathMenuUI == null) { Debug.LogError("PauseManager.deathMenuUI atanmamış!"); return; }
 
-        var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FONT_PATH);
-        if (font == null) Debug.LogWarning($"Star Crush SDF bulunamadı: {FONT_PATH}");
+        var font = UIStyle.LoadFont();
+        if (font == null) Debug.LogWarning($"Star Crush SDF bulunamadı: {UIStyle.FONT_PATH}");
 
         GameObject deathPanel = pauseManager.deathMenuUI;
 
@@ -44,10 +44,10 @@ public static class StatsPanelSetupTool
 
         // ── Stats paneli ──────────────────────────────────────────────────
         var statsPanel = CreatePanel(deathPanel.transform, "StatsPanel",
-            new Vector2(480, 440), new Vector2(0, 20));
+            new Vector2(UIStyle.StatsPanelWidthDeath, UIStyle.StatsPanelHeightDeath), new Vector2(0, 20));
         var panelBg = statsPanel.GetComponent<Image>();
-        panelBg.color = new Color(0f, 0f, 0f, 1f);
-        AddOutline(statsPanel, new Color(0f, 0.020f, 0.047f, 1f));
+        panelBg.color = UIStyle.BgPanel;
+        UIStyle.AddOutline(statsPanel);
 
         // Stat satırları
         var rowsContainer = CreateEmptyRect(statsPanel.transform, "StatRows",
@@ -134,11 +134,11 @@ public static class StatsPanelSetupTool
         btnRt.anchorMax = new Vector2(0.5f, 0f);
         btnRt.pivot = new Vector2(0.5f, 0f);
         btnRt.anchoredPosition = new Vector2(0, 20);
-        btnRt.sizeDelta = new Vector2(260, 48);
+        btnRt.sizeDelta = new Vector2(UIStyle.MainMenuBtnWidth, UIStyle.MainMenuBtnHeight);
 
         var btnImg = btnObj.GetComponent<Image>();
-        btnImg.color = new Color(0f, 0f, 0f, 1f);
-        AddOutline(btnObj, new Color(0f, 0.020f, 0.047f, 1f));
+        btnImg.color = UIStyle.BgPanel;
+        UIStyle.AddOutline(btnObj);
 
         var btnLabel = CreateTMP(btnObj.transform, "Label", "MAIN MENU", font, 20, Color.white);
         var blRt = btnLabel.GetComponent<RectTransform>();
@@ -166,8 +166,8 @@ public static class StatsPanelSetupTool
         if (pauseManager == null) { Debug.LogError("PauseManager bulunamadı!"); return; }
         if (pauseManager.pauseMenuUI == null) { Debug.LogError("PauseManager.pauseMenuUI atanmamış!"); return; }
 
-        var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FONT_PATH);
-        if (font == null) Debug.LogWarning($"Star Crush SDF bulunamadı: {FONT_PATH}");
+        var font = UIStyle.LoadFont();
+        if (font == null) Debug.LogWarning($"Star Crush SDF bulunamadı: {UIStyle.FONT_PATH}");
 
         GameObject pausePanel = pauseManager.pauseMenuUI;
 
@@ -180,10 +180,10 @@ public static class StatsPanelSetupTool
 
         // ── Stats paneli ──────────────────────────────────────────────────
         var statsPanel = CreatePanel(pausePanel.transform, "StatsPanel",
-            new Vector2(480, 520), new Vector2(0, -30));
+            new Vector2(UIStyle.StatsPanelWidthPause, UIStyle.StatsPanelHeightPause), new Vector2(0, -30));
         var bg = statsPanel.GetComponent<Image>();
-        bg.color = new Color(0f, 0f, 0f, 1f);
-        AddOutline(statsPanel, new Color(0f, 0.020f, 0.047f, 1f));
+        bg.color = UIStyle.BgPanel;
+        UIStyle.AddOutline(statsPanel);
 
         // Başlık
         var title = CreateTMP(statsPanel.transform, "Title", "— STATS —", font, 26, Color.white);
@@ -337,8 +337,8 @@ public static class StatsPanelSetupTool
         rt.anchoredPosition = pos; rt.sizeDelta = size;
 
         var img = go.GetComponent<Image>();
-        img.color = new Color(0f, 0f, 0f, 1f);
-        AddOutline(go, new Color(0f, 0.020f, 0.047f, 1f));
+        img.color = UIStyle.BgPanel;
+        UIStyle.AddOutline(go);
 
         var btn = go.GetComponent<Button>();
         btn.targetGraphic = img;
@@ -404,10 +404,5 @@ public static class StatsPanelSetupTool
         rt.anchoredPosition = pos; rt.sizeDelta = size;
     }
 
-    static void AddOutline(GameObject go, Color color)
-    {
-        var outline = go.AddComponent<Outline>();
-        outline.effectColor = color;
-        outline.effectDistance = new Vector2(1.5f, -1.5f);
-    }
+    // AddOutline artık UIStyle.AddOutline() kullanıyor — bu metod kaldırıldı
 }
