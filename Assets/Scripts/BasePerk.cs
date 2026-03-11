@@ -43,6 +43,9 @@ public abstract class BasePerk : MonoBehaviour
     // Düşman öldüğünde çalışır
     public virtual void OnEnemyKilled(EnemyAI enemy) { if (isDisabled) return; }
 
+    // Shop reroll yapıldığında çalışır
+    public virtual void OnShopReroll() { if (isDisabled) return; }
+
     // ======================================================
     // İŞTE YENİ EKLENEN KISIM BURASI KANKA:
     // Ancient Blessing bu komutu çağıracak. Diğer perkler de bu komutu alınca ne yapacaklarını bilecek.

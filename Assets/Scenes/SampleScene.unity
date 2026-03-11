@@ -4790,9 +4790,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 18b48bb0e17c08c43995c00a542f6de4, type: 2}
   - {fileID: 11400000, guid: cb518e6b0f8fefc4389b15930865c72b, type: 2}
   - {fileID: 11400000, guid: 9716d47d8c031c94fb498ea4bf1b366c, type: 2}
-  - {fileID: 11400000, guid: b5e9a3c7d1f8264e0a9b3d5f7c1e4a68, type: 2}
+  - {fileID: 0}
   secretItem: {fileID: 0}
-  secretItemChance: 1
+  secretItemChance: 0.01
   shopSlotContainer: {fileID: 1400458065}
   shopSlotPrefab: {fileID: 8164334485540262811, guid: 22dde9155aaf3554f9955e1432f107fd, type: 3}
   shopSlotCount: 3
@@ -15103,7 +15103,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13fa172d778447a4e955bdcf5f1d544b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  faderGroup: {fileID: 1953228747}
+  faderGroup: {fileID: 0}
   fadeDuration: 0.5
 --- !u!225 &1953228747
 CanvasGroup:

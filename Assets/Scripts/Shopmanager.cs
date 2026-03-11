@@ -114,6 +114,15 @@ public class Shopmanager : MonoBehaviour
 
         GenerateShopItems();
         RefreshCoinDisplay();
+
+        // Tüm aktif perklerin OnShopReroll callback'ini çağır
+        if (RunManager.instance != null)
+        {
+            foreach (var perk in RunManager.instance.activePerks)
+            {
+                if (perk != null) perk.OnShopReroll();
+            }
+        }
     }
 
     public void GenerateShopItems()
