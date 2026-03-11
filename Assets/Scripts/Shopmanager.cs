@@ -52,10 +52,30 @@ public class Shopmanager : MonoBehaviour
             hlg.spacing = 8;
             hlg.padding = new RectOffset(4, 4, 4, 4);
             hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.childControlWidth = true;
+            hlg.childControlWidth = false;
             hlg.childControlHeight = true;
-            hlg.childForceExpandWidth = true;
+            hlg.childForceExpandWidth = false;
             hlg.childForceExpandHeight = false;
+
+            // SlotRow kendi içeriğine göre genişlesin
+            var slotRowCSF = shopSlotContainer.GetComponent<ContentSizeFitter>();
+            if (slotRowCSF == null) slotRowCSF = shopSlotContainer.gameObject.AddComponent<ContentSizeFitter>();
+            slotRowCSF.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            slotRowCSF.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+            // ShopPanel (parent) da genişlesin
+            Transform shopPanel = shopSlotContainer.parent;
+            if (shopPanel != null)
+            {
+                var panelCSF = shopPanel.GetComponent<ContentSizeFitter>();
+                if (panelCSF == null) panelCSF = shopPanel.gameObject.AddComponent<ContentSizeFitter>();
+                panelCSF.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+                panelCSF.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+                var panelVLG = shopPanel.GetComponent<VerticalLayoutGroup>();
+                if (panelVLG != null)
+                    panelVLG.childControlWidth = true;
+            }
         }
 
         if (rerollButton != null)
@@ -163,8 +183,9 @@ public class Shopmanager : MonoBehaviour
 
             var le = slotGO.GetComponent<LayoutElement>();
             if (le == null) le = slotGO.AddComponent<LayoutElement>();
+            le.preferredWidth = 65f;
             le.preferredHeight = 65f;
-            le.flexibleWidth = 1f;
+            le.flexibleWidth = 0f;
             le.flexibleHeight = 0f;
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
@@ -185,8 +206,9 @@ public class Shopmanager : MonoBehaviour
 
             var le = slotGO.GetComponent<LayoutElement>();
             if (le == null) le = slotGO.AddComponent<LayoutElement>();
+            le.preferredWidth = 65f;
             le.preferredHeight = 65f;
-            le.flexibleWidth = 1f;
+            le.flexibleWidth = 0f;
             le.flexibleHeight = 0f;
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
@@ -384,8 +406,9 @@ public class Shopmanager : MonoBehaviour
 
         var le = slotGO.GetComponent<LayoutElement>();
         if (le == null) le = slotGO.AddComponent<LayoutElement>();
+        le.preferredWidth = 65f;
         le.preferredHeight = 65f;
-        le.flexibleWidth = 1f;
+        le.flexibleWidth = 0f;
         le.flexibleHeight = 0f;
 
         ShopSlot slot = slotGO.GetComponent<ShopSlot>();
