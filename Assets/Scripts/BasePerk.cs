@@ -65,6 +65,7 @@ public abstract class BasePerk : MonoBehaviour
 
     private IEnumerator PopAnimation()
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
         Transform t = transform;
         Vector3 startScale = new Vector3(1.5f, 1.5f, 1.5f);
         Vector3 endScale = Vector3.one;
