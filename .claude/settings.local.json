@@ -3,7 +3,8 @@
     "allow": [
       "Bash(xargs grep:*)",
       "Bash(xargs basename:*)",
-      "Bash(find c:UserskutusDesktopGithubRepoHexAndVexAssets -name 49b0ff9c05cb759bc8723e972c94a3e3* -o -name *.mat)"
+      "Bash(find c:UserskutusDesktopGithubRepoHexAndVexAssets -name 49b0ff9c05cb759bc8723e972c94a3e3* -o -name *.mat)",
+      "Bash(grep -r \"using.*UI\\\\|using.*TextMesh\\\\|Canvas\\\\|Button\" /c/GitHub/HexAndVex/Assets/Scripts/*.cs)"
     ]
   }
 }
