@@ -42,11 +42,9 @@ public abstract class BasePerk : MonoBehaviour
 
     public virtual void Upgrade()
     {
+        if (currentLevel >= maxLevel) return;
         currentLevel++;
         Debug.Log($"{perkName} seviye atladı! Yeni Seviye: {currentLevel}");
-        
-        // İleride yeteneklerine özel Upgrade işlemleri yapmak istersen, 
-        // ReflexFiberPerk gibi alt kodlarda "public override void Upgrade()" diyerek ezeceksin.
     }
     // ======================================================
 

@@ -27,7 +27,8 @@ public class SpawnerBossAI : MonoBehaviour
     private int previousHP; 
 
     private Tilemap groundMap;
-    private Tilemap bossWarningMap; 
+    private Tilemap bossWarningMap;
+    private int arenaRadius;
     
     [Header("BOSS'A ÖZEL UYARI KAROSU (BUNU ATAMALISIN!)")]
     public TileBase warningTile; 
@@ -40,6 +41,7 @@ public class SpawnerBossAI : MonoBehaviour
     {
         myEnemyAI = GetComponent<EnemyAI>();
         groundMap = LevelGenerator.instance.groundMap;
+        arenaRadius = LevelGenerator.instance.baseMapRadius + 2 + (RunManager.instance.currentLevel / 10);
 
         GameObject warnObj = GameObject.Find("BossWarningMap");
         if (warnObj != null) 
@@ -118,7 +120,7 @@ public class SpawnerBossAI : MonoBehaviour
         List<Vector3Int> farCells = new List<Vector3Int>();
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         
-        int radius = LevelGenerator.instance.baseMapRadius + 2;
+        int radius = arenaRadius;
         for (int x = -radius; x <= radius; x++)
         {
             for (int y = -radius; y <= radius; y++)
@@ -226,7 +228,7 @@ public class SpawnerBossAI : MonoBehaviour
         isAoEWarningActive = true;
         aoeWarningCells.Clear();
 
-        int radius = LevelGenerator.instance.baseMapRadius + 2;
+        int radius = arenaRadius;
         for (int x = -radius; x <= radius; x++)
         {
             for (int y = -radius; y <= radius; y++)
@@ -318,7 +320,21 @@ public class SpawnerBossAI : MonoBehaviour
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         if (cellsToExplode.Contains(playerCell))
         {
-            TurnManager.instance.player.health.TakeDamage(2);
+            bool dodged = Random.value < RunManager.instance.dodgeChance;
+            if (dodged)
+            {
+                if (TurnManager.instance.dodgeEffectPrefab != null)
+                    Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
+            }
+            else if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
+            else
+            {
+                TurnManager.instance.player.health.TakeDamage(2);
+            }
         }
 
         foreach (var c in cellsToExplode)
@@ -340,7 +356,7 @@ public class SpawnerBossAI : MonoBehaviour
         List<Vector3Int> availableCells = new List<Vector3Int>();
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
 
-        int radius = LevelGenerator.instance.baseMapRadius + 2;
+        int radius = arenaRadius;
         for (int x = -radius; x <= radius; x++)
         {
             for (int y = -radius; y <= radius; y++)

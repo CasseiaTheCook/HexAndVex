@@ -552,6 +552,38 @@ public class TurnManager : MonoBehaviour
         }
         player.transform.localScale = Vector3.one;
 
+        // Swap sonrası mayın kontrolü: düşman mayının üstüne geldiyse hemen patlat
+        if (activeMineCell.y != -999 && target.GetCurrentCellPosition() == activeMineCell)
+        {
+            yield return new WaitForSeconds(0.1f);
+            var phantomPerk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
+            float mineDamagePercent = phantomPerk != null ? phantomPerk.currentLevel * 0.25f : 0.25f;
+            TriggerExplosion(activeMineCell, mineDamagePercent);
+
+            if (target != null && target.health.currentHP > 0)
+                target.ApplyStun(2, true);
+
+            if (activeMineObj != null) Destroy(activeMineObj);
+            activeMineCell = new Vector3Int(-999, -999, -999);
+
+            List<EnemyAI> mineKills = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+            foreach (var deadEnemy in mineKills)
+            {
+                if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+                {
+                    int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                    if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                    RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
+                    if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                }
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+            }
+            enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
+            UpdateCoinUI();
+
+            if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
+        }
+
         // Highlight ve ok'ları yeni konuma göre güncelle
         player.UpdateHighlights();
         LockAllEnemyIntents();
@@ -810,6 +842,20 @@ public class TurnManager : MonoBehaviour
                 if (activeMineObj != null) Destroy(activeMineObj);
                 activeMineCell = new Vector3Int(-999, -999, -999);
 
+                // Mayınla ölen düşmanlar için coin drop ve perk callback
+                List<EnemyAI> mineKills = enemies.FindAll(e => e != null && e.health.currentHP <= 0);
+                foreach (var deadEnemy in mineKills)
+                {
+                    if (deadEnemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
+                    {
+                        int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
+                        if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
+                        RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
+                        if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
+                    }
+                    foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+                }
+
                 enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
                 UpdateCoinUI();
 
@@ -817,6 +863,7 @@ public class TurnManager : MonoBehaviour
                 {
                     ClearWarningMap();
                     StartCoroutine(WaitAndTriggerLevelClear());
+                    yield break;
                 }
                 else
                 {
@@ -846,14 +893,19 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
+        // Melee saldırılar AoE'den önce: pozisyon değiştirdiği için önemli
+        if (readyToMeleeAttack.Count > 0)
+        {
+            yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
+        }
+
         if (readyToAoEAttack.Count > 0)
         {
             foreach (var aoeEnemy in readyToAoEAttack) yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
             yield return new WaitForSeconds(0.2f);
         }
 
-        if (readyToMeleeAttack.Count > 0) yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
-        else EndTurnAndDecreaseStuns();
+        EndTurnAndDecreaseStuns();
     }
 
     public void HideAllEnemyIntents() { foreach (var e in enemies) if (e != null) e.SetArrowVisibility(false); }
@@ -1004,7 +1056,8 @@ public class TurnManager : MonoBehaviour
             if (voodooPerk != null && enemies.Count > 1)
             {
                 // Hayatta olanları candan (büyükten küçüğe) sıralayıp liste haline getir
-                var others = enemies.Where(e => e != null && e != enemy && e.health.currentHP > 0)
+                var others = enemies.Where(e => e != null && e != enemy && e.health.currentHP > 0
+                                            && e.enemyBehavior != EnemyAI.EnemyBehavior.Boss)
                                     .OrderByDescending(e => e.health.currentHP)
                                     .ToList();
 
@@ -1109,6 +1162,23 @@ public class TurnManager : MonoBehaviour
 
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); yield break; }
 
+        // Recoil Spring: oyuncu spike'a düştüyse hasar + geri itme
+        if (didRecoil && LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(player.GetCurrentCellPosition()))
+        {
+            yield return new WaitForSeconds(0.15f);
+            StartCoroutine(FlashHazardTileCoroutine(player.GetCurrentCellPosition()));
+            if (RunManager.instance.hasBioBarrier)
+            {
+                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                RunManager.instance.hasBioBarrier = false;
+            }
+            else PlayerTakeDamage(1);
+
+            Vector3Int safeCell = GetSafeNeighbor(player.GetCurrentCellPosition());
+            player.StartKnockbackMovement(safeCell);
+            yield return new WaitUntil(() => !player.IsMoving());
+        }
+
         if (didRecoil)
         {
             List<EnemyAI> allAdjacent = GetAdjacentEnemies(player.GetCurrentCellPosition());
@@ -1122,7 +1192,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator EnemyAttackCoroutine(List<EnemyAI> attackers)
     {
         attackers.RemoveAll(a => a.skipTurns > 0);
-        if (attackers.Count == 0) { EndTurnAndDecreaseStuns(); yield break; }
+        if (attackers.Count == 0) { yield break; }
 
         yield return new WaitForSeconds(0.2f);
         bool dodged = false;
@@ -1160,8 +1230,6 @@ public class TurnManager : MonoBehaviour
             yield return new WaitUntil(() => !player.IsMoving());
         }
         yield return new WaitForSeconds(0.3f);
-
-        EndTurnAndDecreaseStuns();
     }
 
     private void EndTurnAndDecreaseStuns()
