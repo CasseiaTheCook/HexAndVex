@@ -45,17 +45,20 @@ public class Shopmanager : MonoBehaviour
     {
         currentRerollCost = Mathf.RoundToInt(rerollBaseCost);
 
+        // Layout bileşenlerini kaldır — slotları manuel konumlandıracağız
         if (shopSlotContainer != null)
         {
             var hlg = shopSlotContainer.GetComponent<HorizontalLayoutGroup>();
-            if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 8;
-            hlg.padding = new RectOffset(4, 4, 4, 4);
-            hlg.childAlignment = TextAnchor.MiddleCenter;
-            hlg.childControlWidth = true;
-            hlg.childControlHeight = true;
-            hlg.childForceExpandWidth = true;
-            hlg.childForceExpandHeight = false;
+            if (hlg != null) Destroy(hlg);
+            var csf = shopSlotContainer.GetComponent<ContentSizeFitter>();
+            if (csf != null) Destroy(csf);
+
+            Transform shopPanel = shopSlotContainer.parent;
+            if (shopPanel != null)
+            {
+                var panelCSF = shopPanel.GetComponent<ContentSizeFitter>();
+                if (panelCSF != null) Destroy(panelCSF);
+            }
         }
 
         if (rerollButton != null)
@@ -160,12 +163,7 @@ public class Shopmanager : MonoBehaviour
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
             slotGO.transform.localScale = Vector3.one;
-
-            var le = slotGO.GetComponent<LayoutElement>();
-            if (le == null) le = slotGO.AddComponent<LayoutElement>();
-            le.preferredHeight = 65f;
-            le.flexibleWidth = 1f;
-            le.flexibleHeight = 0f;
+            PositionSlot(slotGO, i);
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
@@ -182,12 +180,7 @@ public class Shopmanager : MonoBehaviour
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
             slotGO.transform.localScale = Vector3.one;
-
-            var le = slotGO.GetComponent<LayoutElement>();
-            if (le == null) le = slotGO.AddComponent<LayoutElement>();
-            le.preferredHeight = 65f;
-            le.flexibleWidth = 1f;
-            le.flexibleHeight = 0f;
+            PositionSlot(slotGO, secretIndex);
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
@@ -350,6 +343,23 @@ public class Shopmanager : MonoBehaviour
         t.color = orig;
     }
     // ==========================================
+    // Manuel slot konumlandırma (Layout kullanmadan)
+    // ==========================================
+    private const float slotSize = 65f;
+    private const float slotSpacing = 8f;
+
+    private void PositionSlot(GameObject slotGO, int index)
+    {
+        RectTransform rt = slotGO.GetComponent<RectTransform>();
+        if (rt == null) return;
+        rt.anchorMin = new Vector2(0f, 0.5f);
+        rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.sizeDelta = new Vector2(slotSize, slotSize);
+        rt.anchoredPosition = new Vector2(index * (slotSize + slotSpacing), 0f);
+    }
+
+    // ==========================================
     // YENİ: DÜKKANI SİLMEDEN SADECE 1 YENİ SLOT EKLER (Deep Pockets İçin)
     // ==========================================
     public void AddSingleExtraSlot()
@@ -381,12 +391,7 @@ public class Shopmanager : MonoBehaviour
         // 3. Yeni slotu UI'da yarat ve listeye ekle
         GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
         slotGO.transform.localScale = Vector3.one;
-
-        var le = slotGO.GetComponent<LayoutElement>();
-        if (le == null) le = slotGO.AddComponent<LayoutElement>();
-        le.preferredHeight = 65f;
-        le.flexibleWidth = 1f;
-        le.flexibleHeight = 0f;
+        PositionSlot(slotGO, spawnedSlots.Count);
 
         ShopSlot slot = slotGO.GetComponent<ShopSlot>();
 

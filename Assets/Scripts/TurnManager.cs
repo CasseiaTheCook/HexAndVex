@@ -1752,7 +1752,8 @@ public void ResetGame()
         for (int i = 0; i < rolls.Count; i++)
         {
             if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
-            dieImages[i].sprite = diceSprites[rolls[i] - 1];
+            int spriteIdx = Mathf.Clamp(rolls[i] - 1, 0, diceSprites.Length - 1);
+            dieImages[i].sprite = diceSprites[spriteIdx];
             dieTexts[i].text = rolls[i].ToString();
             if (!skipDiceAnim) StartCoroutine(TextFadeInAndPopDelayed(dieTexts[i], i * 0.08f));
             else { Color tc = dieTexts[i].color; tc.a = 1f; dieTexts[i].color = tc; dieTexts[i].transform.localScale = Vector3.one; }
