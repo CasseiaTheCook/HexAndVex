@@ -858,6 +858,19 @@ public class TurnManager : MonoBehaviour
             if (e == null) continue;
             int explosionDamage = Mathf.Max(1, Mathf.RoundToInt(e.health.maxHP * damagePercent));
             e.health.TakeDamage(explosionDamage);
+            
+            // Patlama sonrası alpha'yı hemen reset et (stun alpha kalmasın)
+            // Neighborler isDeepStunnedAlpha false olduğundan SetStunnedAlpha(false) çalışmayabilir
+            // Bu yüzden sprite rengini direkt ayarla
+            if (e.health.currentHP > 0)
+            {
+                SpriteRenderer sr = e.GetComponentInChildren<SpriteRenderer>();
+                if (sr != null)
+                {
+                    Color c = sr.color;
+                    sr.color = new Color(c.r, c.g, c.b, 1f);
+                }
+            }
         }
 
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -1047,36 +1060,50 @@ public class TurnManager : MonoBehaviour
             }
         }
 
+        // Warlock saldırı 1 (artı paterni) - PARALLEL
+        if (readyWarlockAttack1.Count > 0)
+        {
+            List<Coroutine> attack1Coroutines = new List<Coroutine>();
+            foreach (var warlock in readyWarlockAttack1) attack1Coroutines.Add(StartCoroutine(warlock.ExecuteAttack1()));
+            foreach (var coroutine in attack1Coroutines) yield return coroutine;
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 2 (çapraz paterni) - PARALLEL
+        if (readyWarlockAttack2.Count > 0)
+        {
+            List<Coroutine> attack2Coroutines = new List<Coroutine>();
+            foreach (var warlock in readyWarlockAttack2) attack2Coroutines.Add(StartCoroutine(warlock.ExecuteAttack2()));
+            foreach (var coroutine in attack2Coroutines) yield return coroutine;
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Melee saldırılar
+        if (readyToMeleeAttack.Count > 0)
+        {
+            yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
+        }
+
+        // Boss saldırısı (melee sonra)
         if (readyToBossAttack.Count > 0)
         {
             foreach (var boss in readyToBossAttack) yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
             yield return new WaitForSeconds(0.2f);
         }
 
-        // Warlock saldırı 1 (artı paterni)
-        if (readyWarlockAttack1.Count > 0)
-        {
-            foreach (var warlock in readyWarlockAttack1) yield return StartCoroutine(warlock.ExecuteAttack1());
-            yield return new WaitForSeconds(0.2f);
-        }
-
-        // Warlock saldırı 2 (çapraz paterni)
-        if (readyWarlockAttack2.Count > 0)
-        {
-            foreach (var warlock in readyWarlockAttack2) yield return StartCoroutine(warlock.ExecuteAttack2());
-            yield return new WaitForSeconds(0.2f);
-        }
-
-        // Melee saldırılar AoE'den önce: pozisyon değiştirdiği için önemli
-        if (readyToMeleeAttack.Count > 0)
-        {
-            yield return StartCoroutine(EnemyAttackCoroutine(readyToMeleeAttack));
-        }
-
+        // AoE saldırılar EN SON - PARALLEL
         if (readyToAoEAttack.Count > 0)
         {
-            foreach (var aoeEnemy in readyToAoEAttack) yield return StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player));
+            List<Coroutine> aoeCoroutines = new List<Coroutine>();
+            foreach (var aoeEnemy in readyToAoEAttack) aoeCoroutines.Add(StartCoroutine(aoeEnemy.ExecuteAoEAttackCoroutine(player)));
+            foreach (var coroutine in aoeCoroutines) yield return coroutine;
             yield return new WaitForSeconds(0.2f);
+        }
+
+        // Emniyet: Eğer readyToExplodeThisTurn bu turda execute edilmedi ise, bir sonraki turda sorun olmasın diye sıfırla
+        if (readyToBossAttack.Count == 0 && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn)
+        {
+            SpawnerBossAI.instance.readyToExplodeThisTurn = false;
         }
 
         EndTurnAndDecreaseStuns();

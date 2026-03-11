@@ -252,6 +252,30 @@ public class WarlockEnemyAI : MonoBehaviour
             
             yield return new WaitForSeconds(0.1f);
 
+            // DAMAGE VERMEK: Visual başladığında HEMEN ver (fade başlamadan)
+            Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
+            if (cells.Contains(playerCell))
+            {
+                bool dodged = false;
+                if (RunManager.instance != null) dodged = Random.value < RunManager.instance.dodgeChance;
+
+                if (dodged)
+                {
+                    if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
+                        Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
+                }
+                else if (RunManager.instance.hasBioBarrier)
+                {
+                    foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
+                    RunManager.instance.hasBioBarrier = false;
+                }
+                else TurnManager.instance.player.health.TakeDamage(attackDamage);
+
+                Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(playerCell, myEnemyAI.GetCurrentCellPosition());
+                TurnManager.instance.player.StartKnockbackMovement(pushTarget);
+                yield return new WaitUntil(() => !TurnManager.instance.player.IsMoving());
+            }
+
             float fadeDur = 0.4f; float elapsed = 0f;
             Color endFadeColor = new Color(flashColor.r, flashColor.g, flashColor.b, 0f);
 
@@ -262,29 +286,6 @@ public class WarlockEnemyAI : MonoBehaviour
                 foreach (var c in cells) if (myPersonalMap.HasTile(c)) myPersonalMap.SetColor(c, current);
                 yield return null;
             }
-        }
-
-        Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
-        if (cells.Contains(playerCell))
-        {
-            bool dodged = false;
-            if (RunManager.instance != null) dodged = Random.value < RunManager.instance.dodgeChance;
-
-            if (dodged)
-            {
-                if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
-                    Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
-            }
-            else if (RunManager.instance.hasBioBarrier)
-            {
-                foreach (var perk in RunManager.instance.activePerks) if (perk is BioBarrierPerk aegis) { aegis.BreakShield(); break; }
-                RunManager.instance.hasBioBarrier = false;
-            }
-            else TurnManager.instance.player.health.TakeDamage(attackDamage);
-
-            Vector3Int pushTarget = TurnManager.instance.GetOppositeCell(playerCell, myEnemyAI.GetCurrentCellPosition());
-            TurnManager.instance.player.StartKnockbackMovement(pushTarget);
-            yield return new WaitUntil(() => !TurnManager.instance.player.IsMoving());
         }
 
         // Sadece hala aktif warning listesinde olmayan hücreleri temizle
