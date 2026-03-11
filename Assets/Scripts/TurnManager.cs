@@ -240,7 +240,8 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.surgeBootActive = false;
             RunManager.instance.surgeBootNextTurn = false;
         }
-        player.UpdateHighlights(); LockAllEnemyIntents();
+        player.UpdateHighlights();
+        StartCoroutine(LockIntentsNextFrame());
     }
 
     // ========================================================
@@ -267,6 +268,10 @@ public class TurnManager : MonoBehaviour
     {
         GameObject warningMapObj = GameObject.Find("WarningMap");
         if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
+
+        // Warlock uyarı haritasını da temizle
+        GameObject warlockWarnObj = GameObject.Find("WarlockWarningMap");
+        if (warlockWarnObj != null) warlockWarnObj.GetComponent<Tilemap>().ClearAllTiles();
 
         if (activeMineObj != null) Destroy(activeMineObj);
         activeMineCell = new Vector3Int(-999, -999, -999);
@@ -470,7 +475,7 @@ public class TurnManager : MonoBehaviour
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
             }
         }
 
@@ -656,6 +661,13 @@ public class TurnManager : MonoBehaviour
         if (player == null || player.health.currentHP <= 0) return;
         Vector3Int pCell = player.GetCurrentCellPosition();
         foreach (var e in enemies) if (e != null) { bool isStunned = e.skipTurns > 0; e.LockNextMove(pCell, isStunned); }
+    }
+
+    private IEnumerator LockIntentsNextFrame()
+    {
+        yield return new WaitForSeconds(0.35f);
+        LockAllEnemyIntents();
+        ShowAllEnemyIntents();
     }
 
     public void PlayerFinishedMove(Vector3Int playerCell)
@@ -893,6 +905,8 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> readyToBossAttack = new List<EnemyAI>();
         List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
         List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
+        List<WarlockEnemyAI> readyWarlockAttack1 = new List<WarlockEnemyAI>();
+        List<WarlockEnemyAI> readyWarlockAttack2 = new List<WarlockEnemyAI>();
 
         foreach (var e in enemies)
         {
@@ -901,12 +915,35 @@ public class TurnManager : MonoBehaviour
                 if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) readyToBossAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) readyToAoEAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) readyToMeleeAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Warlock)
+                {
+                    WarlockEnemyAI warlock = e.GetComponent<WarlockEnemyAI>();
+                    if (warlock != null)
+                    {
+                        if (warlock.IsReadyToExplodeAttack1()) readyWarlockAttack1.Add(warlock);
+                        if (warlock.IsReadyToExplodeAttack2()) readyWarlockAttack2.Add(warlock);
+                    }
+                }
             }
         }
 
         if (readyToBossAttack.Count > 0)
         {
             foreach (var boss in readyToBossAttack) yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 1 (artı paterni)
+        if (readyWarlockAttack1.Count > 0)
+        {
+            foreach (var warlock in readyWarlockAttack1) yield return StartCoroutine(warlock.ExecuteAttack1());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 2 (çapraz paterni)
+        if (readyWarlockAttack2.Count > 0)
+        {
+            foreach (var warlock in readyWarlockAttack2) yield return StartCoroutine(warlock.ExecuteAttack2());
             yield return new WaitForSeconds(0.2f);
         }
 
@@ -980,6 +1017,7 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
+        if (PerkListUI.instance != null) PerkListUI.instance.ForceOpen();
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.5f);
@@ -1020,9 +1058,11 @@ public class TurnManager : MonoBehaviour
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
             }
         }
+
+        if (PerkListUI.instance != null) PerkListUI.instance.ForceClose();
 
         if (Random.value < RunManager.instance.criticalChance)
         {

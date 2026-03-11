@@ -8329,6 +8329,9 @@ MonoBehaviour:
   aoeEnemyPrefab: {fileID: 506802351436183914, guid: 588d8cef8891f034fbe90850575934da, type: 3}
   bossPrefab: {fileID: 506802351436183914, guid: 97c61cbaf2582b640b815e709dbb58a8, type: 3}
   totemPrefab: {fileID: 506802351436183914, guid: 6cde806ac5b47d2449caf40fbd008f39, type: 3}
+  warlockEnemyPrefab: {fileID: 506802351436183914, guid: 216abee7f8db59f4181fc42e10839b5d, type: 3}
+  warlockStartLevel: 6
+  warlockSpawnChance: 0.1
   baseMapRadius: 2
   aoeStartLevel: 3
 --- !u!4 &1114187817

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(xargs grep:*)",
       "Bash(xargs basename:*)",
-      "Bash(find c:UserskutusDesktopGithubRepoHexAndVexAssets -name 49b0ff9c05cb759bc8723e972c94a3e3* -o -name *.mat)"
+      "Bash(find c:UserskutusDesktopGithubRepoHexAndVexAssets -name 49b0ff9c05cb759bc8723e972c94a3e3* -o -name *.mat)",
+      "Bash(awk \"NR>=15070 && NR<=15120\")",
+      "Bash(sed -n 15060,15130p c:UserskutusDesktopGithubRepoHexAndVexAssetsScenesSampleScene.unity)"
     ]
   }
 }
