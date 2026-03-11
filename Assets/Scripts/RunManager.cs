@@ -50,6 +50,8 @@ public class RunManager : MonoBehaviour
     public int totalDamageDealt = 0;
     public int totalDamageReceived = 0;
     public int totalTurnsPlayed = 0;
+    public int totalDiceRolled = 0;
+    public int totalGoldEarned = 0;
     void Awake()
     {
         // The legendary Singleton pattern for cross-scene persistence
@@ -92,21 +94,19 @@ public class RunManager : MonoBehaviour
     }
     public string GetStatsSummary()
     {
-        string perksList = "Perks: ";
-        if (activePerks.Count == 0) perksList += "None";
-        else
-        {
-            for (int i = 0; i < activePerks.Count; i++)
-            {
-                perksList += activePerks[i].perkName + (i == activePerks.Count - 1 ? "" : ", ");
-            }
-        }
-
-        return $"Level: {currentLevel}\n" +
-               $"Turns: {totalTurnsPlayed}\n" +
-               $"Kills: {totalEnemiesKilled}\n" +
+        return $"Turns Played: {totalTurnsPlayed}\n" +
+               $"Dice Rolled: {totalDiceRolled}\n" +
                $"Damage Dealt: {totalDamageDealt}\n" +
-               $"Damage Taken: {totalDamageReceived}\n\n" +
-               perksList;
+               $"Enemies Killed: {totalEnemiesKilled}\n" +
+               $"Gold Earned: {totalGoldEarned}";
+    }
+
+    public string GetPerksSummary()
+    {
+        if (activePerks.Count == 0) return "None";
+        var sb = new System.Text.StringBuilder();
+        foreach (var p in activePerks)
+            sb.AppendLine($"{p.perkName}  Lv {p.currentLevel}");
+        return sb.ToString().TrimEnd();
     }
 }

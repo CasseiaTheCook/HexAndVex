@@ -10,18 +10,24 @@ public class PauseManager : MonoBehaviour
     public static bool isPaused = false;
 
     [Header("Stats UI")]
-    public TMP_Text pauseStatsText; // Duraklatma ekranındaki Text
-    public TMP_Text deathStatsText; // Ölme ekranındaki Text
-    public bool selam;
-    
+    public TMP_Text pauseStatsText; // Duraklatma ekranındaki Text (eski, opsiyonel)
+    public TMP_Text deathStatsText; // Ölme ekranındaki Text (eski, opsiyonel)
+    public StatsPanelUI statsPanelUI;       // Pause menüsündeki stats paneli
+    public StatsPanelUI deathStatsPanelUI;  // Ölüm ekranındaki stats paneli
+
+    private bool deathStatsRefreshed = false;
+
     void Update()
     {
         // EĞER ÖLME EKRANI AÇIKSA, ESC TUŞUNU HİÇ DİNLEME!
         if (deathMenuUI != null && deathMenuUI.activeSelf)
         {
-            // Oyuncu yeni öldüyse istatistikleri güncelle
-            if (deathStatsText != null && deathStatsText.text == "")
-                deathStatsText.text = RunManager.instance.GetStatsSummary();
+            if (!deathStatsRefreshed)
+            {
+                if (deathStatsPanelUI != null) deathStatsPanelUI.Refresh();
+                else if (deathStatsText != null) deathStatsText.text = RunManager.instance.GetStatsSummary();
+                deathStatsRefreshed = true;
+            }
             return;
         }
 
@@ -45,8 +51,8 @@ public class PauseManager : MonoBehaviour
     public void Pause()
     {
         pauseMenuUI.SetActive(true);
-        if (pauseStatsText != null)
-            pauseStatsText.text = RunManager.instance.GetStatsSummary(); // Verileri yazdır
+        if (statsPanelUI != null) statsPanelUI.Refresh();
+        else if (pauseStatsText != null) pauseStatsText.text = RunManager.instance.GetStatsSummary();
         Time.timeScale = 0f;
         isPaused = true;
     }

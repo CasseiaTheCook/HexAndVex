@@ -378,7 +378,7 @@ public class TurnManager : MonoBehaviour
         {
             int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
             if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-            RunManager.instance.currentGold += coinDrop;
+            RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
             if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
         }
         foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
@@ -406,6 +406,7 @@ public class TurnManager : MonoBehaviour
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         List<int> rolls = new List<int>();
         for (int i = 0; i < diceCount; i++) rolls.Add(Random.Range(1, 7));
+        if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount;
 
         yield return StartCoroutine(ShowDiceSequence(rolls));
 
@@ -438,7 +439,7 @@ public class TurnManager : MonoBehaviour
                 {
                     int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                     if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                    RunManager.instance.currentGold += coinDrop;
+                    RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
                     if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
                 }
                 foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
@@ -541,6 +542,7 @@ public class TurnManager : MonoBehaviour
         DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
+        if (player != null) player.UpdateHighlights();
     }
 
     public void LockAllEnemyIntents()
@@ -845,6 +847,7 @@ public class TurnManager : MonoBehaviour
         foreach (var p in RunManager.instance.activePerks) if (p is DormantSporePerk ambushPerk) { extraDices += ambushPerk.storedExtraDices; ambushPerk.storedExtraDices = 0; }
         if (RunManager.instance.bonusDiceNextCombat > 0) { extraDices += RunManager.instance.bonusDiceNextCombat; RunManager.instance.bonusDiceNextCombat = 0; }
         for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
+        if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
@@ -1002,7 +1005,7 @@ public class TurnManager : MonoBehaviour
             {
                 int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                 if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                RunManager.instance.currentGold += coinDrop;
+                RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
                 if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
@@ -1035,7 +1038,7 @@ public class TurnManager : MonoBehaviour
             {
                 int coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold;
                 if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; }
-                RunManager.instance.currentGold += coinDrop;
+                RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
                 if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
             foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
