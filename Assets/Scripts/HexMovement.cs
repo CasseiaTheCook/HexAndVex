@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.EventSystems;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -103,6 +104,10 @@ public class HexMovement : MonoBehaviour
 
     private void HandleMovementInput()
     {
+        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1))
+            return;
+
         if (Input.GetMouseButtonDown(0))
         {
             Vector3 worldPoint = GetMousePositionOnZPlane();

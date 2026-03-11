@@ -6,7 +6,7 @@ public class MutationCatalyst : BaseItem
     void OnEnable()
     {
         itemName = "Mutation Catalyst";
-        description = "Reroll all choices on your next perk selection screen";
+        description = "Once acquired, you gain the right to reroll perks on the next perk selection screen.";
         price = 6;
     }
 

@@ -43,6 +43,9 @@ public class RunManager : MonoBehaviour
     [HideInInspector] public bool surgeBootActive = false;
     public bool hasPerkReroll = false; // Bu tur 2 hex hareket edebilir mi?
 
+    [Header("Hız Ayarı")]
+    public bool fastMode = false;
+
     [Header("Legendary Stats")]
     public int extraMovesPerTurn = 0; // Swift Action ile artacak (Normalde 0)
     public int remainingMoves;       // O tur içindeki kalan hamle hakkı

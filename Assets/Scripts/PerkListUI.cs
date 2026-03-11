@@ -15,7 +15,11 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     private CanvasGroup panelCanvasGroup;
     private Coroutine fadeCoroutine;
+    private Coroutine exitDelayCoroutine;
+    private bool isMouseOverPanel = false;
+    private bool isMouseOverButton = false;
     private const float fadeDuration = 0.15f;
+    private const float exitDelay = 0.35f;
     private const float iconSize = 24f;
     private const float rowSpacing = 2f;
 
@@ -39,11 +43,21 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             gameObject.AddComponent<GraphicRaycaster>();
         }
 
+        // Butonun (bu GameObject) raycast algılama alanını genişlet
+        Image buttonImage = GetComponent<Image>();
+        if (buttonImage != null)
+            buttonImage.raycastPadding = new Vector4(-15, -15, -15, -15);
+
         if (perkListPanel != null)
         {
             panelCanvasGroup = perkListPanel.GetComponent<CanvasGroup>();
             if (panelCanvasGroup == null)
                 panelCanvasGroup = perkListPanel.AddComponent<CanvasGroup>();
+
+            // Panelin raycast algılama alanını genişlet
+            Image panelImage = perkListPanel.GetComponent<Image>();
+            if (panelImage != null)
+                panelImage.raycastPadding = new Vector4(-15, -15, -15, -15);
 
             panelCanvasGroup.alpha = 0f;
             perkListPanel.SetActive(false);
@@ -52,22 +66,49 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     public void OnPointerEnter(PointerEventData eventData)
     {
+        isMouseOverButton = true;
+        if (exitDelayCoroutine != null) { StopCoroutine(exitDelayCoroutine); exitDelayCoroutine = null; }
         RefreshPerkList();
         if (perkListPanel != null)
         {
             perkListPanel.SetActive(true);
             if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
-            fadeCoroutine = StartCoroutine(FadePanel(0f, 1f));
+            fadeCoroutine = StartCoroutine(FadePanel(panelCanvasGroup != null ? panelCanvasGroup.alpha : 0f, 1f));
         }
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        isMouseOverButton = false;
+        if (isMouseOverPanel) return;
+        if (exitDelayCoroutine != null) StopCoroutine(exitDelayCoroutine);
+        exitDelayCoroutine = StartCoroutine(DelayedClose());
+    }
+
+    private System.Collections.IEnumerator DelayedClose()
+    {
+        yield return new WaitForSecondsRealtime(exitDelay);
+        if (isMouseOverPanel || isMouseOverButton) yield break;
         if (perkListPanel != null)
         {
             if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
             fadeCoroutine = StartCoroutine(FadePanel(panelCanvasGroup.alpha, 0f, true));
         }
+    }
+
+    // Panel'in kendi pointer eventleri için çağrılacak metodlar
+    public void OnPanelPointerEnter()
+    {
+        isMouseOverPanel = true;
+        if (exitDelayCoroutine != null) { StopCoroutine(exitDelayCoroutine); exitDelayCoroutine = null; }
+    }
+
+    public void OnPanelPointerExit()
+    {
+        isMouseOverPanel = false;
+        if (isMouseOverButton) return;
+        if (exitDelayCoroutine != null) StopCoroutine(exitDelayCoroutine);
+        exitDelayCoroutine = StartCoroutine(DelayedClose());
     }
 
     private System.Collections.IEnumerator FadePanel(float from, float to, bool deactivateOnDone = false)
@@ -102,6 +143,73 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
             fadeCoroutine = StartCoroutine(FadePanel(panelCanvasGroup.alpha, 0f, true));
         }
+    }
+
+    public void TriggerLevelUpAnimForPerk(BasePerk perk)
+    {
+        // Menü kapalıysa önce aç
+        if (perkListPanel != null && !perkListPanel.activeSelf)
+        {
+            RefreshPerkList();
+            perkListPanel.SetActive(true);
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadePanel(0f, 1f));
+            StartCoroutine(LevelUpAnimThenClose(perk));
+        }
+        else
+        {
+            // Zaten açıksa direkt anim yap (satırlar refresh edilmiş olmalı)
+            int idx = spawnedRowPerks.IndexOf(perk);
+            if (idx >= 0 && idx < spawnedRows.Count)
+                StartCoroutine(LevelUpAnimRow(spawnedRows[idx], perk));
+        }
+    }
+
+    private System.Collections.IEnumerator LevelUpAnimThenClose(BasePerk perk)
+    {
+        yield return new WaitForSeconds(fadeDuration);
+        // Satırlar henüz spawn edilmemiş olabilir, refresh ettik
+        int idx = spawnedRowPerks.IndexOf(perk);
+        if (idx >= 0 && idx < spawnedRows.Count)
+            yield return StartCoroutine(LevelUpAnimRow(spawnedRows[idx], perk));
+        else
+            yield return new WaitForSeconds(1f);
+        if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+        fadeCoroutine = StartCoroutine(FadePanel(1f, 0f, true));
+    }
+
+    private System.Collections.IEnumerator LevelUpAnimRow(GameObject row, BasePerk perk)
+    {
+        if (row == null) yield break;
+
+        // Level text'ini bul (TopRow > Text objesi)
+        TextMeshProUGUI tmp = row.GetComponentInChildren<TextMeshProUGUI>();
+        if (tmp == null) yield break;
+
+        // Level yazısını güncelle (perk zaten upgrade edildi)
+        string nameColor = perk.isDisabled ? "#666666" : GetRarityHex(perk.rarity);
+        tmp.text = $"<color={nameColor}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
+
+        // Scale pop: küçük → büyük → normal
+        RectTransform rt = tmp.GetComponent<RectTransform>();
+        if (rt == null) yield break;
+
+        Vector3 baseScale = Vector3.one;
+        float duration = 0.35f;
+        float elapsed = 0f;
+
+        // Önce büyüt
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            float scale = Mathf.Lerp(1f, 2.2f, t * (1f - t) * 4f + (t > 0.5f ? 1f - t : t) * 0f);
+            // ease out: büyüyüp küçül
+            float s = 1f + Mathf.Sin(t * Mathf.PI) * 1.2f;
+            rt.localScale = new Vector3(s, s, 1f);
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        rt.localScale = baseScale;
     }
 
     public void TriggerShakeForPerk(BasePerk perk)
@@ -160,14 +268,44 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         TMP_FontAsset font = perkListText != null ? perkListText.font : null;
 
-        for (int i = 0; i < perks.Count; i++)
+        // Rarity'e göre sırala: Secret > Legendary > Epic > Rare > Common
+        var sorted = new List<BasePerk>(perks);
+        sorted.Sort((a, b) => GetRarityOrder(b.rarity).CompareTo(GetRarityOrder(a.rarity)));
+
+        for (int i = 0; i < sorted.Count; i++)
         {
-            BasePerk p = perks[i];
+            BasePerk p = sorted[i];
             GameObject row = CreatePerkRow(p, font);
             row.transform.SetParent(perkListPanel.transform, false);
             spawnedRows.Add(row);
             spawnedRowPerks.Add(p);
         }
+    }
+
+    public static string GetRarityHex(PerkRarity rarity)
+    {
+        return rarity switch
+        {
+            PerkRarity.Common    => "#FFFFFF",
+            PerkRarity.Rare      => "#4DA6FF",
+            PerkRarity.Epic      => "#CC44FF",
+            PerkRarity.Legendary => "#FFB300",
+            PerkRarity.Secret    => "#FF4444",
+            _                    => "#FFFFFF"
+        };
+    }
+
+    private static int GetRarityOrder(PerkRarity rarity)
+    {
+        return rarity switch
+        {
+            PerkRarity.Common    => 0,
+            PerkRarity.Rare      => 1,
+            PerkRarity.Epic      => 2,
+            PerkRarity.Legendary => 3,
+            PerkRarity.Secret    => 4,
+            _                    => 0
+        };
     }
 
     private GameObject CreatePerkRow(BasePerk perk, TMP_FontAsset font)
@@ -218,7 +356,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         LayoutElement textLE = textObj.AddComponent<LayoutElement>();
         textLE.preferredWidth = 180f; textLE.preferredHeight = iconSize;
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
-        string nameColor = perk.isDisabled ? "#666666" : "#FFFFFF";
+        string nameColor = perk.isDisabled ? "#666666" : GetRarityHex(perk.rarity);
         tmp.text = $"<color={nameColor}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
         tmp.fontSize = 13;
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
@@ -254,7 +392,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             btnLabel.text = perk.isDisabled ? "OFF" : "ON";
             btnImg.color = perk.isDisabled ? new Color(0.5f, 0.15f, 0.15f) : new Color(0.15f, 0.45f, 0.15f);
             if (perk.icon != null) iconImg.color = perk.isDisabled ? new Color(1,1,1,0.3f) : Color.white;
-            string nc = perk.isDisabled ? "#666666" : "#FFFFFF";
+            string nc = perk.isDisabled ? "#666666" : GetRarityHex(perk.rarity);
             tmp.text = $"<color={nc}>{perk.perkName}</color>  <color=#AAAAAA>Lv {perk.currentLevel}</color>";
         });
 

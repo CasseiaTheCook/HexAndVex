@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4771058090172884902
+--- !u!1 &3920184756210837521
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,22 +8,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5774980858699519594}
-  - component: {fileID: 1734670145528754941}
+  - component: {fileID: 5841293067432158743}
+  - component: {fileID: 7162401378653479965}
   m_Layer: 0
-  m_Name: GlassCanon
+  m_Name: LetsGoAgain
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5774980858699519594
+--- !u!4 &5841293067432158743
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4771058090172884902}
+  m_GameObject: {fileID: 3920184756210837521}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -32,24 +32,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1734670145528754941
+--- !u!114 &7162401378653479965
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4771058090172884902}
+  m_GameObject: {fileID: 3920184756210837521}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af4d72bc3aceac9489fd3b78b7888d4a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GlassCanonPerk
+  m_Script: {fileID: 11500000, guid: 7f3a28d5e9c14b6f8d2e7a3b5c9f1e4d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::LetsGoAgainPerk
   currentLevel: 1
   maxLevel: 1
-  perkName: Glass Canon
-  description: Your maximum health is reduced to 3, but you deal double damage.
-  icon: {fileID: 7513065474429622654, guid: 4a80d21134e2b264bb33538c8aef599d, type: 3}
-  priority: 6
+  perkName: "Let's Go Again"
+  description: After all perks trigger, they all trigger once more.
+  icon: {fileID: 0}
+  priority: 0
   isRerollPerk: 0
-  rarity: 1
+  rarity: 4
   isDisabled: 0

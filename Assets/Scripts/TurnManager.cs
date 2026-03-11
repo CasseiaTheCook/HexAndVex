@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine.Tilemaps;
+using UnityEngine.EventSystems;
 using TMPro;
 using UnityEngine.UI;
 using System.Linq;
@@ -44,6 +45,10 @@ public class TurnManager : MonoBehaviour
     public TMP_Text coinText;
     public Sprite coinSprite;
 
+    [HideInInspector] public bool skipDiceAnim = false;
+    [HideInInspector] public bool skipDiceVisuals = false; // fastMode ile kontrol edilir
+    private bool isDiceAnimPlaying = false;
+
     private List<GameObject> spawnedDiceUI = new List<GameObject>();
     public List<EnemyAI> enemies = new List<EnemyAI>();
     [HideInInspector] public bool isLevelClearTriggered = false;
@@ -58,6 +63,10 @@ public class TurnManager : MonoBehaviour
 
     // Thorn preview
     private GameObject thornPreviewObj;
+
+    // Thorn turn tracking: cell → kaç tur geçti (3. turda kırılır)
+    private readonly Dictionary<Vector3Int, int> thornTurnCounts = new Dictionary<Vector3Int, int>();
+    private readonly Dictionary<Vector3Int, Coroutine> thornBlinkCoroutines = new Dictionary<Vector3Int, Coroutine>();
 
     public bool IsAnyTargetingActive => isNecroShotTargeting || isBombPlacementTargeting || isPhaseShiftTargeting || isThornPlacementTargeting;
 
@@ -97,7 +106,15 @@ public class TurnManager : MonoBehaviour
 
     void Update()
     {
-        if ((isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
+        if (isDiceAnimPlaying && RunManager.instance != null && RunManager.instance.fastMode)
+            skipDiceAnim = true;
+
+        // fastMode aktif ise zarları gizle, pasif ise göster
+        if (RunManager.instance != null)
+            skipDiceVisuals = RunManager.instance.fastMode;
+
+        // UI üstünde click olup olmadığını kontrol et (pointer ID -1 = mouse)
+        if (!(EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(-1)) && (isBombPlacementTargeting || isThornPlacementTargeting) && Input.GetMouseButtonDown(0))
         {
             Vector3 mousePos = Input.mousePosition;
             mousePos.z = Mathf.Abs(Camera.main.transform.position.z);
@@ -434,8 +451,12 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk"))
             payload.multiplyInsteadOfAdd = true;
 
-        yield return StartCoroutine(ShowDiceSequence(rolls));
-        UpdateTotalDamageDisplay(payload.GetFinalDamage());
+        isDiceAnimPlaying = true; skipDiceAnim = false;
+        if (!skipDiceVisuals)
+        {
+            yield return StartCoroutine(ShowDiceSequence(rolls));
+            UpdateTotalDamageDisplay(payload.GetFinalDamage());
+        }
 
         // Perk zar boost'larını uygula (normal combat ile aynı)
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
@@ -450,46 +471,131 @@ public class TurnManager : MonoBehaviour
                 for (int i = 0; i < rolls.Count; i++) if (rolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
                 if (changedIndices.Count > 0)
                 {
-                    if (perk.isRerollPerk)
+                    if (!skipDiceVisuals)
                     {
-                        foreach (int idx in changedIndices)
+                        if (perk.isRerollPerk)
                         {
-                            if (idx < spawnedDiceUI.Count)
+                            foreach (int idx in changedIndices)
                             {
-                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
-                                if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                if (idx < spawnedDiceUI.Count)
+                                {
+                                    Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                    if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                }
+                            }
+                            yield return StartCoroutine(SkippableWait(0.5f));
+                            foreach (int idx in changedIndices)
+                            {
+                                rolls[idx] = payload.diceRolls[idx];
+                                if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                                AnimateSpecificDie(idx, rolls[idx]);
                             }
                         }
-                        yield return new WaitForSeconds(0.5f);
-                        foreach (int idx in changedIndices)
+                        else
                         {
-                            rolls[idx] = payload.diceRolls[idx];
-                            if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
-                            AnimateSpecificDie(idx, rolls[idx]);
+                            foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
                         }
+                        anyDieChanged = true; yield return StartCoroutine(SkippableWait(0.3f));
                     }
                     else
                     {
-                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
+                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; }
+                        anyDieChanged = true;
                     }
-                    anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                }
             }
         }
 
-        if (Random.value < RunManager.instance.criticalChance)
+        // LetsGoAgain: Tüm perkler bir kez daha tetiklenir (bomb combat)
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        {
+            var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
+            if (lgaPerk != null && !skipDiceVisuals)
+            {
+                lgaPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(lgaPerk);
+                yield return StartCoroutine(SkippableWait(0.4f));
+            }
+
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in secondPass)
+            {
+                int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < rolls.Count; i++) if (rolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        if (perk.isRerollPerk)
+                        {
+                            foreach (int idx in changedIndices)
+                            {
+                                if (idx < spawnedDiceUI.Count)
+                                {
+                                    Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                    if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                }
+                            }
+                            yield return StartCoroutine(SkippableWait(0.5f));
+                            foreach (int idx in changedIndices)
+                            {
+                                rolls[idx] = payload.diceRolls[idx];
+                                if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                                AnimateSpecificDie(idx, rolls[idx]);
+                            }
+                        }
+                        else
+                        {
+                            foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, rolls[idx]); }
+                        }
+                        anyDieChanged = true; yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { rolls[idx] = payload.diceRolls[idx]; }
+                        anyDieChanged = true;
+                    }
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                }
+            }
+        }
+
+        if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true;
             UpdateTotalDamageDisplay(payload.GetFinalDamage());
             if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
-            yield return new WaitForSeconds(0.5f);
+            yield return StartCoroutine(SkippableWait(0.5f));
+        }
+        else if (skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true;
         }
 
         int totalDamage = payload.GetFinalDamage();
-        UpdateTotalDamageDisplay(totalDamage);
-        yield return new WaitForSeconds(0.6f);
+        if (!skipDiceVisuals)
+        {
+            UpdateTotalDamageDisplay(totalDamage);
+            yield return StartCoroutine(SkippableWait(0.6f));
+        }
+        isDiceAnimPlaying = false; skipDiceAnim = false;
 
         // Placeholder'ı kaldır ve patlama efektini çal
         if (placeholderObj != null) Destroy(placeholderObj);
@@ -652,8 +758,66 @@ public class TurnManager : MonoBehaviour
         isThornPlacementTargeting = false;
         DestroyThornPreview();
         LevelGenerator.instance.hazardCells.Add(cell);
+        thornTurnCounts[cell] = 0;
         if (LevelGenerator.instance.hazardMap != null && LevelGenerator.instance.hazardTile != null) LevelGenerator.instance.hazardMap.SetTile(cell, LevelGenerator.instance.hazardTile);
+        // Yerleştirilir yerleştirilmez blink başlasın
+        thornBlinkCoroutines[cell] = StartCoroutine(BlinkThornTile(cell));
         if (player != null) player.UpdateHighlights();
+    }
+
+    private void TickThornTurns()
+    {
+        if (LevelGenerator.instance == null) return;
+        var toRemove = new List<Vector3Int>();
+
+        foreach (var kv in new Dictionary<Vector3Int, int>(thornTurnCounts))
+        {
+            int newCount = kv.Value + 1;
+            thornTurnCounts[kv.Key] = newCount;
+
+            if (newCount >= 3)
+            {
+                // 3. tur: kırıl
+                toRemove.Add(kv.Key);
+            }
+        }
+
+        foreach (var cell in toRemove)
+        {
+            // Blink coroutine'i durdur
+            if (thornBlinkCoroutines.TryGetValue(cell, out Coroutine co))
+            {
+                if (co != null) StopCoroutine(co);
+                thornBlinkCoroutines.Remove(cell);
+            }
+            thornTurnCounts.Remove(cell);
+            LevelGenerator.instance.hazardCells.Remove(cell);
+            if (LevelGenerator.instance.hazardMap != null)
+                LevelGenerator.instance.hazardMap.SetTile(cell, null);
+        }
+    }
+
+    private IEnumerator BlinkThornTile(Vector3Int cell)
+    {
+        if (LevelGenerator.instance?.hazardMap == null) yield break;
+        float elapsed = 0f;
+        float blinkSpeed = 8f;
+        var tile = LevelGenerator.instance.hazardTile as UnityEngine.Tilemaps.Tile;
+
+        // thornTurnCounts'ta var olduğu sürece yanıp sön
+        while (thornTurnCounts.ContainsKey(cell))
+        {
+            if (LevelGenerator.instance?.hazardMap == null) yield break;
+            bool show = Mathf.Sin(elapsed * blinkSpeed) > 0f;
+            if (tile != null)
+                LevelGenerator.instance.hazardMap.SetTileFlags(cell, UnityEngine.Tilemaps.TileFlags.None);
+            LevelGenerator.instance.hazardMap.SetColor(cell, show ? Color.white : new Color(1f, 1f, 1f, 0f));
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        // Temizlendiğinde rengi sıfırla
+        if (LevelGenerator.instance?.hazardMap != null)
+            LevelGenerator.instance.hazardMap.SetColor(cell, Color.white);
     }
 
     public void LockAllEnemyIntents()
@@ -661,6 +825,17 @@ public class TurnManager : MonoBehaviour
         if (player == null || player.health.currentHP <= 0) return;
         Vector3Int pCell = player.GetCurrentCellPosition();
         foreach (var e in enemies) if (e != null) { bool isStunned = e.skipTurns > 0; e.LockNextMove(pCell, isStunned); }
+    }
+
+    private IEnumerator SkippableWait(float seconds)
+    {
+        float elapsed = 0f;
+        while (elapsed < seconds)
+        {
+            if (skipDiceAnim) yield break;
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
     }
 
     private IEnumerator LockIntentsNextFrame()
@@ -959,11 +1134,25 @@ public class TurnManager : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
+        TickThornTurns();
         EndTurnAndDecreaseStuns();
     }
 
     public void HideAllEnemyIntents() { foreach (var e in enemies) if (e != null) e.SetArrowVisibility(false); }
     public void ShowAllEnemyIntents() { foreach (var e in enemies) if (e != null && e.skipTurns <= 0) e.SetArrowVisibility(true); }
+
+    public void ToggleFastMode()
+    {
+        if (RunManager.instance != null)
+            RunManager.instance.fastMode = !RunManager.instance.fastMode;
+    }
+    public bool GetFastMode() => RunManager.instance != null && RunManager.instance.fastMode;
+
+    public void ToggleSkipDiceVisuals()
+    {
+        skipDiceVisuals = !skipDiceVisuals;
+    }
+    public bool GetSkipDiceVisuals() => skipDiceVisuals;
 
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
@@ -1007,7 +1196,7 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.3f);
+        if (!skipDiceVisuals) yield return new WaitForSeconds(0.3f);
         List<int> currentRolls = new List<int>();
         int diceCount = RunManager.instance != null ? RunManager.instance.baseDiceCount : 2;
         int extraDices = 0;
@@ -1017,10 +1206,14 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
-        if (PerkListUI.instance != null) PerkListUI.instance.ForceOpen();
-        yield return StartCoroutine(ShowDiceSequence(currentRolls));
-        UpdateTotalDamageDisplay(payload.GetFinalDamage());
-        yield return new WaitForSeconds(0.5f);
+        if (!skipDiceVisuals && PerkListUI.instance != null) PerkListUI.instance.ForceOpen();
+        isDiceAnimPlaying = true; skipDiceAnim = false;
+        if (!skipDiceVisuals)
+        {
+            yield return StartCoroutine(ShowDiceSequence(currentRolls));
+            UpdateTotalDamageDisplay(payload.GetFinalDamage());
+            yield return StartCoroutine(SkippableWait(0.5f));
+        }
 
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
@@ -1033,41 +1226,122 @@ public class TurnManager : MonoBehaviour
                 for (int i = 0; i < currentRolls.Count; i++) if (currentRolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
                 if (changedIndices.Count > 0)
                 {
-                    if (perk.isRerollPerk)
+                    if (!skipDiceVisuals)
                     {
-                        foreach (int idx in changedIndices)
+                        if (perk.isRerollPerk)
                         {
-                            if (idx < spawnedDiceUI.Count)
+                            foreach (int idx in changedIndices)
                             {
-                                Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
-                                if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                if (idx < spawnedDiceUI.Count)
+                                {
+                                    Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                    if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                }
+                            }
+                            yield return StartCoroutine(SkippableWait(0.5f));
+                            foreach (int idx in changedIndices)
+                            {
+                                currentRolls[idx] = payload.diceRolls[idx];
+                                if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                                AnimateSpecificDie(idx, currentRolls[idx]);
                             }
                         }
-                        yield return new WaitForSeconds(0.5f);
-                        foreach (int idx in changedIndices)
+                        else
                         {
-                            currentRolls[idx] = payload.diceRolls[idx];
-                            if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
-                            AnimateSpecificDie(idx, currentRolls[idx]);
+                            foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, currentRolls[idx]); }
                         }
+                        anyDieChanged = true; yield return StartCoroutine(SkippableWait(0.3f));
                     }
                     else
                     {
-                        foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, currentRolls[idx]); }
+                        foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; }
+                        anyDieChanged = true;
                     }
-                    anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                }
             }
         }
 
-        if (PerkListUI.instance != null) PerkListUI.instance.ForceClose();
+        // LetsGoAgain: Tüm perkler bir kez daha tetiklenir
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        {
+            var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
+            if (lgaPerk != null && !skipDiceVisuals)
+            {
+                lgaPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(lgaPerk);
+                yield return StartCoroutine(SkippableWait(0.4f));
+            }
 
-        if (Random.value < RunManager.instance.criticalChance)
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+            foreach (BasePerk perk in secondPass)
+            {
+                int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
+                bool anyDieChanged = false; List<int> changedIndices = new List<int>();
+                for (int i = 0; i < currentRolls.Count; i++) if (currentRolls[i] != payload.diceRolls[i]) changedIndices.Add(i);
+                if (changedIndices.Count > 0)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        if (perk.isRerollPerk)
+                        {
+                            foreach (int idx in changedIndices)
+                            {
+                                if (idx < spawnedDiceUI.Count)
+                                {
+                                    Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); TMP_Text dieText = spawnedDiceUI[idx].GetComponentInChildren<TMP_Text>();
+                                    if (dieAnim != null) dieAnim.enabled = true; if (dieText != null) dieText.text = "!";
+                                }
+                            }
+                            yield return StartCoroutine(SkippableWait(0.5f));
+                            foreach (int idx in changedIndices)
+                            {
+                                currentRolls[idx] = payload.diceRolls[idx];
+                                if (idx < spawnedDiceUI.Count) { Animator dieAnim = spawnedDiceUI[idx].GetComponent<Animator>(); if (dieAnim != null) dieAnim.enabled = false; }
+                                AnimateSpecificDie(idx, currentRolls[idx]);
+                            }
+                        }
+                        else
+                        {
+                            foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; AnimateSpecificDie(idx, currentRolls[idx]); }
+                        }
+                        anyDieChanged = true; yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                    else
+                    {
+                        foreach (int idx in changedIndices) { currentRolls[idx] = payload.diceRolls[idx]; }
+                        anyDieChanged = true;
+                    }
+                }
+                int afterTotal = payload.GetFinalDamage();
+                if (beforeTotal != afterTotal || anyDieChanged)
+                {
+                    if (!skipDiceVisuals)
+                    {
+                        perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
+                    }
+                }
+            }
+        }
+
+        if (!skipDiceVisuals && PerkListUI.instance != null) PerkListUI.instance.ForceClose();
+
+        if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true; UpdateTotalDamageDisplay(payload.GetFinalDamage());
-            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return new WaitForSeconds(0.5f);
+            if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return StartCoroutine(SkippableWait(0.5f));
+        }
+        else if (skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
+        {
+            payload.isCriticalHit = true;
         }
 
         // OverClok: zar gizlenmeden önce 2x hasarı göster
@@ -1076,11 +1350,19 @@ public class TurnManager : MonoBehaviour
         {
             finalDamage *= 2;
             RunManager.instance.doubleDamageNextCombat = false;
-            UpdateTotalDamageDisplay(finalDamage);
-            yield return new WaitForSeconds(0.5f);
+            if (!skipDiceVisuals)
+            {
+                UpdateTotalDamageDisplay(finalDamage);
+                yield return StartCoroutine(SkippableWait(0.5f));
+            }
         }
 
-        yield return new WaitForSeconds(0.4f); HideDiceResults();
+        if (!skipDiceVisuals)
+        {
+            yield return StartCoroutine(SkippableWait(0.4f));
+            HideDiceResults();
+        }
+        isDiceAnimPlaying = false; skipDiceAnim = false;
 
         int damagePerEnemy = 0;
         if (targets.Count > 0)
@@ -1339,6 +1621,16 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator ShowDiceSequence(List<int> rolls)
     {
+        // skipDiceVisuals aktif ise zarları tamamen gizle
+        if (skipDiceVisuals)
+        {
+            foreach (var die in spawnedDiceUI) Destroy(die);
+            spawnedDiceUI.Clear();
+            if (dicePanelBackground != null) dicePanelBackground.gameObject.SetActive(false);
+            if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
+            yield break;
+        }
+
         foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
         if (totalDamageText != null)
         {
@@ -1363,17 +1655,17 @@ public class TurnManager : MonoBehaviour
         {
             dicePanelBackground.gameObject.SetActive(true);
             float e = 0f; Color c = dicePanelBackground.color; c.a = 0f; dicePanelBackground.color = c;
-            while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(0f, 0.9f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+            while (e < 0.2f && !skipDiceAnim) { e += Time.deltaTime; c.a = Mathf.Lerp(0f, 0.9f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
             c.a = 0.9f; dicePanelBackground.color = c;
         }
 
         // Animator kendi idle animasyonunu oynatırken CanvasGroup ile fade in
         if (AudioManager.instance != null) AudioManager.instance.PlayDiceRoll();
         float rollTime = 0.4f; float rollElapsed = 0f;
-        while (rollElapsed < rollTime)
+        while (rollElapsed < rollTime && !skipDiceAnim)
         {
             rollElapsed += Time.deltaTime;
-            float a = Mathf.Clamp01(rollElapsed / (rollTime * 0.5f)); // ilk %50'de 0→1
+            float a = Mathf.Clamp01(rollElapsed / (rollTime * 0.5f));
             foreach (var cg in dieGroups) cg.alpha = a;
             yield return null;
         }
@@ -1386,9 +1678,16 @@ public class TurnManager : MonoBehaviour
             if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
             dieImages[i].sprite = diceSprites[rolls[i] - 1];
             dieTexts[i].text = rolls[i].ToString();
-            StartCoroutine(TextFadeInAndPop(dieTexts[i]));
+            if (!skipDiceAnim) StartCoroutine(TextFadeInAndPopDelayed(dieTexts[i], i * 0.08f));
+            else { Color tc = dieTexts[i].color; tc.a = 1f; dieTexts[i].color = tc; dieTexts[i].transform.localScale = Vector3.one; }
         }
-        yield return new WaitForSeconds(0.2f);
+        if (!skipDiceAnim) yield return new WaitForSeconds(0.2f + rolls.Count * 0.08f);
+    }
+
+    private IEnumerator TextFadeInAndPopDelayed(TMP_Text txt, float delay)
+    {
+        if (delay > 0f) yield return new WaitForSeconds(delay);
+        yield return StartCoroutine(TextFadeInAndPop(txt));
     }
 
     private IEnumerator TextFadeInAndPop(TMP_Text txt)

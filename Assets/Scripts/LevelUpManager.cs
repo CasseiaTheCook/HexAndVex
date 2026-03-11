@@ -198,6 +198,9 @@ public class LevelUpManager : MonoBehaviour
         if (legendaryPerks.Contains(perk)) return PerkRarity.Legendary;
         if (epicPerks.Contains(perk))      return PerkRarity.Epic;
         if (rarePerks.Contains(perk))      return PerkRarity.Rare;
+        // Secret perkler normal havuzda olmaz ama güvenlik için kontrol
+        BasePerk bp = perk.GetComponent<BasePerk>();
+        if (bp != null && bp.rarity == PerkRarity.Secret) return PerkRarity.Secret;
         return PerkRarity.Common;
     }
 
@@ -209,6 +212,7 @@ public class LevelUpManager : MonoBehaviour
             case PerkRarity.Rare:      return new Color(0.2f, 0.5f, 1f);   // Mavi
             case PerkRarity.Epic:      return new Color(0.6f, 0.2f, 1f);   // Mor
             case PerkRarity.Legendary: return new Color(1f, 0.6f, 0f);     // Turuncu/Altın
+            case PerkRarity.Secret:    return new Color(1f, 0.27f, 0.27f); // Kırmızı
             default:                   return Color.white;
         }
     }
@@ -368,28 +372,31 @@ public class LevelUpManager : MonoBehaviour
     private IEnumerator FadeOutAndShrinkRoutine()
     {
         Transform panelTransform = levelUpPanel.transform;
-        float duration = 0.2f; 
+        float duration = 0.2f;
         float elapsed = 0f;
-        
+
         Vector3 startScale = panelTransform.localScale;
-        Vector3 endScale = new Vector3(0.2f, 0.2f, 0.2f); 
-        
+        Vector3 endScale = new Vector3(0.2f, 0.2f, 0.2f);
+
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = elapsed / duration;
             float easeInQuad = t * t;
-            
+
             if (levelUpCanvasGroup != null) levelUpCanvasGroup.alpha = Mathf.Lerp(1f, 0f, easeInQuad);
             panelTransform.localScale = Vector3.Lerp(startScale, endScale, easeInQuad);
             yield return null;
         }
-        
+
         levelUpPanel.SetActive(false);
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(false);
         foreach (var btn in choiceButtons) btn.interactable = true;
 
         Time.timeScale = 1f;
+
+        // Gene Splice gibi upgrade sekanslarının görünmesi için kısa bekleme
+        yield return new WaitForSeconds(1f);
 
         if (ScreenFader.instance != null)
         {
