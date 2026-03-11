@@ -12095,6 +12095,7 @@ MonoBehaviour:
   explosionPrefab: {fileID: 3347869054971392747, guid: 798f5d41853a9ab4e8d4c50f3d394173, type: 3}
   dodgeEffectPrefab: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
   vacuumVfxPrefab: {fileID: 3347869054971392747, guid: c7a3816837d36de42b9625f4cf7763f5, type: 3}
+  slashEffectPrefab: {fileID: 0}
   phantomMinePrefab: {fileID: 3347869054971392747, guid: 48053295290bbe54a863c51441f121b6, type: 3}
   fragMinePlaceholderPrefab: {fileID: -2253911629886400664, guid: bd9a7c83baa6fa642bc73198cebfd462, type: 3}
   player: {fileID: 815353782}

@@ -18,6 +18,7 @@ public class TurnManager : MonoBehaviour
     public GameObject explosionPrefab;
     public GameObject dodgeEffectPrefab;
     public GameObject vacuumVfxPrefab;
+    public GameObject slashEffectPrefab; // Düşman hasar alınca çıkan slash efekti
 
     // ========================================================
     // MAYIN PREFABI BURAYA GELECEK
@@ -609,6 +610,14 @@ public class TurnManager : MonoBehaviour
         foreach (var enemy in hitEnemies)
         {
             enemy.health.TakeDamage(totalDamage);
+            
+            // Slash efekti spawn et
+            if (slashEffectPrefab != null)
+            {
+                Vector3 enemyPos = enemy.transform.position;
+                Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+            }
+            
             if (enemy.health.currentHP <= 0)
             {
                 if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
@@ -1322,6 +1331,14 @@ public class TurnManager : MonoBehaviour
             if (enemy == null) continue;
             bool dies = enemy.health.currentHP <= damagePerEnemy;
             enemy.health.TakeDamage(damagePerEnemy);
+            
+            // Slash efekti spawn et
+            if (slashEffectPrefab != null)
+            {
+                Vector3 enemyPos = enemy.transform.position;
+                Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+            }
+            
             RegisterComboHit();
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
@@ -1340,6 +1357,13 @@ public class TurnManager : MonoBehaviour
                 for (int v = 0; v < voodooHits; v++)
                 {
                     others[v].health.TakeDamage(damagePerEnemy);
+                    
+                    // Slash efekti spawn et
+                    if (slashEffectPrefab != null)
+                    {
+                        Vector3 enemyPos = others[v].transform.position;
+                        Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                    }
                 }
                 if (voodooHits > 0) voodooPerk.TriggerVisualPop();
             }
