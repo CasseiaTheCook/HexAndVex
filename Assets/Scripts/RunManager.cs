@@ -132,4 +132,5 @@ public class RunManager : MonoBehaviour
             sb.AppendLine($"{p.perkName}  Lv {p.currentLevel}");
         return sb.ToString().TrimEnd();
     }
+    
 }

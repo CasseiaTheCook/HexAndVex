@@ -252,7 +252,7 @@ public class LevelUpManager : MonoBehaviour
         }
 
         foreach (var perk in existingPerks)
-            if (perk != null && !perk.isDisabled) perk.OnLevelStart();
+            if (perk != null) perk.OnLevelStart();
 
         StartCoroutine(FadeOutAndShrinkRoutine());
     }

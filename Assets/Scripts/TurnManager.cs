@@ -81,6 +81,13 @@ public class TurnManager : MonoBehaviour
     private int comboCount = 0;
     private Coroutine comboFadeCoroutine;
 
+    [Header("Yeni Oyun Başlangıç Ayarları")]
+    public int startingLevel = 1;
+    public int startingGold = 0;
+    public int startingMaxHP = 3;
+    public int startingDiceCount = 2;
+    public float startingCritMultiplier = 1.5f;
+
     void Awake()
     {
         if (instance == null) instance = this;
@@ -99,6 +106,7 @@ public class TurnManager : MonoBehaviour
         UpdateCoinUI();
         Invoke("StartPlayerTurn", 0.5f);
     }
+
 
     void Update()
     {
@@ -275,7 +283,53 @@ public class TurnManager : MonoBehaviour
             activeMineObj = Instantiate(phantomMinePrefab, pos, Quaternion.identity);
         }
     }
+public void ResetGame()
+{
+    // 1. Zamanı normale döndür (Pause'dan geliyorsa)
+    Time.timeScale = 1f;
 
+    // 2. RunManager verilerini sıfırla
+    if (RunManager.instance != null)
+    {
+        RunManager rm = RunManager.instance;
+        
+        rm.currentLevel = startingLevel;
+        rm.currentGold = startingGold;
+        rm.playerMaxHealth = startingMaxHP;
+        rm.playerCurrentHealth = startingMaxHP; // Canı fulle
+        rm.baseDiceCount = startingDiceCount;
+        rm.criticalDamageMultiplier = startingCritMultiplier;
+        
+        // Diğer gizli statları sıfırla
+        rm.armorChance = 0f;
+        rm.dodgeChance = 0f;
+        rm.bonusGold = 0;
+        rm.hasBioBarrier = false;
+        rm.luckyCloverLevel = 0;
+        rm.criticalChance = 0f;
+
+        // Perkleri temizle (Sahnedeki objeleri yok et)
+        foreach (BasePerk perk in rm.activePerks)
+        {
+            if (perk != null) Destroy(perk.gameObject);
+        }
+        rm.activePerks.Clear();
+
+        // İstatistikleri (Stats) sıfırla
+        rm.totalEnemiesKilled = 0;
+        rm.totalDamageDealt = 0;
+        rm.totalDamageReceived = 0;
+        rm.totalTurnsPlayed = 0;
+        rm.totalDiceRolled = 0;
+        rm.totalGoldEarned = 0;
+    }
+
+    // 3. TurnManager'ın kendi listelerini temizle
+    enemies.Clear();
+    isLevelClearTriggered = false;
+    hasAttackedThisTurn = false;
+
+}
     public void ClearWarningMap()
     {
         GameObject warningMapObj = GameObject.Find("WarningMap");
@@ -415,7 +469,7 @@ public class TurnManager : MonoBehaviour
             else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
             if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop); }
         }
-        foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(target);
+        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
@@ -456,7 +510,7 @@ public class TurnManager : MonoBehaviour
         // Perk zar boost'larını uygula (normal combat ile aynı)
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null);
             perksToProcess.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -510,7 +564,7 @@ public class TurnManager : MonoBehaviour
         }
 
         // LetsGoAgain: Tüm perkler bir kez daha tetiklenir (bomb combat)
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk))
         {
             var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
             if (lgaPerk != null && !skipDiceVisuals)
@@ -520,8 +574,13 @@ public class TurnManager : MonoBehaviour
                 yield return StartCoroutine(SkippableWait(0.4f));
             }
 
-            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !(p is LetsGoAgainPerk));
             secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+
+            // İkinci pas için flatBonus ve multiplier sıfırla — zar değerleri kalır
+            payload.flatBonus = 0;
+            payload.multiplier = 1.0f;
+
             foreach (BasePerk perk in secondPass)
             {
                 int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
@@ -569,6 +628,16 @@ public class TurnManager : MonoBehaviour
                         perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
                     }
                 }
+            }
+
+            // SymbioticFury ikinci pas görsel tetikleyici (bomb combat)
+            var sfPerk = RunManager.instance.activePerks.Find(p => p is SymbioticFuryPerk);
+            if (sfPerk != null && !skipDiceVisuals)
+            {
+                sfPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(sfPerk);
+                UpdateTotalDamageDisplay(payload.GetFinalDamage());
+                yield return StartCoroutine(SkippableWait(0.3f));
             }
         }
 
@@ -628,7 +697,7 @@ public class TurnManager : MonoBehaviour
                     else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
                     if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop); }
                 }
-                foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(enemy);
+                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
                 RunManager.instance.totalEnemiesKilled++;
             }
         }
@@ -820,7 +889,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator HandleSkipPhase()
     {
         // OnSkip'i saldırıdan ÖNCE çağır: DormantSpore zarları bu turda kullanılabilsin
-        foreach (var perk in RunManager.instance.activePerks) if (!perk.isDisabled) perk.OnSkip();
+        foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
 
@@ -1188,7 +1257,7 @@ public class TurnManager : MonoBehaviour
 
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null);
             perksToProcess.Sort((a, b) => { int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -1241,7 +1310,7 @@ public class TurnManager : MonoBehaviour
         }
 
         // LetsGoAgain: Tüm perkler bir kez daha tetiklenir
-        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk && !p.isDisabled))
+        if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is LetsGoAgainPerk))
         {
             var lgaPerk = RunManager.instance.activePerks.Find(p => p is LetsGoAgainPerk);
             if (lgaPerk != null && !skipDiceVisuals)
@@ -1251,8 +1320,13 @@ public class TurnManager : MonoBehaviour
                 yield return StartCoroutine(SkippableWait(0.4f));
             }
 
-            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled && !(p is LetsGoAgainPerk));
+            List<BasePerk> secondPass = RunManager.instance.activePerks.FindAll(p => p != null && !(p is LetsGoAgainPerk));
             secondPass.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
+
+            // İkinci pas için flatBonus ve multiplier sıfırla — zar değerleri kalır
+            payload.flatBonus = 0;
+            payload.multiplier = 1.0f;
+
             foreach (BasePerk perk in secondPass)
             {
                 int beforeTotal = payload.GetFinalDamage(); perk.ModifyCombat(payload);
@@ -1300,6 +1374,16 @@ public class TurnManager : MonoBehaviour
                         perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return StartCoroutine(SkippableWait(0.3f));
                     }
                 }
+            }
+
+            // SymbioticFury ikinci pas görsel tetikleyici
+            var sfPerk = RunManager.instance.activePerks.Find(p => p is SymbioticFuryPerk);
+            if (sfPerk != null && !skipDiceVisuals)
+            {
+                sfPerk.TriggerVisualPop();
+                if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(sfPerk);
+                UpdateTotalDamageDisplay(payload.GetFinalDamage());
+                yield return StartCoroutine(SkippableWait(0.3f));
             }
         }
 
@@ -1478,7 +1562,7 @@ public class TurnManager : MonoBehaviour
                 else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
                 if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
-            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
             RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -1513,7 +1597,7 @@ public class TurnManager : MonoBehaviour
                 else { coinDrop = Random.Range(1, 4) + RunManager.instance.bonusGold; if (RunManager.instance.doubleGoldNextKill) { coinDrop *= 2; RunManager.instance.doubleGoldNextKill = false; } }
                 if (coinDrop > 0) { RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop; if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop); }
             }
-            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
             RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
@@ -1777,7 +1861,8 @@ public class TurnManager : MonoBehaviour
             elapsed += Time.deltaTime; yield return null;
         }
 
-        foreach (var die in spawnedDiceUI) { if (die != null) Destroy(die); } spawnedDiceUI.Clear();
+        foreach (var die in spawnedDiceUI) { if (die != null) Destroy(die); }
+        spawnedDiceUI.Clear();
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
         if (criticalText != null) criticalText.gameObject.SetActive(false);
         if (dicePanelBackground != null) StartCoroutine(FadeDicePanel());
@@ -1848,8 +1933,8 @@ public class TurnManager : MonoBehaviour
         Transform t = comboTextObj.transform;
         // Pop animasyonu
         Vector3 start = new Vector3(0.3f, 0.3f, 0.3f);
-        Vector3 over  = new Vector3(0.65f, 0.65f, 0.65f);
-        Vector3 end   = new Vector3(0.5f, 0.5f, 0.5f);
+        Vector3 over = new Vector3(0.65f, 0.65f, 0.65f);
+        Vector3 end = new Vector3(0.5f, 0.5f, 0.5f);
         float elapsed = 0f;
         while (elapsed < 0.1f) { t.localScale = Vector3.Lerp(start, over, elapsed / 0.1f); elapsed += Time.unscaledDeltaTime; yield return null; }
         elapsed = 0f;
