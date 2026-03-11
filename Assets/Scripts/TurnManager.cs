@@ -388,7 +388,7 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
             if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(target.transform.position, coinDrop);
         }
-        foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(target);
+        foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(target);
         UpdateCoinUI();
         enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
         if (enemies.Count <= 0) { ClearWarningMap(); StartCoroutine(WaitAndTriggerLevelClear()); }
@@ -425,7 +425,7 @@ public class TurnManager : MonoBehaviour
         // Perk zar boost'larını uygula (normal combat ile aynı)
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
             perksToProcess.Sort((a, b) => { int r = b.isRerollPerk.CompareTo(a.isRerollPerk); return r != 0 ? r : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -503,7 +503,8 @@ public class TurnManager : MonoBehaviour
                     RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
                     if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
                 }
-                foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(enemy);
+                foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(enemy);
+                RunManager.instance.totalEnemiesKilled++;
             }
         }
 
@@ -683,7 +684,7 @@ public class TurnManager : MonoBehaviour
         }
 
         if (enemies.Count <= 0) yield break;
-        foreach (var perk in RunManager.instance.activePerks) perk.OnSkip();
+        foreach (var perk in RunManager.instance.activePerks) if (!perk.isDisabled) perk.OnSkip();
         RunManager.instance.currentGold += RunManager.instance.skipBonusGold;
         UpdateCoinUI();
         StartCoroutine(EnemyPhase());
@@ -969,7 +970,7 @@ public class TurnManager : MonoBehaviour
 
         if (RunManager.instance != null && RunManager.instance.activePerks.Count > 0)
         {
-            List<BasePerk> perksToProcess = new List<BasePerk>(RunManager.instance.activePerks);
+            List<BasePerk> perksToProcess = RunManager.instance.activePerks.FindAll(p => p != null && !p.isDisabled);
             perksToProcess.Sort((a, b) => { int rerollOrder = b.isRerollPerk.CompareTo(a.isRerollPerk); return rerollOrder != 0 ? rerollOrder : a.priority.CompareTo(b.priority); });
             foreach (BasePerk perk in perksToProcess)
             {
@@ -1123,7 +1124,8 @@ public class TurnManager : MonoBehaviour
                 RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
                 if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
-            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
@@ -1156,7 +1158,8 @@ public class TurnManager : MonoBehaviour
                 RunManager.instance.currentGold += coinDrop; RunManager.instance.totalGoldEarned += coinDrop;
                 if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
-            foreach (var p in RunManager.instance.activePerks) p.OnEnemyKilled(deadEnemy);
+            foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 

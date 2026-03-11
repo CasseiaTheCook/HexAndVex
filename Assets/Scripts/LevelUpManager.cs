@@ -21,16 +21,16 @@ public class LevelUpManager : MonoBehaviour
 
     [Header("UI Elemanları (3 Buton)")]
     public Button[] choiceButtons;
-    
-    // ==========================================
-    // YENİ: Ayrı ayrı Text dizileri (Unity'den atamayı unutma!)
-    // ==========================================
-    public TMP_Text[] choiceTitleTexts;       // Sadece başlık için (Örn: "Swift Action")
-    public TMP_Text[] choiceLevelTexts;       // Sadece level için (Örn: "Lv 2")
-    public TMP_Text[] choiceDescriptionTexts; // Sadece açıklama için (Örn: "Grants extra moves...")
-    public TMP_Text[] choiceRarityTexts;      // Rarity etiketi (Örn: "COMMON", "RARE", "EPIC", "LEGENDARY")
-    
+
+    public TMP_Text[] choiceTitleTexts;
+    public TMP_Text[] choiceLevelTexts;
+    public TMP_Text[] choiceDescriptionTexts;
+    public TMP_Text[] choiceRarityTexts;
+
     public Image[] choiceIcons;
+
+    [Header("Reroll Butonu")]
+    public Button rerollPerkButton; // Inspector'dan bağla
 
     private List<GameObject> currentChoices = new List<GameObject>();
 
@@ -131,9 +131,29 @@ public class LevelUpManager : MonoBehaviour
             }
         }
         
+        // Reroll butonu
+        if (rerollPerkButton != null)
+        {
+            rerollPerkButton.gameObject.SetActive(RunManager.instance.hasPerkReroll);
+            rerollPerkButton.onClick.RemoveAllListeners();
+            rerollPerkButton.onClick.AddListener(RerollPerkChoices);
+        }
+
         Time.timeScale = 0f;
         StopAllCoroutines();
-        StartCoroutine(FadeInAndPopRoutine()); 
+        StartCoroutine(FadeInAndPopRoutine());
+    }
+
+    public void RerollPerkChoices()
+    {
+        if (RunManager.instance == null || !RunManager.instance.hasPerkReroll) return;
+        RunManager.instance.hasPerkReroll = false;
+        if (rerollPerkButton != null) rerollPerkButton.gameObject.SetActive(false);
+
+        // Mevcut seçimleri temizleyip yeniden göster
+        currentChoices.Clear();
+        StopAllCoroutines();
+        ShowLevelUpScreen();
     }
 
     private bool IsPerkMaxedOut(GameObject perkPrefab)
@@ -218,7 +238,7 @@ public class LevelUpManager : MonoBehaviour
         }
 
         foreach (var perk in existingPerks)
-            if (perk != null) perk.OnLevelStart();
+            if (perk != null && !perk.isDisabled) perk.OnLevelStart();
 
         StartCoroutine(FadeOutAndShrinkRoutine());
     }
