@@ -65,7 +65,7 @@ public class LevelUpManager : MonoBehaviour
             if (i == 0 && forcedPerk != null && !IsPerkMaxedOut(forcedPerk))
             {
                 randomPerk = forcedPerk;
-                forcedPerk = null; 
+                // forcedPerk max seviyeye ulaşınca SelectPerk'te otomatik temizlenir
             }
 
             while (randomPerk == null || currentChoices.Contains(randomPerk) || IsPerkMaxedOut(randomPerk))
@@ -244,6 +244,7 @@ public class LevelUpManager : MonoBehaviour
             if (epicPerks.Contains(chosenPerk)) epicPerks.Remove(chosenPerk);
             if (legendaryPerks.Contains(chosenPerk)) legendaryPerks.Remove(chosenPerk);
             Debug.Log($"🔥 {activeInstance.perkName} Max Seviyeye ulaştı! Havuzdan kalıcı olarak silindi.");
+            if (forcedPerk == chosenPerk) forcedPerk = null;
         }
 
         foreach (var perk in existingPerks)
