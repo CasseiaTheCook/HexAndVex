@@ -5962,6 +5962,7 @@ MonoBehaviour:
   - {fileID: 7943290738935132467, guid: 5233eb7c84d74284e8bacd094186a75b, type: 3}
   - {fileID: 5047546002744779634, guid: eec9c7d0b32c52e418dec796960dfe05, type: 3}
   - {fileID: 3106120126287650368, guid: 838a33db2aca1da4d93374f57d13a821, type: 3}
+  - {fileID: 1000000000000001, guid: 7296bb7d11aebe440b7e05ad7d4ce44e, type: 3}
   epicPerks:
   - {fileID: 1969263836647659006, guid: cdded615e1c59514abb6dd08f0c3044a, type: 3}
   - {fileID: 8338301390874939306, guid: 92274e630d9983f4692e0d50c90eb926, type: 3}
@@ -6002,7 +6003,7 @@ MonoBehaviour:
   - {fileID: 833440338}
   rerollPerkButton: {fileID: 1403122826}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 5068179257304331724, guid: cdc2662d0656276448b616cfefe9c9d1, type: 3}
+  forcedPerk: {fileID: 1000000000000001, guid: 7296bb7d11aebe440b7e05ad7d4ce44e, type: 3}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0
@@ -9093,6 +9094,7 @@ MonoBehaviour:
   dodgeChance: 0
   hasBioBarrier: 0
   skipBonusGold: 0
+  luckyCloverLevel: 0
   criticalChance: 0.1
   criticalDamageMultiplier: 2
   perkUIContainer: {fileID: 1574552221}

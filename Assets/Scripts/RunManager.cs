@@ -24,6 +24,7 @@ public class RunManager : MonoBehaviour
     public float dodgeChance = 0f;   // Knight's Plating için
     public bool hasBioBarrier = false; // Bio-Barrier kalkanı için
     public int skipBonusGold = 0;    // Mercenary's Rest için
+    public int luckyCloverLevel = 0; // Lucky Clover — rarity şansını eşitler
 
     [Header("Combat Stats")]
     public float criticalChance = 0f; // 0.0 to 1.0

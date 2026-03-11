@@ -1,16 +1,21 @@
-using UnityEngine;
-
-public class LuckyClover : MonoBehaviour
+public class LuckyCloverPerk : BasePerk
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    void OnEnable()
     {
-        
+        rarity = PerkRarity.Rare;
+        maxLevel = 3;
     }
 
-    // Update is called once per frame
-    void Update()
+    public override void OnAcquire()
     {
-        
+        RunManager.instance.luckyCloverLevel = currentLevel;
+        TriggerVisualPop();
+    }
+
+    public override void Upgrade()
+    {
+        base.Upgrade();
+        RunManager.instance.luckyCloverLevel = currentLevel;
+        TriggerVisualPop();
     }
 }

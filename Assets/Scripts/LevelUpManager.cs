@@ -177,10 +177,19 @@ public class LevelUpManager : MonoBehaviour
     public GameObject GetRandomPerkByRarity(bool isBossReward)
     {
         if (isBossReward && legendaryPerks.Count > 0) return legendaryPerks[Random.Range(0, legendaryPerks.Count)];
+
+        // Lv0: Epic %10 / Rare %30 / Common %60
+        // Lv1: Epic %17 / Rare %33 / Common %50
+        // Lv2: Epic %25 / Rare %33 / Common %42
+        // Lv3: Epic %33 / Rare %33 / Common %33
+        int cloverLv = RunManager.instance != null ? RunManager.instance.luckyCloverLevel : 0;
+        float epicThresh  = cloverLv == 0 ? 10f : cloverLv == 1 ? 17f : cloverLv == 2 ? 25f : 33f;
+        float rareThresh  = cloverLv == 0 ? 40f : cloverLv == 1 ? 50f : cloverLv == 2 ? 58f : 66f;
+
         float roll = Random.Range(0f, 100f);
-        if (roll < 10f && epicPerks.Count > 0) return epicPerks[Random.Range(0, epicPerks.Count)]; 
-        else if (roll < 40f && rarePerks.Count > 0) return rarePerks[Random.Range(0, rarePerks.Count)]; 
-        else if (commonPerks.Count > 0) return commonPerks[Random.Range(0, commonPerks.Count)]; 
+        if (roll < epicThresh && epicPerks.Count > 0)       return epicPerks[Random.Range(0, epicPerks.Count)];
+        else if (roll < rareThresh && rarePerks.Count > 0)  return rarePerks[Random.Range(0, rarePerks.Count)];
+        else if (commonPerks.Count > 0)                     return commonPerks[Random.Range(0, commonPerks.Count)];
         return null;
     }
 
