@@ -51,10 +51,10 @@ public class Shopmanager : MonoBehaviour
             if (hlg == null) hlg = shopSlotContainer.gameObject.AddComponent<HorizontalLayoutGroup>();
             hlg.spacing = 8;
             hlg.padding = new RectOffset(4, 4, 4, 4);
-            hlg.childAlignment = TextAnchor.MiddleLeft;
-            hlg.childControlWidth = false;
-            hlg.childControlHeight = false;
-            hlg.childForceExpandWidth = false;
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.childControlWidth = true;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = true;
             hlg.childForceExpandHeight = false;
         }
 
@@ -112,6 +112,9 @@ public class Shopmanager : MonoBehaviour
         rerollCount++;
         currentRerollCost = Mathf.RoundToInt(rerollBaseCost * Mathf.Pow(rerollMultiplier, rerollCount));
 
+        // Reroll stack: her reroll'da zarların base değeri kalıcı +1
+        RunManager.instance.shopRerollStack++;
+
         GenerateShopItems();
         RefreshCoinDisplay();
 
@@ -158,14 +161,10 @@ public class Shopmanager : MonoBehaviour
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
             slotGO.transform.localScale = Vector3.one;
 
-            RectTransform slotRT = slotGO.GetComponent<RectTransform>();
-            if (slotRT != null) slotRT.sizeDelta = new Vector2(65f, 65f);
-
             var le = slotGO.GetComponent<LayoutElement>();
             if (le == null) le = slotGO.AddComponent<LayoutElement>();
-            le.preferredWidth = 65f;
             le.preferredHeight = 65f;
-            le.flexibleWidth = 0f;
+            le.flexibleWidth = 1f;
             le.flexibleHeight = 0f;
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
@@ -184,14 +183,10 @@ public class Shopmanager : MonoBehaviour
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
             slotGO.transform.localScale = Vector3.one;
 
-            RectTransform slotRT = slotGO.GetComponent<RectTransform>();
-            if (slotRT != null) slotRT.sizeDelta = new Vector2(65f, 65f);
-
             var le = slotGO.GetComponent<LayoutElement>();
             if (le == null) le = slotGO.AddComponent<LayoutElement>();
-            le.preferredWidth = 65f;
             le.preferredHeight = 65f;
-            le.flexibleWidth = 0f;
+            le.flexibleWidth = 1f;
             le.flexibleHeight = 0f;
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
@@ -387,14 +382,10 @@ public class Shopmanager : MonoBehaviour
         GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
         slotGO.transform.localScale = Vector3.one;
 
-        RectTransform slotRT = slotGO.GetComponent<RectTransform>();
-        if (slotRT != null) slotRT.sizeDelta = new Vector2(65f, 65f);
-
         var le = slotGO.GetComponent<LayoutElement>();
         if (le == null) le = slotGO.AddComponent<LayoutElement>();
-        le.preferredWidth = 65f;
         le.preferredHeight = 65f;
-        le.flexibleWidth = 0f;
+        le.flexibleWidth = 1f;
         le.flexibleHeight = 0f;
 
         ShopSlot slot = slotGO.GetComponent<ShopSlot>();

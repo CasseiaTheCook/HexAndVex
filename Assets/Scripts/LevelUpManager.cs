@@ -89,21 +89,30 @@ public class LevelUpManager : MonoBehaviour
 
                 // ==========================================
                 // YENİ: Yazıları kendi özel Text'lerine aktarıyoruz
+                // Rarity'e göre isim ve açıklama renklendirmesi
                 // ==========================================
+                PerkRarity detectedRarity = GetRarityFromList(randomPerk);
+                Color rarityColor = GetRarityColor(detectedRarity);
+
                 if (choiceTitleTexts.Length > i && choiceTitleTexts[i] != null)
+                {
                     choiceTitleTexts[i].text = perkScript.perkName;
+                    choiceTitleTexts[i].color = rarityColor;
+                }
 
                 if (choiceLevelTexts.Length > i && choiceLevelTexts[i] != null)
                     choiceLevelTexts[i].text = "Lv " + displayLevel.ToString();
 
                 if (choiceDescriptionTexts.Length > i && choiceDescriptionTexts[i] != null)
+                {
                     choiceDescriptionTexts[i].text = perkScript.description;
+                    choiceDescriptionTexts[i].color = Color.Lerp(rarityColor, new Color(0.85f, 0.85f, 0.85f, 1f), 0.4f);
+                }
 
                 if (choiceRarityTexts != null && choiceRarityTexts.Length > i && choiceRarityTexts[i] != null)
                 {
-                    PerkRarity detectedRarity = GetRarityFromList(randomPerk);
                     choiceRarityTexts[i].text = detectedRarity.ToString().ToUpperInvariant();
-                    choiceRarityTexts[i].color = GetRarityColor(detectedRarity);
+                    choiceRarityTexts[i].color = rarityColor;
                 }
 
                 if (choiceIcons != null && choiceIcons.Length > i && choiceIcons[i] != null)

@@ -26,6 +26,9 @@ public class RunManager : MonoBehaviour
     public int skipBonusGold = 0;    // Mercenary's Rest için
     public int luckyCloverLevel = 0; // Lucky Clover — rarity şansını eşitler
 
+    [Header("Reroll Stack")]
+    public int shopRerollStack = 0; // Her shop reroll'da +1, zarların base değerine kalıcı eklenir
+
     [Header("Combat Stats")]
     public float criticalChance = 0f; // 0.0 to 1.0
     public float criticalDamageMultiplier = 1.5f;

@@ -280,6 +280,14 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             spawnedRows.Add(row);
             spawnedRowPerks.Add(p);
         }
+
+        // Reroll Stack bilgisi göster
+        if (RunManager.instance != null && RunManager.instance.shopRerollStack > 0)
+        {
+            GameObject stackRow = CreateRerollStackRow(font);
+            stackRow.transform.SetParent(perkListPanel.transform, false);
+            spawnedRows.Add(stackRow);
+        }
     }
 
     public static string GetRarityHex(PerkRarity rarity)
@@ -373,7 +381,10 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             TextMeshProUGUI descTmp = descObj.GetComponent<TextMeshProUGUI>();
             descTmp.text = perk.description;
             descTmp.fontSize = 10;
-            descTmp.color = new Color(0.65f, 0.65f, 0.65f, 1f);
+            // Açıklama rengi rarity'e göre (biraz soluk versiyon)
+            Color rarityCol;
+            ColorUtility.TryParseHtmlString(GetRarityHex(perk.rarity), out rarityCol);
+            descTmp.color = Color.Lerp(rarityCol, new Color(0.65f, 0.65f, 0.65f, 1f), 0.45f);
             descTmp.alignment = TextAlignmentOptions.TopLeft;
             descTmp.enableWordWrapping = true;
             descTmp.raycastTarget = false;
@@ -383,6 +394,50 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             descLE.preferredWidth = 260;
             descObj.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         }
+
+        return row;
+    }
+
+    private GameObject CreateRerollStackRow(TMP_FontAsset font)
+    {
+        int stack = RunManager.instance.shopRerollStack;
+
+        GameObject row = new GameObject("RerollStackRow", typeof(RectTransform));
+        var rowVL = row.AddComponent<VerticalLayoutGroup>();
+        rowVL.childAlignment = TextAnchor.UpperLeft;
+        rowVL.spacing = 0f;
+        rowVL.childForceExpandWidth = true;
+        rowVL.childForceExpandHeight = false;
+        rowVL.padding = new RectOffset(2, 2, 4, 1);
+        var rowLE = row.AddComponent<LayoutElement>();
+        rowLE.flexibleWidth = 1;
+        var rowCSF = row.AddComponent<ContentSizeFitter>();
+        rowCSF.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        rowCSF.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        // Separator çizgi
+        GameObject sepObj = new GameObject("Separator", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        sepObj.transform.SetParent(row.transform, false);
+        sepObj.GetComponent<Image>().color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+        var sepLE = sepObj.AddComponent<LayoutElement>();
+        sepLE.preferredHeight = 1f;
+        sepLE.flexibleWidth = 1f;
+
+        // Stack text
+        GameObject textObj = new GameObject("StackText", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        textObj.transform.SetParent(row.transform, false);
+        textObj.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, iconSize);
+        var textLE = textObj.AddComponent<LayoutElement>();
+        textLE.preferredWidth = 260f;
+        textLE.preferredHeight = iconSize;
+        TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
+        tmp.text = $"<color=#FFD933>Reroll Stack:</color>  <color=#FFFFFF>+{stack}</color> <color=#AAAAAA>tüm zarlara</color>";
+        tmp.fontSize = 12;
+        tmp.alignment = TextAlignmentOptions.MidlineLeft;
+        tmp.color = Color.white;
+        tmp.richText = true;
+        tmp.raycastTarget = false;
+        if (font != null) tmp.font = font;
 
         return row;
     }
