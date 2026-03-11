@@ -59,7 +59,7 @@ public class StatsPanelUI : MonoBehaviour
         rowObj.transform.SetParent(perksContainer, false);
 
         var layout = rowObj.AddComponent<HorizontalLayoutGroup>();
-        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childAlignment = TextAnchor.MiddleLeft;
         layout.spacing = 6f;
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
@@ -67,7 +67,8 @@ public class StatsPanelUI : MonoBehaviour
 
         var rowLE = rowObj.AddComponent<LayoutElement>();
         rowLE.preferredHeight = 32;
-        rowLE.flexibleWidth = 1;
+        rowLE.preferredWidth = 380;
+        rowLE.flexibleWidth = 0;
 
         // İkon
         var iconObj = new GameObject("Icon", typeof(RectTransform), typeof(Image));
