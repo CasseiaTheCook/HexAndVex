@@ -277,14 +277,14 @@ ScriptedImporter:
   spriteSheetImportData:
   - name: hexAttack_0
     originalName: 
-    pivot: {x: 0.54398394, y: 0.38082045}
+    pivot: {x: 0.3065136, y: 0.25616455}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 56
-      y: 698
+      x: 74
+      y: 708
       width: 80
       height: 80
     spriteID: d550de21a2fddd74582a7278bad233dd
@@ -298,7 +298,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_1
     originalName: 
-    pivot: {x: 0.21891518, y: 0.34374008}
+    pivot: {x: 0.20616531, y: 0.34374085}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -319,7 +319,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_2
     originalName: 
-    pivot: {x: 0.51866066, y: 0.44353026}
+    pivot: {x: 0.5064107, y: 0.44353104}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -340,7 +340,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_3
     originalName: 
-    pivot: {x: 0.25650674, y: 0.36856955}
+    pivot: {x: 0.243824, y: 0.36838913}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -361,13 +361,13 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_4
     originalName: 
-    pivot: {x: 0.33100218, y: 0.45098728}
+    pivot: {x: 0.50738883, y: 0.45042595}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 77
+      x: 64
       y: 285
       width: 68
       height: 61
@@ -382,7 +382,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_5
     originalName: 
-    pivot: {x: 0.3381916, y: 0.34657854}
+    pivot: {x: 0.32838798, y: 0.3468147}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -403,7 +403,7 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: hexAttack_6
     originalName: 
-    pivot: {x: 0.41930774, y: 0.4333785}
+    pivot: {x: 0.40940872, y: 0.4331123}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
