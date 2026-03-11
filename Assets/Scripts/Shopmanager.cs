@@ -224,6 +224,7 @@ public class Shopmanager : MonoBehaviour
         }
 
         RunManager.instance.currentGold -= item.price;
+        if (AudioManager.instance != null) AudioManager.instance.PlayPurchase();
         item.Use();
 
         purchased[index] = true;

@@ -171,10 +171,10 @@ public class LevelGenerator : MonoBehaviour
             if (validCells.Count == 0) break;
 
             List<Vector3Int> candidates = new List<Vector3Int>();
-            float currentSafeDist = 2.5f;
+            float currentSafeDist = 4.5f;
             float currentEnemyDist = 2.5f;
 
-            while (candidates.Count == 0 && currentSafeDist >= 0f)
+            while (candidates.Count == 0 && currentSafeDist >= 2.5f)
             {
                 candidates = validCells.FindAll(cell =>
                     !hazardCells.Contains(cell) &&
@@ -196,7 +196,13 @@ public class LevelGenerator : MonoBehaviour
 
             if (candidates.Count == 0)
             {
-                var safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+                // Fallback: en az oyuncudan 2 hex uzakta güvenli hücre
+                var safeCells = validCells.Where(c =>
+                    !hazardCells.Contains(c) &&
+                    Vector3.Distance(groundMap.GetCellCenterWorld(c), playerWorldPos) >= 2.5f
+                ).ToList();
+                if (safeCells.Count == 0)
+                    safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
                 bestSpawnCell = safeCells.Count > 0 ? safeCells[Random.Range(0, safeCells.Count)] : validCells[0];
             }
             else if (spawnedEnemyCells.Count == 0)

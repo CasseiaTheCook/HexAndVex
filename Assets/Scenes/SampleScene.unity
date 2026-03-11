@@ -12264,6 +12264,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1732850550}
   - component: {fileID: 1732850549}
+  - component: {fileID: 1732850551}
   m_Layer: 0
   m_Name: SFX
   m_TagString: Untagged
@@ -12383,6 +12384,30 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1732850551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1732850548}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97ccc4ec2442a1a4d96a5c73ae45bae3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  takeDamageClip: {fileID: 8300000, guid: 615eeafe2786a2c4187e26959592f7d5, type: 3}
+  moveClip: {fileID: 8300000, guid: 295d53ccf10e5b6429989268c50ec42f, type: 3}
+  hitClip: {fileID: 8300000, guid: 7b6a59454908c84468b9da080de92093, type: 3}
+  wallClip: {fileID: 8300000, guid: e4ff6a6f9d0be8a4a97a65a382e9609e, type: 3}
+  explosionClip: {fileID: 8300000, guid: 02f13c9f5ece4bf408a6f928c741f92e, type: 3}
+  coinClip: {fileID: 8300000, guid: 600cda901a1e5e247b12e4fbcd0488c5, type: 3}
+  cardClip: {fileID: 8300000, guid: aeace466f5b318c4c86e459ec4e0ee0f, type: 3}
+  purchaseClip: {fileID: 8300000, guid: b2fbb4bb17c9e0e4a955e56e5294c9a0, type: 3}
+  hammerClip: {fileID: 8300000, guid: b30dce85d5b546c48883c8652a19d648, type: 3}
+  lightningClip: {fileID: 8300000, guid: a26e3478fd925434e92a1c5a2fecd09f, type: 3}
+  masterVolume: 1
+  sfxVolume: 1
 --- !u!1 &1735267719
 GameObject:
   m_ObjectHideFlags: 0

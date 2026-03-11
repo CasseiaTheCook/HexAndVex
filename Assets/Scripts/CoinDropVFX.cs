@@ -26,6 +26,7 @@ public class CoinDropVFX : MonoBehaviour
 
     public void SpawnCoins(Vector3 worldPos, int count)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayCoin();
         count = Mathf.Clamp(count, 1, 12);
         for (int i = 0; i < count; i++)
         {

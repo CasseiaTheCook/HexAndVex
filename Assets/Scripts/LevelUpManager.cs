@@ -300,6 +300,7 @@ public class LevelUpManager : MonoBehaviour
 
     private IEnumerator CardPopIn(Transform card)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayCard();
         float dur = 0.25f;
         float elapsed = 0f;
         while (elapsed < dur)

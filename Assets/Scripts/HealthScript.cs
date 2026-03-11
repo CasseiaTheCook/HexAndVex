@@ -52,6 +52,7 @@ public class HealthScript : MonoBehaviour
     {
         if (isDead) return;
 
+        if (AudioManager.instance != null) AudioManager.instance.PlayTakeDamage();
         currentHP -= dmg;
 
         if (gameObject.CompareTag("Player"))

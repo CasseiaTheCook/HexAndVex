@@ -721,6 +721,7 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator AnimateExplosionFX(Vector3 pos)
     {
+        if (AudioManager.instance != null) AudioManager.instance.PlayExplosion();
         if (explosionPrefab == null) yield break;
         GameObject fx = Instantiate(explosionPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
@@ -1036,6 +1037,7 @@ public class TurnManager : MonoBehaviour
         }
 
         if (player != null) player.TriggerAttackAnimation();
+        if (AudioManager.instance != null) AudioManager.instance.PlayHit();
         yield return new WaitForSeconds(0.3f);
         isAttackAnimationPlaying = false;
         hexesMovedThisTurn = 0;
