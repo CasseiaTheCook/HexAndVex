@@ -37,6 +37,8 @@ public class TurnManager : MonoBehaviour
     public Sprite[] diceSprites;
     public GameObject criticalText;
     public GameObject comboTextObj; // Inspector'dan bağla — TMP_Text içermeli
+    public UnityEngine.UI.Image dicePanelBackground; // Inspector'dan bağla, Source Image = None
+
 
     [Header("Coin UI")]
     public TMP_Text coinText;
@@ -238,7 +240,8 @@ public class TurnManager : MonoBehaviour
             RunManager.instance.surgeBootActive = false;
             RunManager.instance.surgeBootNextTurn = false;
         }
-        player.UpdateHighlights(); LockAllEnemyIntents();
+        player.UpdateHighlights();
+        StartCoroutine(LockIntentsNextFrame());
     }
 
     // ========================================================
@@ -265,6 +268,10 @@ public class TurnManager : MonoBehaviour
     {
         GameObject warningMapObj = GameObject.Find("WarningMap");
         if (warningMapObj != null) warningMapObj.GetComponent<Tilemap>().ClearAllTiles();
+
+        // Warlock uyarı haritasını da temizle
+        GameObject warlockWarnObj = GameObject.Find("WarlockWarningMap");
+        if (warlockWarnObj != null) warlockWarnObj.GetComponent<Tilemap>().ClearAllTiles();
 
         if (activeMineObj != null) Destroy(activeMineObj);
         activeMineCell = new Vector3Int(-999, -999, -999);
@@ -468,7 +475,7 @@ public class TurnManager : MonoBehaviour
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
             }
         }
 
@@ -654,6 +661,13 @@ public class TurnManager : MonoBehaviour
         if (player == null || player.health.currentHP <= 0) return;
         Vector3Int pCell = player.GetCurrentCellPosition();
         foreach (var e in enemies) if (e != null) { bool isStunned = e.skipTurns > 0; e.LockNextMove(pCell, isStunned); }
+    }
+
+    private IEnumerator LockIntentsNextFrame()
+    {
+        yield return new WaitForSeconds(0.35f);
+        LockAllEnemyIntents();
+        ShowAllEnemyIntents();
     }
 
     public void PlayerFinishedMove(Vector3Int playerCell)
@@ -891,6 +905,8 @@ public class TurnManager : MonoBehaviour
         List<EnemyAI> readyToBossAttack = new List<EnemyAI>();
         List<EnemyAI> readyToAoEAttack = new List<EnemyAI>();
         List<EnemyAI> readyToMeleeAttack = new List<EnemyAI>();
+        List<WarlockEnemyAI> readyWarlockAttack1 = new List<WarlockEnemyAI>();
+        List<WarlockEnemyAI> readyWarlockAttack2 = new List<WarlockEnemyAI>();
 
         foreach (var e in enemies)
         {
@@ -899,12 +915,35 @@ public class TurnManager : MonoBehaviour
                 if (e.enemyBehavior == EnemyAI.EnemyBehavior.Boss && SpawnerBossAI.instance != null && SpawnerBossAI.instance.readyToExplodeThisTurn) readyToBossAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.isChargingAttack) readyToAoEAttack.Add(e);
                 else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Melee && IsNeighbor(e.GetCurrentCellPosition(), player.GetCurrentCellPosition())) readyToMeleeAttack.Add(e);
+                else if (e.enemyBehavior == EnemyAI.EnemyBehavior.Warlock)
+                {
+                    WarlockEnemyAI warlock = e.GetComponent<WarlockEnemyAI>();
+                    if (warlock != null)
+                    {
+                        if (warlock.IsReadyToExplodeAttack1()) readyWarlockAttack1.Add(warlock);
+                        if (warlock.IsReadyToExplodeAttack2()) readyWarlockAttack2.Add(warlock);
+                    }
+                }
             }
         }
 
         if (readyToBossAttack.Count > 0)
         {
             foreach (var boss in readyToBossAttack) yield return StartCoroutine(SpawnerBossAI.instance.ExecuteCheckerboardAoE());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 1 (artı paterni)
+        if (readyWarlockAttack1.Count > 0)
+        {
+            foreach (var warlock in readyWarlockAttack1) yield return StartCoroutine(warlock.ExecuteAttack1());
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        // Warlock saldırı 2 (çapraz paterni)
+        if (readyWarlockAttack2.Count > 0)
+        {
+            foreach (var warlock in readyWarlockAttack2) yield return StartCoroutine(warlock.ExecuteAttack2());
             yield return new WaitForSeconds(0.2f);
         }
 
@@ -978,6 +1017,7 @@ public class TurnManager : MonoBehaviour
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
         if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p.GetType().Name == "SymbioticFuryPerk")) payload.multiplyInsteadOfAdd = true;
+        if (PerkListUI.instance != null) PerkListUI.instance.ForceOpen();
         yield return StartCoroutine(ShowDiceSequence(currentRolls));
         UpdateTotalDamageDisplay(payload.GetFinalDamage());
         yield return new WaitForSeconds(0.5f);
@@ -1018,9 +1058,11 @@ public class TurnManager : MonoBehaviour
                     anyDieChanged = true; yield return new WaitForSeconds(0.3f);
                 }
                 int afterTotal = payload.GetFinalDamage();
-                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
+                if (beforeTotal != afterTotal || anyDieChanged) { perk.TriggerVisualPop(); if (PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(perk); UpdateTotalDamageDisplay(afterTotal); yield return new WaitForSeconds(0.3f); }
             }
         }
+
+        if (PerkListUI.instance != null) PerkListUI.instance.ForceClose();
 
         if (Random.value < RunManager.instance.criticalChance)
         {
@@ -1048,14 +1090,14 @@ public class TurnManager : MonoBehaviour
         }
 
         if (player != null) player.TriggerAttackAnimation();
-        if (AudioManager.instance != null) AudioManager.instance.PlayHit();
+        if (AudioManager.instance != null) AudioManager.instance.PlaySwing();
         yield return new WaitForSeconds(0.3f);
+        if (AudioManager.instance != null) AudioManager.instance.PlayHit();
         isAttackAnimationPlaying = false;
         hexesMovedThisTurn = 0;
 
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
 
-        Vector3Int recoilFromCell = (targets.Count > 0 && targets[0] != null) ? targets[0].GetCurrentCellPosition() : Vector3Int.zero;
         var voodooPerk = RunManager.instance.activePerks.Find(p => p is VoodooParasitePerk) as VoodooParasitePerk;
 
         foreach (var enemy in targets)
@@ -1113,10 +1155,38 @@ public class TurnManager : MonoBehaviour
 
         var recoilPerk = RunManager.instance.activePerks.Find(p => p is RecoilSpringPerk) as RecoilSpringPerk;
         bool didRecoil = false;
-        if (recoilPerk != null && recoilFromCell != Vector3Int.zero)
+        if (recoilPerk != null && targets.Count > 0)
         {
             Vector3Int playerOriginal = player.GetCurrentCellPosition();
-            Vector3Int bounceTo = GetOppositeCell(playerOriginal, recoilFromCell);
+            Vector3 playerWorld = groundMap.GetCellCenterWorld(playerOriginal); playerWorld.z = 0;
+
+            // Tüm hedeflerin yönlerini topla, ortalama vektör bul
+            Vector2 avgDir = Vector2.zero;
+            foreach (var t in targets)
+            {
+                if (t == null) continue;
+                Vector3 eWorld = groundMap.GetCellCenterWorld(t.GetCurrentCellPosition()); eWorld.z = 0;
+                avgDir += (Vector2)(eWorld - playerWorld).normalized;
+            }
+
+            Vector3Int bounceTo = playerOriginal;
+            if (avgDir.sqrMagnitude > 0.001f)
+            {
+                // Ortalama vektörün tam tersine en yakın hex komşusunu bul
+                Vector2 recoilDir = -avgDir.normalized;
+                Vector3Int[] offsets = (playerOriginal.y % 2 != 0) ? evenOffsets : oddOffsets;
+                float bestDot = -2f;
+                foreach (var off in offsets)
+                {
+                    Vector3Int neighbor = playerOriginal + off;
+                    if (!groundMap.HasTile(neighbor) || IsEnemyAtCell(neighbor) || neighbor == player.GetCurrentCellPosition()) continue;
+                    Vector3 nWorld = groundMap.GetCellCenterWorld(neighbor); nWorld.z = 0;
+                    Vector2 nDir = (Vector2)(nWorld - playerWorld).normalized;
+                    float dot = Vector2.Dot(recoilDir, nDir);
+                    if (dot > bestDot) { bestDot = dot; bounceTo = neighbor; }
+                }
+            }
+
             if (bounceTo != playerOriginal)
             {
                 recoilPerk.TriggerVisualPop();
@@ -1270,23 +1340,88 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ShowDiceSequence(List<int> rolls)
     {
         foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
-        if (totalDamageText != null) { totalDamageText.gameObject.SetActive(true); totalDamageText.text = "0"; }
-        List<Image> dieImages = new List<Image>(); List<Animator> dieAnimators = new List<Animator>(); List<TMP_Text> dieTexts = new List<TMP_Text>();
+        if (totalDamageText != null)
+        {
+            totalDamageText.gameObject.SetActive(true); totalDamageText.text = "0";
+            Color tc = totalDamageText.color; tc.a = 0f; totalDamageText.color = tc;
+        }
+
+        List<CanvasGroup> dieGroups = new List<CanvasGroup>(); List<Animator> dieAnimators = new List<Animator>(); List<TMP_Text> dieTexts = new List<TMP_Text>(); List<Image> dieImages = new List<Image>();
         for (int i = 0; i < rolls.Count; i++)
         {
             GameObject newDie = Instantiate(dieUIPrefab, diceUIContainer); spawnedDiceUI.Add(newDie);
-            dieImages.Add(newDie.GetComponent<Image>()); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(newDie.GetComponentInChildren<TMP_Text>());
+            // CanvasGroup — Animator kendi animasyonunu oynatır, biz sadece alpha'yı yönetiriz
+            CanvasGroup cg = newDie.GetComponent<CanvasGroup>(); if (cg == null) cg = newDie.AddComponent<CanvasGroup>();
+            cg.alpha = 0f;
+            // Text'i roll boyunca gizle
+            TMP_Text txt = newDie.GetComponentInChildren<TMP_Text>();
+            if (txt != null) { Color tc = txt.color; tc.a = 0f; txt.color = tc; txt.text = ""; }
+            dieGroups.Add(cg); dieAnimators.Add(newDie.GetComponent<Animator>()); dieTexts.Add(txt); dieImages.Add(newDie.GetComponent<Image>());
         }
+
+        if (dicePanelBackground != null)
+        {
+            dicePanelBackground.gameObject.SetActive(true);
+            float e = 0f; Color c = dicePanelBackground.color; c.a = 0f; dicePanelBackground.color = c;
+            while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(0f, 0.9f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+            c.a = 0.9f; dicePanelBackground.color = c;
+        }
+
+        // Animator kendi idle animasyonunu oynatırken CanvasGroup ile fade in
         if (AudioManager.instance != null) AudioManager.instance.PlayDiceRoll();
-        yield return new WaitForSeconds(0.4f);
+        float rollTime = 0.4f; float rollElapsed = 0f;
+        while (rollElapsed < rollTime)
+        {
+            rollElapsed += Time.deltaTime;
+            float a = Mathf.Clamp01(rollElapsed / (rollTime * 0.5f)); // ilk %50'de 0→1
+            foreach (var cg in dieGroups) cg.alpha = a;
+            yield return null;
+        }
+        foreach (var cg in dieGroups) cg.alpha = 1f;
+
+        // Animator'ı kapat, final sprite + text fade in ile göster
+        if (AudioManager.instance != null) AudioManager.instance.PlayDiceHit();
         for (int i = 0; i < rolls.Count; i++)
         {
             if (dieAnimators[i] != null) dieAnimators[i].enabled = false;
-            dieImages[i].sprite = diceSprites[rolls[i] - 1]; dieTexts[i].text = rolls[i].ToString();
-            if (AudioManager.instance != null) AudioManager.instance.PlayDiceHit();
-            StartCoroutine(TextPopAnimation(dieTexts[i]));
+            dieImages[i].sprite = diceSprites[rolls[i] - 1];
+            dieTexts[i].text = rolls[i].ToString();
+            StartCoroutine(TextFadeInAndPop(dieTexts[i]));
         }
         yield return new WaitForSeconds(0.2f);
+    }
+
+    private IEnumerator TextFadeInAndPop(TMP_Text txt)
+    {
+        if (txt == null) yield break;
+        if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
+        float duration = 0.15f; float elapsed = 0f;
+        Transform t = txt.transform; Vector3 startScale = new Vector3(2f, 2f, 2f);
+        t.localScale = startScale;
+        while (elapsed < duration)
+        {
+            float progress = elapsed / duration;
+            float a = Mathf.Lerp(0f, 1f, progress);
+            Color c = txt.color; c.a = a; txt.color = c;
+            t.localScale = Vector3.Lerp(startScale, Vector3.one, 1f - (1f - progress) * (1f - progress));
+            elapsed += Time.deltaTime; yield return null;
+        }
+        Color fc = txt.color; fc.a = 1f; txt.color = fc;
+        t.localScale = Vector3.one;
+    }
+
+    private IEnumerator DiceFadeIn(Image img, TMP_Text txt)
+    {
+        float duration = 0.2f; float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float a = Mathf.Lerp(0f, 1f, elapsed / duration);
+            if (img != null) { Color c = img.color; c.a = a; img.color = c; }
+            if (txt != null) { Color c = txt.color; c.a = a; txt.color = c; }
+            elapsed += Time.deltaTime; yield return null;
+        }
+        if (img != null) { Color c = img.color; c.a = 1f; img.color = c; }
+        if (txt != null) { Color c = txt.color; c.a = 1f; txt.color = c; }
     }
 
     private IEnumerator TextPopAnimation(TMP_Text textElement)
@@ -1307,26 +1442,96 @@ public class TurnManager : MonoBehaviour
     {
         if (totalDamageText == null) return;
         totalDamageText.gameObject.SetActive(true); totalDamageText.text = val.ToString();
+        StartCoroutine(TotalTextFadeIn(totalDamageText));
         StopCoroutine("TextPopAnimation"); StartCoroutine(TextPopAnimation(totalDamageText));
+    }
+
+    private IEnumerator TotalTextFadeIn(TMP_Text txt)
+    {
+        if (txt == null) yield break;
+        float duration = 0.2f; float elapsed = 0f;
+        Color startColor = txt.color; startColor.a = 0f; txt.color = startColor;
+        while (elapsed < duration)
+        {
+            Color c = txt.color; c.a = Mathf.Lerp(0f, 1f, elapsed / duration); txt.color = c;
+            elapsed += Time.deltaTime; yield return null;
+        }
+        Color fc = txt.color; fc.a = 1f; txt.color = fc;
     }
 
     public void HideDiceResults()
     {
-        foreach (var die in spawnedDiceUI) Destroy(die); spawnedDiceUI.Clear();
+        StartCoroutine(FadeOutAndHideDice());
+    }
+
+    private IEnumerator FadeOutAndHideDice()
+    {
+        float duration = 0.25f; float elapsed = 0f;
+        // CanvasGroup ile dice fade out
+        List<CanvasGroup> dieGroups = new List<CanvasGroup>();
+        foreach (var die in spawnedDiceUI)
+        {
+            if (die == null) continue;
+            CanvasGroup cg = die.GetComponent<CanvasGroup>(); if (cg == null) cg = die.AddComponent<CanvasGroup>();
+            dieGroups.Add(cg);
+        }
+        float totalStartA = totalDamageText != null ? totalDamageText.color.a : 0f;
+        float critStartA = 0f;
+        Image critImage = criticalText != null ? criticalText.GetComponent<Image>() : null;
+        TMP_Text critTMP = criticalText != null ? criticalText.GetComponentInChildren<TMP_Text>() : null;
+        if (critImage != null) critStartA = critImage.color.a;
+        else if (critTMP != null) critStartA = critTMP.color.a;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            foreach (var cg in dieGroups) { if (cg != null) cg.alpha = Mathf.Lerp(1f, 0f, t); }
+            if (totalDamageText != null) { Color c = totalDamageText.color; c.a = Mathf.Lerp(totalStartA, 0f, t); totalDamageText.color = c; }
+            if (critImage != null) { Color c = critImage.color; c.a = Mathf.Lerp(critStartA, 0f, t); critImage.color = c; }
+            if (critTMP != null) { Color c = critTMP.color; c.a = Mathf.Lerp(critStartA, 0f, t); critTMP.color = c; }
+            elapsed += Time.deltaTime; yield return null;
+        }
+
+        foreach (var die in spawnedDiceUI) { if (die != null) Destroy(die); } spawnedDiceUI.Clear();
         if (totalDamageText != null) totalDamageText.gameObject.SetActive(false);
         if (criticalText != null) criticalText.gameObject.SetActive(false);
+        if (dicePanelBackground != null) StartCoroutine(FadeDicePanel());
+    }
+
+    private IEnumerator FadeDicePanel()
+    {
+        if (dicePanelBackground == null) yield break;
+        float e = 0f; Color c = dicePanelBackground.color;
+        float startA = 0.9f;
+        while (e < 0.2f) { e += Time.deltaTime; c.a = Mathf.Lerp(startA, 0f, e / 0.2f); dicePanelBackground.color = c; yield return null; }
+        c.a = 0f; dicePanelBackground.color = c;
+        dicePanelBackground.gameObject.SetActive(false);
     }
 
     private IEnumerator CriticalTextPopAnimation()
     {
         if (criticalText == null) yield break;
         criticalText.gameObject.SetActive(true); Transform t = criticalText.transform;
+        // Alpha sıfırla
+        Image critImg = criticalText.GetComponent<Image>(); TMP_Text critTMP = criticalText.GetComponentInChildren<TMP_Text>();
+        if (critImg != null) { Color c = critImg.color; c.a = 0f; critImg.color = c; }
+        if (critTMP != null) { Color c = critTMP.color; c.a = 0f; critTMP.color = c; }
+
         Vector3 startScale = new Vector3(0.2f, 0.2f, 0.2f); Vector3 overshootScale = new Vector3(0.6f, 0.6f, 0.6f); Vector3 endScale = new Vector3(0.5f, 0.5f, 0.5f);
         float elapsed = 0f; float popDuration = 0.1f;
-        while (elapsed < popDuration) { t.localScale = Vector3.Lerp(startScale, overshootScale, elapsed / popDuration); elapsed += Time.deltaTime; yield return null; }
+        while (elapsed < popDuration)
+        {
+            float prog = elapsed / popDuration;
+            t.localScale = Vector3.Lerp(startScale, overshootScale, prog);
+            if (critImg != null) { Color c = critImg.color; c.a = Mathf.Lerp(0f, 1f, prog); critImg.color = c; }
+            if (critTMP != null) { Color c = critTMP.color; c.a = Mathf.Lerp(0f, 1f, prog); critTMP.color = c; }
+            elapsed += Time.deltaTime; yield return null;
+        }
         elapsed = 0f; float settleDuration = 0.1f;
         while (elapsed < settleDuration) { t.localScale = Vector3.Lerp(overshootScale, endScale, elapsed / settleDuration); elapsed += Time.deltaTime; yield return null; }
         t.localScale = endScale;
+        if (critImg != null) { Color c = critImg.color; c.a = 1f; critImg.color = c; }
+        if (critTMP != null) { Color c = critTMP.color; c.a = 1f; critTMP.color = c; }
     }
 
     // ── Combo Sistemi ────────────────────────────────────────────────────

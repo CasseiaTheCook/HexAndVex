@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 4a80d21134e2b264bb33538c8aef599d
+guid: 4a92cb9e90fd6a59d80e53a37a96ef55
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7513065474429622654
-    second: GlassCannon_0
+      213: -4210603619289631273
+    second: Ekran_goruntusu_2026-01-05_142350_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: 1
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: GlassCannon_0
+      name: Ekran_goruntusu_2026-01-05_142350_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 64
-        height: 64
+        width: 819
+        height: 840
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e7911a93e35c34860800000000000000
-      internalID: 7513065474429622654
+      spriteID: 7d57446215ee095c0800000000000000
+      internalID: -4210603619289631273
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      GlassCannon_0: 7513065474429622654
+      Ekran_goruntusu_2026-01-05_142350_0: -4210603619289631273
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

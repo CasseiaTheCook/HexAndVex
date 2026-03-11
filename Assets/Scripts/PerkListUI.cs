@@ -6,6 +6,8 @@ using System.Collections.Generic;
 
 public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
+    public static PerkListUI instance;
+
     [Header("Referanslar")]
     public GameObject perkListPanel;
     public TMP_Text perkListText; // fallback: ikon yoksa eski sistem
@@ -18,6 +20,12 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private const float rowSpacing = 2f;
 
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
+    private readonly List<BasePerk> spawnedRowPerks = new List<BasePerk>();
+
+    void Awake()
+    {
+        instance = this;
+    }
 
     void Start()
     {
@@ -76,6 +84,56 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         if (deactivateOnDone) perkListPanel.SetActive(false);
     }
 
+    public void ForceOpen()
+    {
+        RefreshPerkList();
+        if (perkListPanel != null)
+        {
+            perkListPanel.SetActive(true);
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadePanel(panelCanvasGroup.alpha, 1f));
+        }
+    }
+
+    public void ForceClose()
+    {
+        if (perkListPanel != null)
+        {
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadePanel(panelCanvasGroup.alpha, 0f, true));
+        }
+    }
+
+    public void TriggerShakeForPerk(BasePerk perk)
+    {
+        if (perkListPanel == null || !perkListPanel.activeSelf) return;
+        int idx = spawnedRowPerks.IndexOf(perk);
+        if (idx >= 0 && idx < spawnedRows.Count)
+            StartCoroutine(ShakeRow(spawnedRows[idx]));
+    }
+
+    private System.Collections.IEnumerator ShakeRow(GameObject row)
+    {
+        if (row == null) yield break;
+        RectTransform rt = row.GetComponent<RectTransform>();
+        if (rt == null) yield break;
+
+        Vector3 origin = rt.localPosition;
+        float duration = 0.4f;
+        float elapsed = 0f;
+        float magnitude = 5f;
+        float frequency = 30f;
+
+        while (elapsed < duration)
+        {
+            float x = Mathf.Sin(elapsed * frequency) * magnitude * (1f - elapsed / duration);
+            rt.localPosition = origin + new Vector3(x, 0f, 0f);
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        rt.localPosition = origin;
+    }
+
     private void RefreshPerkList()
     {
         if (perkListPanel == null || RunManager.instance == null) return;
@@ -83,6 +141,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         // Eski satırları temizle
         foreach (var row in spawnedRows) Destroy(row);
         spawnedRows.Clear();
+        spawnedRowPerks.Clear();
 
         var perks = RunManager.instance.activePerks;
 
@@ -107,6 +166,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             GameObject row = CreatePerkRow(p, font);
             row.transform.SetParent(perkListPanel.transform, false);
             spawnedRows.Add(row);
+            spawnedRowPerks.Add(p);
         }
     }
 

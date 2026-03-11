@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 4a80d21134e2b264bb33538c8aef599d
+guid: 63c998f2abe677d57b6b28c2c153ed0d
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7513065474429622654
-    second: GlassCannon_0
+      213: 581588687743770552
+    second: Vibrant-Cartoon-Banana-Character-Artwork-PNG_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: 1
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: GlassCannon_0
+      name: Vibrant-Cartoon-Banana-Character-Artwork-PNG_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 64
-        height: 64
+        width: 2569
+        height: 4605
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e7911a93e35c34860800000000000000
-      internalID: 7513065474429622654
+      spriteID: 8bf5a5284d7321800800000000000000
+      internalID: 581588687743770552
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      GlassCannon_0: 7513065474429622654
+      Vibrant-Cartoon-Banana-Character-Artwork-PNG_0: 581588687743770552
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

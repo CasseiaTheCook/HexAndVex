@@ -6168,7 +6168,7 @@ MonoBehaviour:
   - {fileID: 833440338}
   rerollPerkButton: {fileID: 1403122826}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 4771058090172884902, guid: 92c8a7614a21ad246ba42cd0c85d41af, type: 3}
+  forcedPerk: {fileID: 0}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0
@@ -7775,17 +7775,19 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Button
+  m_text: 'Reroll
+
+'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
+  m_sharedMaterial: {fileID: 7936242644131845956, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -7889,7 +7891,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1, y: 141}
+  m_AnchoredPosition: {x: 1, y: 129.2}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1105950809
@@ -8327,6 +8329,9 @@ MonoBehaviour:
   aoeEnemyPrefab: {fileID: 506802351436183914, guid: 588d8cef8891f034fbe90850575934da, type: 3}
   bossPrefab: {fileID: 506802351436183914, guid: 97c61cbaf2582b640b815e709dbb58a8, type: 3}
   totemPrefab: {fileID: 506802351436183914, guid: 6cde806ac5b47d2449caf40fbd008f39, type: 3}
+  warlockEnemyPrefab: {fileID: 506802351436183914, guid: 216abee7f8db59f4181fc42e10839b5d, type: 3}
+  warlockStartLevel: 6
+  warlockSpawnChance: 0.1
   baseMapRadius: 2
   aoeStartLevel: 3
 --- !u!4 &1114187817
@@ -10781,12 +10786,12 @@ GameObject:
   - component: {fileID: 1403122827}
   - component: {fileID: 1403122826}
   m_Layer: 5
-  m_Name: Button
+  m_Name: RerollButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1403122826
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10808,11 +10813,11 @@ MonoBehaviour:
     m_SelectOnRight: {fileID: 0}
   m_Transition: 1
   m_Colors:
-    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
-    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_NormalColor: {r: 0, g: 0.019607844, b: 0.047058824, a: 1}
+    m_HighlightedColor: {r: 0, g: 0.03137255, b: 0.25490198, a: 1}
+    m_PressedColor: {r: 0, g: 0.5764706, b: 0.7372549, a: 1}
+    m_SelectedColor: {r: 0, g: 0.019607844, b: 0.047058824, a: 1}
+    m_DisabledColor: {r: 0, g: 0.019607844, b: 0.047058824, a: 1}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
   m_SpriteState:
@@ -10827,7 +10832,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 1403122827}
+  m_TargetGraphic: {fileID: 1267672139}
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
@@ -10844,7 +10849,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -11619,6 +11624,7 @@ MonoBehaviour:
   - {fileID: -1961573713, guid: 509d75a65bfbd0744a5b1e5f251203df, type: 3}
   criticalText: {fileID: 1415132394}
   comboTextObj: {fileID: 1402390101}
+  dicePanelBackground: {fileID: 0}
   coinText: {fileID: 0}
   coinSprite: {fileID: -3424034131817855405, guid: 496580030e4fa8a41ba454a468500dfc, type: 3}
   enemies: []
@@ -12054,7 +12060,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1574552221
 RectTransform:
   m_ObjectHideFlags: 0
@@ -12732,7 +12738,7 @@ AudioSource:
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 1
-  m_Volume: 0.668
+  m_Volume: 1
   m_Pitch: 1
   Loop: 1
   Mute: 0
@@ -12845,12 +12851,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   takeDamageClip: {fileID: 8300000, guid: 615eeafe2786a2c4187e26959592f7d5, type: 3}
   moveClip: {fileID: 8300000, guid: 295d53ccf10e5b6429989268c50ec42f, type: 3}
+  swingClip: {fileID: 8300000, guid: 939a3efd65329b1469675c3ef3c064f3, type: 3}
   hitClip: {fileID: 8300000, guid: 7b6a59454908c84468b9da080de92093, type: 3}
   wallClip: {fileID: 8300000, guid: e4ff6a6f9d0be8a4a97a65a382e9609e, type: 3}
   explosionClip: {fileID: 8300000, guid: 02f13c9f5ece4bf408a6f928c741f92e, type: 3}
   coinClip: {fileID: 8300000, guid: 600cda901a1e5e247b12e4fbcd0488c5, type: 3}
   cardClip: {fileID: 8300000, guid: aeace466f5b318c4c86e459ec4e0ee0f, type: 3}
   purchaseClip: {fileID: 8300000, guid: b2fbb4bb17c9e0e4a955e56e5294c9a0, type: 3}
+  chargeClip: {fileID: 8300000, guid: d2de1576f374d1d49bf40071252375e6, type: 3}
   hammerClip: {fileID: 8300000, guid: b30dce85d5b546c48883c8652a19d648, type: 3}
   lightningClip: {fileID: 8300000, guid: a26e3478fd925434e92a1c5a2fecd09f, type: 3}
   diceRollClip: {fileID: 8300000, guid: 0017e3785cfc5f8478e8c3f71e64c991, type: 3}
@@ -14756,6 +14764,8 @@ GameObject:
   m_Component:
   - component: {fileID: 2060786061}
   - component: {fileID: 2060786062}
+  - component: {fileID: 2060786066}
+  - component: {fileID: 2060786067}
   m_Layer: 5
   m_Name: HorizontalGroup
   m_TagString: Untagged
@@ -14779,8 +14789,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.2903, y: -138.32147}
-  m_SizeDelta: {x: 1019.9664, y: 358.0551}
+  m_AnchoredPosition: {x: 0.99998, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2060786062
 MonoBehaviour:
@@ -14795,12 +14805,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
   m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 1
-  m_Spacing: 20
+    m_Left: 30
+    m_Right: 30
+    m_Top: 30
+    m_Bottom: 30
+  m_ChildAlignment: 4
+  m_Spacing: 30
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 0
@@ -14808,6 +14818,28 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!222 &2060786066
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2060786060}
+  m_CullTransparentMesh: 1
+--- !u!114 &2060786067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2060786060}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
+  m_HorizontalFit: 2
+  m_VerticalFit: 2
 --- !u!1 &2078544694
 GameObject:
   m_ObjectHideFlags: 0

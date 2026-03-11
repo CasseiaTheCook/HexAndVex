@@ -17,7 +17,7 @@ public class EnemyAI : MonoBehaviour
     private int currentCooldown = 0;
     private bool isFirstTurn = true;
 
-    public enum EnemyBehavior { Melee, TelegraphAoE, Totem, Boss }
+    public enum EnemyBehavior { Melee, TelegraphAoE, Totem, Boss, Warlock }
 
     [Header("AoE Uyarı Ayarları")]
     public Tilemap warningMap;
@@ -122,6 +122,11 @@ public class EnemyAI : MonoBehaviour
         else if (enemyBehavior == EnemyBehavior.Boss && SpawnerBossAI.instance != null)
         {
             SpawnerBossAI.instance.OnBossDied();
+        }
+        else if (enemyBehavior == EnemyBehavior.Warlock)
+        {
+            WarlockEnemyAI warlock = GetComponent<WarlockEnemyAI>();
+            if (warlock != null) warlock.OnWarlockDied();
         }
     }
 
@@ -257,7 +262,7 @@ public class EnemyAI : MonoBehaviour
 
     public void StartWallBump(Vector3 direction)
     {
-        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss || enemyBehavior == EnemyBehavior.Warlock) return;
         StartCoroutine(WallBumpCoroutine(direction));
     }
 
@@ -320,6 +325,36 @@ public class EnemyAI : MonoBehaviour
 
         if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
 
+        if (enemyBehavior == EnemyBehavior.Warlock)
+        {
+            WarlockEnemyAI warlockAI = GetComponent<WarlockEnemyAI>();
+            if (warlockAI != null && warlockAI.IsInIdlePhase() && !warlockAI.IsTransitioning() && !isStunned && intentArrow != null && arrowRenderer != null)
+            {
+                Vector3Int fleeTarget = warlockAI.CalculateFleeMove(playerCell);
+                if (fleeTarget != cell)
+                {
+                    hasLockedTarget = true;
+                    lockedTargetCell = fleeTarget;
+                    Vector3 currentWorldPos = groundMap.GetCellCenterWorld(cell); currentWorldPos.z = 0;
+                    Vector3 nextWorldPos = groundMap.GetCellCenterWorld(fleeTarget); nextWorldPos.z = 0;
+                    intentArrow.transform.position = currentWorldPos;
+                    Vector3 dir = nextWorldPos - currentWorldPos;
+                    float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                    intentArrow.transform.rotation = Quaternion.AngleAxis(angle + arrowAngleOffset, Vector3.forward);
+                    SetArrowVisibility(true);
+                }
+                else
+                {
+                    hasLockedTarget = false; SetArrowVisibility(false);
+                }
+            }
+            else
+            {
+                hasLockedTarget = false; SetArrowVisibility(false);
+            }
+            return;
+        }
+
         if (isStunned || health.currentHP <= 0)
         {
             hasLockedTarget = false; SetArrowVisibility(false); isChargingAttack = false; return;
@@ -341,7 +376,7 @@ public class EnemyAI : MonoBehaviour
                 isChargingAttack = true;
                 hasLockedTarget = false;
                 SetArrowVisibility(false);
-                if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
+                if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
 
@@ -401,6 +436,32 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
+        if (enemyBehavior == EnemyBehavior.Warlock)
+        {
+            WarlockEnemyAI warlockAI = GetComponent<WarlockEnemyAI>();
+            if (warlockAI != null)
+            {
+                // Bekleme fazındaysa kaç, değilse sadece saldırı döngüsünü çalıştır
+                if (warlockAI.IsInIdlePhase() && !warlockAI.IsTransitioning() && skipTurns <= 0)
+                {
+                    Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
+                    Vector3Int fleeTarget = warlockAI.CalculateFleeMove(playerCell);
+                    if (fleeTarget != cell)
+                    {
+                        cell = fleeTarget;
+                        targetWorldPos = groundMap.GetCellCenterWorld(cell);
+                        targetWorldPos.z = 0;
+                        float dx = targetWorldPos.x - transform.position.x;
+                        if (Mathf.Abs(dx) > 0.01f && visualRenderer != null) visualRenderer.flipX = (dx < 0);
+                        isMoving = true;
+                        if (AudioManager.instance != null) AudioManager.instance.PlayMove();
+                    }
+                }
+                StartCoroutine(warlockAI.ExecuteWarlockTurn());
+            }
+            return;
+        }
+
         if (isMoving || health.currentHP <= 0 || skipTurns > 0)
         {
             hasLockedTarget = false; SetArrowVisibility(false); return;
@@ -426,6 +487,7 @@ public class EnemyAI : MonoBehaviour
                 }
 
                 isMoving = true;
+                if (AudioManager.instance != null) AudioManager.instance.PlayMove();
             }
         }
 
@@ -606,7 +668,8 @@ public class EnemyAI : MonoBehaviour
                 else ownCells.Add(c);
             }
 
-            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f); 
+            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f);
+            if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
 
             foreach (var c in ownCells)
             {
@@ -738,7 +801,7 @@ public class EnemyAI : MonoBehaviour
 
     public void StartKnockbackMovement(Vector3Int targetCell)
     {
-        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss) return;
+        if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss || enemyBehavior == EnemyBehavior.Warlock) return;
 
         if (groundMap.HasTile(targetCell))
         {

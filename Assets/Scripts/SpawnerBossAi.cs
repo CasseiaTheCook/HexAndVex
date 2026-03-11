@@ -204,6 +204,7 @@ public class SpawnerBossAI : MonoBehaviour
         }
         else if (aoeCycleStep == 2)
         {
+            if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
             ShowCheckerboardWarning();
             aoeCycleStep = 3; // Uyarı verildi, 3'e geçti
         }
@@ -293,8 +294,9 @@ public class SpawnerBossAI : MonoBehaviour
 
         if (bossWarningMap != null && cellsToExplode.Count > 0)
         {
-            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f); 
-            
+            if (AudioManager.instance != null) AudioManager.instance.PlayLightning();
+            Color intenseBright = new Color(0.2f, 0.8f, 1f, 1f);
+
             foreach (var c in cellsToExplode)
             {
                 if (bossWarningMap.HasTile(c)) bossWarningMap.SetColor(c, intenseBright);

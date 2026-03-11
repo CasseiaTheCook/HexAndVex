@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: MutationCatalyst
   m_EditorClassIdentifier: Assembly-CSharp::MutationCatalyst
   itemName: Mutation Catalyst
-  description: Reroll all choices on your next perk selection screen
+  description: +1 Reroll to implants.
   price: 6
   icon: {fileID: 8711613802454188474, guid: 135b76c47aa7af94391775449b63aa4b, type: 3}

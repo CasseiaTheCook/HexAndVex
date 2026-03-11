@@ -31,6 +31,11 @@ public class LevelGenerator : MonoBehaviour
     public GameObject bossPrefab;
     public GameObject totemPrefab;
 
+    [Header("Warlock Düşman")]
+    public GameObject warlockEnemyPrefab;
+    public int warlockStartLevel = 6; // İlk bosstan sonra (level 6+)
+    [Range(0f, 1f)] public float warlockSpawnChance = 0.10f;
+
     public float CurrentEnemyHealth
     {
         get { return 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel); }
@@ -164,6 +169,7 @@ public class LevelGenerator : MonoBehaviour
         int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
 
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
+        int spawnedWarlockCount = 0;
         Vector3 playerWorldPos = groundMap.GetCellCenterWorld(playerStartCell);
 
         for (int i = 0; i < enemyCountToSpawn; i++)
@@ -171,25 +177,22 @@ public class LevelGenerator : MonoBehaviour
             if (validCells.Count == 0) break;
 
             List<Vector3Int> candidates = new List<Vector3Int>();
-            float currentSafeDist = 4.5f;
-            float currentEnemyDist = 2.5f;
+            int minHexDist = 3;
 
-            while (candidates.Count == 0 && currentSafeDist >= 2.5f)
+            while (candidates.Count == 0 && minHexDist >= 2)
             {
+                int dist = minHexDist;
                 candidates = validCells.FindAll(cell =>
                     !hazardCells.Contains(cell) &&
-                    Vector3.Distance(groundMap.GetCellCenterWorld(cell), playerWorldPos) >= currentSafeDist
+                    HexDistance(cell, playerStartCell) >= dist
                 );
 
                 candidates.RemoveAll(cell =>
-                    spawnedEnemyCells.Any(spawned => Vector3.Distance(groundMap.GetCellCenterWorld(cell), groundMap.GetCellCenterWorld(spawned)) < currentEnemyDist)
+                    spawnedEnemyCells.Any(spawned => HexDistance(cell, spawned) < 2)
                 );
 
                 if (candidates.Count == 0)
-                {
-                    currentSafeDist -= 0.5f;
-                    currentEnemyDist -= 0.5f;
-                }
+                    minHexDist--;
             }
 
             Vector3Int bestSpawnCell;
@@ -199,7 +202,7 @@ public class LevelGenerator : MonoBehaviour
                 // Fallback: en az oyuncudan 2 hex uzakta güvenli hücre
                 var safeCells = validCells.Where(c =>
                     !hazardCells.Contains(c) &&
-                    Vector3.Distance(groundMap.GetCellCenterWorld(c), playerWorldPos) >= 2.5f
+                    HexDistance(c, playerStartCell) >= 2
                 ).ToList();
                 if (safeCells.Count == 0)
                     safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
@@ -243,7 +246,19 @@ public class LevelGenerator : MonoBehaviour
 
             GameObject prefabToSpawn = meleeEnemyPrefab;
 
-            if (RunManager.instance.currentLevel >= aoeStartLevel)
+            // Warlock: max 3, ilk bosstan sonra (level >= warlockStartLevel) veya test için level 0'da da çıksın
+            if (warlockEnemyPrefab != null && spawnedWarlockCount < 3 &&
+                (RunManager.instance.currentLevel >= warlockStartLevel || RunManager.instance.currentLevel == 0))
+            {
+                float effectiveChance = (RunManager.instance.currentLevel == 0) ? 0.50f : warlockSpawnChance;
+                if (Random.value < effectiveChance)
+                {
+                    prefabToSpawn = warlockEnemyPrefab;
+                }
+            }
+
+            // Warlock seçilmediyse AoE şansını dene
+            if (prefabToSpawn == meleeEnemyPrefab && RunManager.instance.currentLevel >= aoeStartLevel)
             {
                 if (Random.value < 0.30f && aoeEnemyPrefab != null)
                 {
@@ -252,6 +267,7 @@ public class LevelGenerator : MonoBehaviour
             }
 
             GameObject newEnemyObj = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
+            if (prefabToSpawn == warlockEnemyPrefab) spawnedWarlockCount++;
             EnemyAI enemyAI = newEnemyObj.GetComponent<EnemyAI>();
             enemyAI.groundMap = this.groundMap;
 
@@ -535,5 +551,17 @@ public class LevelGenerator : MonoBehaviour
             validCells.Remove(c);
             hazardCells.Remove(c);
         }
+    }
+
+    private int HexDistance(Vector3Int a, Vector3Int b)
+    {
+        // Offset koordinatları cube koordinata çevir (odd-row offset)
+        int ax = a.x - (a.y - (a.y & 1)) / 2;
+        int az = a.y;
+        int ay = -ax - az;
+        int bx = b.x - (b.y - (b.y & 1)) / 2;
+        int bz = b.y;
+        int by = -bx - bz;
+        return Mathf.Max(Mathf.Abs(ax - bx), Mathf.Abs(ay - by), Mathf.Abs(az - bz));
     }
 }
