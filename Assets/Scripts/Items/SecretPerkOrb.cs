@@ -34,10 +34,17 @@ public class SecretPerkOrb : BaseItem
 
         if (available.Count == 0) return false;
 
-        // Rastgele bir secret perk seç ve ver
+        // Rastgele bir secret perk seç
         GameObject chosen = available[Random.Range(0, available.Count)];
-        RunManager.instance.AddPerk(chosen);
 
+        // Sinematik animasyon varsa: önce animasyonu göster, sonra perk'i ver
+        if (SecretPerkCinematic.instance != null)
+        {
+            BasePerk chosenPerkInfo = chosen.GetComponent<BasePerk>();
+            SecretPerkCinematic.instance.Play(chosenPerkInfo);
+        }
+
+        RunManager.instance.AddPerk(chosen);
         return true;
     }
 }
