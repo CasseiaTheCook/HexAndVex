@@ -204,6 +204,7 @@ public class SpawnerBossAI : MonoBehaviour
         }
         else if (aoeCycleStep == 2)
         {
+            if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
             ShowCheckerboardWarning();
             aoeCycleStep = 3; // Uyarı verildi, 3'e geçti
         }

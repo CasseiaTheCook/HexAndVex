@@ -341,7 +341,7 @@ public class EnemyAI : MonoBehaviour
                 isChargingAttack = true;
                 hasLockedTarget = false;
                 SetArrowVisibility(false);
-                if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
+                if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
 
@@ -426,6 +426,7 @@ public class EnemyAI : MonoBehaviour
                 }
 
                 isMoving = true;
+                if (AudioManager.instance != null) AudioManager.instance.PlayMove();
             }
         }
 
@@ -606,7 +607,8 @@ public class EnemyAI : MonoBehaviour
                 else ownCells.Add(c);
             }
 
-            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f); 
+            Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f);
+            if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
 
             foreach (var c in ownCells)
             {

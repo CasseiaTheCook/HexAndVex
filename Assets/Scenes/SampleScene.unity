@@ -12853,6 +12853,7 @@ MonoBehaviour:
   coinClip: {fileID: 8300000, guid: 600cda901a1e5e247b12e4fbcd0488c5, type: 3}
   cardClip: {fileID: 8300000, guid: aeace466f5b318c4c86e459ec4e0ee0f, type: 3}
   purchaseClip: {fileID: 8300000, guid: b2fbb4bb17c9e0e4a955e56e5294c9a0, type: 3}
+  chargeClip: {fileID: 8300000, guid: d2de1576f374d1d49bf40071252375e6, type: 3}
   hammerClip: {fileID: 8300000, guid: b30dce85d5b546c48883c8652a19d648, type: 3}
   lightningClip: {fileID: 8300000, guid: a26e3478fd925434e92a1c5a2fecd09f, type: 3}
   diceRollClip: {fileID: 8300000, guid: 0017e3785cfc5f8478e8c3f71e64c991, type: 3}
