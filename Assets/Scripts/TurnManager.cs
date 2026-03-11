@@ -504,6 +504,7 @@ public class TurnManager : MonoBehaviour
                     if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(enemy.transform.position, coinDrop);
                 }
                 foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(enemy);
+                RunManager.instance.totalEnemiesKilled++;
             }
         }
 
@@ -1071,6 +1072,7 @@ public class TurnManager : MonoBehaviour
                 if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
             foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
@@ -1104,6 +1106,7 @@ public class TurnManager : MonoBehaviour
                 if (CoinDropVFX.instance != null) CoinDropVFX.instance.SpawnCoins(deadEnemy.transform.position, coinDrop);
             }
             foreach (var p in RunManager.instance.activePerks) if (!p.isDisabled) p.OnEnemyKilled(deadEnemy);
+            RunManager.instance.totalEnemiesKilled++;
         }
         UpdateCoinUI(); enemies.RemoveAll(e => e == null || e.health.currentHP <= 0);
 
