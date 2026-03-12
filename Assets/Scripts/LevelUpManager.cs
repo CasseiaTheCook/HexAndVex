@@ -32,6 +32,9 @@ public class LevelUpManager : MonoBehaviour
     [Header("Reroll Butonu")]
     public Button rerollPerkButton; // Inspector'dan bağla
 
+    [Header("Skip Butonu")]
+    public Image skipButtonImage; // Inspector'dan bağla
+
     private List<GameObject> currentChoices = new List<GameObject>();
 
     [Header("Animasyon Ayarları")]
@@ -147,6 +150,10 @@ public class LevelUpManager : MonoBehaviour
             rerollPerkButton.onClick.RemoveAllListeners();
             rerollPerkButton.onClick.AddListener(RerollPerkChoices);
         }
+
+        // Skip butonunun Image rengini siyah yap
+        if (skipButtonImage != null)
+            skipButtonImage.color = Color.black;
 
         Time.timeScale = 0f;
         StopAllCoroutines();
@@ -401,6 +408,10 @@ public class LevelUpManager : MonoBehaviour
         levelUpPanel.SetActive(false);
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(false);
         foreach (var btn in choiceButtons) btn.interactable = true;
+
+        // Skip butonunun Image rengini beyaz yap
+        if (skipButtonImage != null)
+            skipButtonImage.color = Color.white;
 
         Time.timeScale = 1f;
 

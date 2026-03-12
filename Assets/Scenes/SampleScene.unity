@@ -8154,6 +8154,7 @@ MonoBehaviour:
   - {fileID: 164953103}
   - {fileID: 833440338}
   rerollPerkButton: {fileID: 1403122826}
+  skipButtonImage: {fileID: 1267672139}
   levelUpCanvasGroup: {fileID: 1574552225}
   forcedPerk: {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
 --- !u!4 &937609419
