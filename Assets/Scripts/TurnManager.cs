@@ -889,7 +889,7 @@ public void ResetGame()
             if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is PhantomLimbPerk))
             {
                 var perk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
-                Vector3 mineOffset = (perk as PhantomLimbPerk)?.mineOffset ?? Vector3.zero;
+                Vector3 mineOffset = (perk as PhantomLimbPerk)?.GetMineOffset() ?? Vector3.zero;
                 TryDropMine(player.GetCurrentCellPosition(), mineOffset);
 
                 if (perk != null) perk.TriggerVisualPop();
