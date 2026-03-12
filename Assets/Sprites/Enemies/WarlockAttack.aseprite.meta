@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 764fb88d4a495f01f9c7b46a53687bbe
+guid: 4c0c0ad6df9ca3845a8ec76d8faf53ed
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -129,7 +129,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: Frame_0
     originalName: 
-    pivot: {x: 0.537037, y: 0}
+    pivot: {x: 0.5, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -137,9 +137,9 @@ ScriptedImporter:
       serializedVersion: 2
       x: 4
       y: 4
-      width: 216
-      height: 209
-    spriteID: 802eafcaf83f7568a88fee18869db69e
+      width: 200
+      height: 200
+    spriteID: 43bcea0959275d14a8584369aefb903c
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -150,17 +150,17 @@ ScriptedImporter:
     uvTransform: {x: 4, y: 4}
   - name: Frame_1
     originalName: 
-    pivot: {x: 0.537037, y: 0}
+    pivot: {x: 0.5, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
       x: 4
-      y: 221
-      width: 216
-      height: 209
-    spriteID: fec8af294bed80ba7bb46dd5cf971cae
+      y: 212
+      width: 200
+      height: 200
+    spriteID: 970ea1c73e2f11340993bda782490b37
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -168,20 +168,20 @@ ScriptedImporter:
     indices: 
     edges: []
     tessellationDetail: 0
-    uvTransform: {x: 4, y: 221}
+    uvTransform: {x: 4, y: 212}
   - name: Frame_2
     originalName: 
-    pivot: {x: 0.537037, y: 0}
+    pivot: {x: 0.5, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 228
+      x: 212
       y: 4
-      width: 216
-      height: 209
-    spriteID: 17aee05115b7853439a11591debd0c44
+      width: 200
+      height: 200
+    spriteID: c1288e223f17bcf4d8cfcfae52511155
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -189,39 +189,18 @@ ScriptedImporter:
     indices: 
     edges: []
     tessellationDetail: 0
-    uvTransform: {x: 228, y: 4}
-  - name: Frame_3
-    originalName: 
-    pivot: {x: 0.537037, y: 0}
-    alignment: 9
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 228
-      y: 221
-      width: 216
-      height: 209
-    spriteID: 7d880f34ed5d8594a9c251d6f2a71f24
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 228, y: 221}
+    uvTransform: {x: 212, y: 4}
   spriteSheetImportData: []
   tileSetImportData: []
   asepriteLayers:
   - layerIndex: 0
     uuid:
-      value0: 3464139947
+      value0: 843099595
       value1: 0
       value2: 0
       value3: 0
     guid: 0
-    name: WarlockIdle
+    name: WarlockAttack
     layerFlags: 0
     layerType: 0
     blendMode: 0
@@ -230,38 +209,29 @@ ScriptedImporter:
       frameIndex: 0
       additiveSortOrder: 0
       cellRect:
-        x: -16
+        x: 0
         y: 0
-        width: 216
-        height: 209
-      spriteId: 802eafcaf83f7568a88fee18869db69e
+        width: 200
+        height: 200
+      spriteId: 43bcea0959275d14a8584369aefb903c
     - name: Frame_1
       frameIndex: 1
       additiveSortOrder: 0
       cellRect:
-        x: -16
+        x: 0
         y: 0
-        width: 216
-        height: 209
-      spriteId: fec8af294bed80ba7bb46dd5cf971cae
+        width: 200
+        height: 200
+      spriteId: 970ea1c73e2f11340993bda782490b37
     - name: Frame_2
       frameIndex: 2
       additiveSortOrder: 0
       cellRect:
-        x: -16
+        x: 0
         y: 0
-        width: 216
-        height: 209
-      spriteId: 17aee05115b7853439a11591debd0c44
-    - name: Frame_3
-      frameIndex: 3
-      additiveSortOrder: 0
-      cellRect:
-        x: -16
-        y: 0
-        width: 216
-        height: 209
-      spriteId: 7d880f34ed5d8594a9c251d6f2a71f24
+        width: 200
+        height: 200
+      spriteId: c1288e223f17bcf4d8cfcfae52511155
     linkedCells: []
     tileCells: []
     tileSetIndex: 0
