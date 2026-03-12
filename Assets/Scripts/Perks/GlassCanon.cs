@@ -25,7 +25,17 @@ public class GlassCanonPerk : BasePerk
 
     public override void ModifyCombat(CombatPayload payload)
     {
-        payload.multiplier *= 2f;
+        var rm = RunManager.instance;
+        var tm = TurnManager.instance;
+        if (rm == null || tm == null || tm.player == null) return;
+
+        int maxHP     = rm.playerMaxHealth;
+        int currentHP = tm.player.health.currentHP;
+        if (currentHP < 1) currentHP = 1;
+
+        float multiplier = (float)maxHP / currentHP;
+        payload.multiplier *= multiplier;
+
         TriggerVisualPop();
     }
 }
