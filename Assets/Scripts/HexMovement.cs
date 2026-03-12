@@ -83,6 +83,15 @@ public class HexMovement : MonoBehaviour
     {
         if (visualRenderer != null)
         {
+            int order = 100 + Mathf.RoundToInt(-transform.position.y * 10f);
+            visualRenderer.sortingOrder = order;
+
+            if (health != null && health.hptext != null)
+            {
+                Canvas hpCanvas = health.hptext.GetComponentInParent<Canvas>();
+                if (hpCanvas != null) hpCanvas.sortingOrder = order + 3;
+            }
+
             bool canAttack = false;
             
             if (TurnManager.instance != null)

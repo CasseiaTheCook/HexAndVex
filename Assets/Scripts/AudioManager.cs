@@ -22,6 +22,7 @@ public class AudioManager : MonoBehaviour
     public AudioClip vacuumClip;       // Vacuum efekti
     public AudioClip textEffectClip;   // Bam bam zar text animasyonu
     public AudioClip secretPerkClip;   // Secret perk sinematik açılış sesi (opsiyonel)
+    public AudioClip shieldBreakClip;  // Kalkan kırılma / dodge
 
     [Header("Ses Ayarları")]
     [Range(0f, 1f)] public float masterVolume = 1f;
@@ -71,4 +72,5 @@ public class AudioManager : MonoBehaviour
     public void PlayVacuum()      => Play(vacuumClip,      1f,   0.95f, 1.05f);
     public void PlayTextEffect()  => Play(textEffectClip,  0.75f,0.85f, 1.2f);
     public void PlaySecretPerk()   => Play(secretPerkClip,  1f,   0.95f, 1.05f);
+    public void PlayShieldBreak()  => Play(shieldBreakClip, 1f,   0.9f,  1.1f);
 }

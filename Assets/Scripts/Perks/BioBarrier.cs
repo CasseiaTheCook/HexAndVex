@@ -50,6 +50,7 @@ public class BioBarrierPerk : BasePerk
     {
         if (currentShieldInstance != null)
         {
+            if (AudioManager.instance != null) AudioManager.instance.PlayShieldBreak();
             StartCoroutine(AnimateShieldBreak());
         }
     }
