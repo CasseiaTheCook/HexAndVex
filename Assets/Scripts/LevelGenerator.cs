@@ -16,9 +16,18 @@ public class LevelGenerator : MonoBehaviour
     // ==========================================
     public Tilemap hazardMap;
 
+    // ==========================================
+    // SCAFFOLD: ÇÖKEN PLATFORM TİLEMAP
+    // ==========================================
+    public Tilemap scaffoldMap;
+
     [Header("Tiles (Üst Zemin)")]
     public TileBase groundTile;
     public TileBase hazardTile;
+
+    [Header("Scaffold (Çöken Platform)")]
+    public TileBase scaffoldTile;
+    [Range(0f, 1f)] public float scaffoldSpawnChance = 0.08f;
 
     [Header("Tiles (Arka Plan Sütun)")]
     public TileBase columnTile;
@@ -46,6 +55,7 @@ public class LevelGenerator : MonoBehaviour
 
     private List<Vector3Int> validCells = new List<Vector3Int>();
     public HashSet<Vector3Int> hazardCells = new HashSet<Vector3Int>();
+    public HashSet<Vector3Int> scaffoldCells = new HashSet<Vector3Int>();
 
     private static readonly Vector3Int[] oddOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
     private static readonly Vector3Int[] evenOffsets = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
@@ -67,6 +77,15 @@ public class LevelGenerator : MonoBehaviour
         {
             GameObject hzObj = GameObject.Find("HazardMap");
             if (hzObj != null) hazardMap = hzObj.GetComponent<Tilemap>();
+        }
+
+        // ==========================================
+        // SCAFFOLD: ScaffoldMap'i otomatik bul
+        // ==========================================
+        if (scaffoldMap == null)
+        {
+            GameObject scObj = GameObject.Find("ScaffoldMap");
+            if (scObj != null) scaffoldMap = scObj.GetComponent<Tilemap>();
         }
     }
 
@@ -112,9 +131,12 @@ public class LevelGenerator : MonoBehaviour
         groundMap.ClearAllTiles();
         if (backgroundMap != null) backgroundMap.ClearAllTiles();
         if (hazardMap != null) hazardMap.ClearAllTiles(); // YENİ: Eski dikenleri temizle
+        if (scaffoldMap != null) scaffoldMap.ClearAllTiles(); // SCAFFOLD: Temizle
+        if (ScaffoldManager.instance != null) ScaffoldManager.instance.ClearAll();
 
         validCells.Clear();
         hazardCells.Clear();
+        scaffoldCells.Clear();
 
         foreach (var enemy in TurnManager.instance.enemies)
         {
@@ -146,6 +168,14 @@ public class LevelGenerator : MonoBehaviour
                             if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
                             hazardCells.Add(cell);
                         }
+                        else if (Random.value < scaffoldSpawnChance)
+                        {
+                            // ==========================================
+                            // SCAFFOLD: Çöken platform
+                            // ==========================================
+                            if (scaffoldMap != null && scaffoldTile != null) scaffoldMap.SetTile(cell, scaffoldTile);
+                            scaffoldCells.Add(cell);
+                        }
 
                         validCells.Add(cell);
                     }
@@ -158,7 +188,7 @@ public class LevelGenerator : MonoBehaviour
         GenerateColumns();
 
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
-        List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
 
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
@@ -184,6 +214,7 @@ public class LevelGenerator : MonoBehaviour
                 int dist = minHexDist;
                 candidates = validCells.FindAll(cell =>
                     !hazardCells.Contains(cell) &&
+                    !scaffoldCells.Contains(cell) &&
                     HexDistance(cell, playerStartCell) >= dist
                 );
 
@@ -202,8 +233,11 @@ public class LevelGenerator : MonoBehaviour
                 // Fallback: en az oyuncudan 2 hex uzakta güvenli hücre
                 var safeCells = validCells.Where(c =>
                     !hazardCells.Contains(c) &&
+                    !scaffoldCells.Contains(c) &&
                     HexDistance(c, playerStartCell) >= 2
                 ).ToList();
+                if (safeCells.Count == 0)
+                    safeCells = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
                 if (safeCells.Count == 0)
                     safeCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
                 bestSpawnCell = safeCells.Count > 0 ? safeCells[Random.Range(0, safeCells.Count)] : validCells[0];
@@ -304,8 +338,11 @@ public class LevelGenerator : MonoBehaviour
         groundMap.ClearAllTiles();
         if (backgroundMap != null) backgroundMap.ClearAllTiles();
         if (hazardMap != null) hazardMap.ClearAllTiles(); // YENİ
+        if (scaffoldMap != null) scaffoldMap.ClearAllTiles(); // SCAFFOLD
+        if (ScaffoldManager.instance != null) ScaffoldManager.instance.ClearAll();
         validCells.Clear();
         hazardCells.Clear();
+        scaffoldCells.Clear();
 
         foreach (var enemy in TurnManager.instance.enemies)
         {
@@ -332,6 +369,12 @@ public class LevelGenerator : MonoBehaviour
                             if (hazardMap != null) hazardMap.SetTile(cell, hazardTile); // YENİ
                             hazardCells.Add(cell);
                         }
+                        else if (Random.value < scaffoldSpawnChance * 0.5f && Vector3Int.zero != cell)
+                        {
+                            // SCAFFOLD: Boss arenasında daha az scaffold
+                            if (scaffoldMap != null && scaffoldTile != null) scaffoldMap.SetTile(cell, scaffoldTile);
+                            scaffoldCells.Add(cell);
+                        }
 
                         validCells.Add(cell);
                     }
@@ -344,14 +387,14 @@ public class LevelGenerator : MonoBehaviour
         GenerateColumns();
 
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
-        List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
         TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        List<Vector3Int> availableSpawnCells = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        List<Vector3Int> availableSpawnCells = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
 
         for (int i = 0; i < availableSpawnCells.Count; i++)
         {
@@ -505,8 +548,10 @@ public class LevelGenerator : MonoBehaviour
         {
             groundMap.SetTile(cell, null);
             if (hazardMap != null) hazardMap.SetTile(cell, null); // YENİ
+            if (scaffoldMap != null) scaffoldMap.SetTile(cell, null); // SCAFFOLD
             validCells.Remove(cell);
             hazardCells.Remove(cell);
+            scaffoldCells.Remove(cell);
         }
     }
 
@@ -562,6 +607,7 @@ public class LevelGenerator : MonoBehaviour
             {
                 groundMap.SetTile(cell, null);
                 if (hazardMap != null) hazardMap.SetTile(cell, null); // YENİ
+                if (scaffoldMap != null) scaffoldMap.SetTile(cell, null); // SCAFFOLD
                 toRemove.Add(cell);
             }
         }
@@ -570,6 +616,7 @@ public class LevelGenerator : MonoBehaviour
         {
             validCells.Remove(c);
             hazardCells.Remove(c);
+            scaffoldCells.Remove(c);
         }
     }
 

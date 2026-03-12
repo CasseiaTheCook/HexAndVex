@@ -546,6 +546,7 @@ public class EnemyAI : MonoBehaviour
                     Vector3Int fleeTarget = warlockAI.CalculateFleeMove(playerCell);
                     if (fleeTarget != cell)
                     {
+                        Vector3Int oldCell = cell;
                         cell = fleeTarget;
                         targetWorldPos = groundMap.GetCellCenterWorld(cell);
                         targetWorldPos.z = 0;
@@ -553,6 +554,13 @@ public class EnemyAI : MonoBehaviour
                         if (Mathf.Abs(dx) > 0.01f && visualRenderer != null) visualRenderer.flipX = (dx < 0);
                         isMoving = true;
                         if (AudioManager.instance != null) AudioManager.instance.PlayMove();
+
+                        // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+                        if (ScaffoldManager.instance != null)
+                        {
+                            ScaffoldManager.instance.OnEntityLeave(oldCell);
+                            ScaffoldManager.instance.OnEntityEnter(cell);
+                        }
                     }
                 }
                 StartCoroutine(warlockAI.ExecuteWarlockTurn());
@@ -572,8 +580,10 @@ public class EnemyAI : MonoBehaviour
             if (IsNeighbor(cell, lockedTargetCell) &&
                 !TurnManager.instance.IsEnemyAtCell(lockedTargetCell) &&
                 TurnManager.instance.player.GetCurrentCellPosition() != lockedTargetCell &&
+                groundMap.HasTile(lockedTargetCell) &&
                 (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)))
             {
+                Vector3Int oldCell = cell;
                 cell = lockedTargetCell;
                 targetWorldPos = groundMap.GetCellCenterWorld(cell);
                 targetWorldPos.z = 0;
@@ -586,6 +596,13 @@ public class EnemyAI : MonoBehaviour
 
                 isMoving = true;
                 if (AudioManager.instance != null) AudioManager.instance.PlayMove();
+
+                // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+                if (ScaffoldManager.instance != null)
+                {
+                    ScaffoldManager.instance.OnEntityLeave(oldCell);
+                    ScaffoldManager.instance.OnEntityEnter(cell);
+                }
             }
         }
 
@@ -911,8 +928,16 @@ public class EnemyAI : MonoBehaviour
 
         if (groundMap.HasTile(targetCell))
         {
+            Vector3Int oldCell = cell;
             cell = targetCell; targetWorldPos = groundMap.GetCellCenterWorld(cell);
             targetWorldPos.z = 0; isMoving = true;
+
+            // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+            if (ScaffoldManager.instance != null)
+            {
+                ScaffoldManager.instance.OnEntityLeave(oldCell);
+                ScaffoldManager.instance.OnEntityEnter(cell);
+            }
         }
     }
 

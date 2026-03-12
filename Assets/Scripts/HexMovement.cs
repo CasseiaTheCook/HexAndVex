@@ -28,6 +28,7 @@ public class HexMovement : MonoBehaviour
     private bool isMoving = false;
     private bool isKnockbackMove = false;
     private bool _preserveFacingNextMove = false;
+    private Vector3Int previousCellForScaffold;
 
     // 2-hex hareket için ara nokta bilgisi
     private Dictionary<Vector3Int, Vector3Int> waypointMap = new Dictionary<Vector3Int, Vector3Int>();
@@ -141,6 +142,7 @@ public class HexMovement : MonoBehaviour
                 }
 
                 // 2-hex hareket mi kontrol et
+                previousCellForScaffold = currentCellPosition;
                 if (waypointMap.ContainsKey(clickedCell))
                 {
                     currentWaypoint = waypointMap[clickedCell];
@@ -181,6 +183,13 @@ public class HexMovement : MonoBehaviour
                 // Waypoint varsa: ara noktaya ulaştık, şimdi hedef hücreye devam et
                 if (currentWaypoint.HasValue)
                 {
+                    // Scaffold: eski hücreden ayrıl, waypoint hücresine gir
+                    if (ScaffoldManager.instance != null)
+                    {
+                        ScaffoldManager.instance.OnEntityLeave(previousCellForScaffold);
+                        ScaffoldManager.instance.OnEntityEnter(currentCellPosition);
+                    }
+                    previousCellForScaffold = currentCellPosition;
                     currentWaypoint = null;
                     MoveCharacter(finalTarget);
                     // Hâlâ isMoving = true, döngü devam edecek
@@ -189,6 +198,13 @@ public class HexMovement : MonoBehaviour
 
                 isMoving = false;
                 FaceCombatTarget();
+
+                // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+                if (ScaffoldManager.instance != null)
+                {
+                    ScaffoldManager.instance.OnEntityLeave(previousCellForScaffold);
+                    ScaffoldManager.instance.OnEntityEnter(currentCellPosition);
+                }
 
                 if (!isKnockbackMove) TurnManager.instance.PlayerFinishedMove(currentCellPosition);
                 isKnockbackMove = false;
@@ -243,6 +259,7 @@ public class HexMovement : MonoBehaviour
     {
         if (groundMap.HasTile(targetCell))
         {
+            previousCellForScaffold = currentCellPosition;
             _preserveFacingNextMove = preserveFacing;
             isKnockbackMove = true;
             currentCellPosition = targetCell;
