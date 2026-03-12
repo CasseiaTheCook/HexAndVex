@@ -10,6 +10,15 @@ public class EnemyAI : MonoBehaviour
     public HealthScript health;
     public SpriteRenderer visualRenderer;
 
+    [Header("Animasyon")]
+    public Animator animator;
+
+    [Header("VFX")]
+    public GameObject hammerImpactVFXPrefab;
+    public float vfxDelayBetweenCells = 0.07f;
+    public float vfxYOffset = 0.2f;
+    public float vfxXOffset = 0f;
+
     [Header("Düşman Tipi ve Saldırı Ayarları")]
     public EnemyBehavior enemyBehavior = EnemyBehavior.Melee;
     public int aoeAttackRange = 3;
@@ -25,6 +34,7 @@ public class EnemyAI : MonoBehaviour
 
     [Header("UI Settings")]
     public GameObject intentArrow;
+    public Vector2 arrowOffset = Vector2.zero;
     
     public GameObject stunEffectPrefab; 
     private GameObject spawnedStunEffect; 
@@ -71,7 +81,20 @@ public class EnemyAI : MonoBehaviour
 
     void Start()
     {
-        if (visualRenderer == null) visualRenderer = GetComponent<SpriteRenderer>();
+        if (visualRenderer == null)
+        {
+            visualRenderer = GetComponent<SpriteRenderer>();
+            if (visualRenderer == null)
+            {
+                foreach (var sr in GetComponentsInChildren<SpriteRenderer>())
+                {
+                    if (intentArrow != null && sr.transform.IsChildOf(intentArrow.transform)) continue;
+                    if (stunEffectPrefab != null && sr.gameObject == spawnedStunEffect) continue;
+                    visualRenderer = sr;
+                    break;
+                }
+            }
+        }
 
         if (GetComponent<Collider2D>() == null)
         {
@@ -107,7 +130,18 @@ public class EnemyAI : MonoBehaviour
             intentArrow.SetActive(false);
         }
 
-        if (health != null) health.OnDeath += HandleDeath;
+        if (health != null)
+        {
+            health.OnDeath += HandleDeath;
+            health.OnDamaged += HandleDamaged;
+        }
+    }
+
+    private void HandleDamaged(int remainingHP)
+    {
+        if (animator == null || enemyBehavior != EnemyBehavior.TelegraphAoE) return;
+        animator.SetBool("IsCharging", false);
+        animator.SetTrigger("GotHit");
     }
 
     private void HandleDeath()
@@ -132,7 +166,11 @@ public class EnemyAI : MonoBehaviour
 
     void OnDestroy()
     {
-        if (health != null) health.OnDeath -= HandleDeath;
+        if (health != null)
+        {
+            health.OnDeath -= HandleDeath;
+            health.OnDamaged -= HandleDamaged;
+        }
     }
 
     void OnMouseDown()
@@ -150,8 +188,60 @@ public class EnemyAI : MonoBehaviour
 
         if (health != null && health.currentHP > 0 && !isFading)
         {
-            // Health barı soluklaşması her türlü sersemletmede çalışsın
             health.SetStunnedAlpha(skipTurns > 0);
+        }
+
+        UpdateSortingOrder();
+    }
+
+    private void UpdateSortingOrder()
+    {
+        int order = 100 + Mathf.RoundToInt(-transform.position.y * 10f);
+
+        SpriteRenderer target = visualRenderer ?? GetComponent<SpriteRenderer>() ?? GetComponentInChildren<SpriteRenderer>();
+        if (target != null) target.sortingOrder = order;
+
+        // Ok, stun efekti ve HP text her zaman düşmanın üstünde
+        if (arrowRenderer != null) arrowRenderer.sortingOrder = order + 1;
+        if (stunRenderer != null) stunRenderer.sortingOrder = order + 2;
+
+        if (health != null && health.hptext != null)
+        {
+            Canvas hpCanvas = health.hptext.GetComponentInParent<Canvas>();
+            if (hpCanvas != null) hpCanvas.sortingOrder = order + 3;
+        }
+
+        // TelegraphAoE: hemen üstündeki hücrede başka düşman varsa saydamlaş
+        if (enemyBehavior == EnemyBehavior.TelegraphAoE && TurnManager.instance != null)
+        {
+            bool coveredByEnemy = false;
+
+            // Hex grid'de tam üstteki tek hücre: komşular arasından world X farkı en az olan Y+1 hücre
+            Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOffsets : oddOffsets;
+            Vector3Int directlyAbove = cell;
+            float minXDiff = float.MaxValue;
+            Vector3 myWorldPos = groundMap.GetCellCenterWorld(cell);
+            foreach (var off in offsets)
+            {
+                Vector3Int neighbor = cell + off;
+                if (neighbor.y <= cell.y) continue;
+                float xDiff = Mathf.Abs(groundMap.GetCellCenterWorld(neighbor).x - myWorldPos.x);
+                if (xDiff < minXDiff) { minXDiff = xDiff; directlyAbove = neighbor; }
+            }
+
+            foreach (var e in TurnManager.instance.enemies)
+            {
+                if (e == null || e == this || e.isFading) continue;
+                if (e.GetCurrentCellPosition() == directlyAbove) { coveredByEnemy = true; break; }
+            }
+
+            float targetAlpha = coveredByEnemy ? 0.4f : 1f;
+            if (target != null)
+            {
+                Color c = target.color;
+                c.a = Mathf.MoveTowards(c.a, targetAlpha, 4f * Time.deltaTime);
+                target.color = c;
+            }
         }
     }
 
@@ -199,7 +289,8 @@ public class EnemyAI : MonoBehaviour
         if (isChargingAttack)
         {
             isChargingAttack = false;
-            currentCooldown = 0; 
+            currentCooldown = 0;
+            if (animator != null) { animator.SetBool("IsCharging", false); animator.SetTrigger("GotHit"); }
             ForceClearWarningCells();
         }
     }
@@ -337,7 +428,7 @@ public class EnemyAI : MonoBehaviour
                     lockedTargetCell = fleeTarget;
                     Vector3 currentWorldPos = groundMap.GetCellCenterWorld(cell); currentWorldPos.z = 0;
                     Vector3 nextWorldPos = groundMap.GetCellCenterWorld(fleeTarget); nextWorldPos.z = 0;
-                    intentArrow.transform.position = currentWorldPos;
+                    intentArrow.transform.position = currentWorldPos + (Vector3)arrowOffset;
                     Vector3 dir = nextWorldPos - currentWorldPos;
                     float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
                     intentArrow.transform.rotation = Quaternion.AngleAxis(angle + arrowAngleOffset, Vector3.forward);
@@ -377,6 +468,7 @@ public class EnemyAI : MonoBehaviour
                 hasLockedTarget = false;
                 SetArrowVisibility(false);
                 if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
+                if (animator != null) animator.SetBool("IsCharging", true);
 
                 warningCells = GetLineOfCells(cell, playerCell, aoeAttackRange);
 
@@ -669,19 +761,26 @@ public class EnemyAI : MonoBehaviour
             }
 
             Color attackFlashColor = new Color(1f, 0.8f, 0f, 1f);
-            if (AudioManager.instance != null) AudioManager.instance.PlayHammer();
-
+            if (animator != null)
+            {
+                animator.SetBool("IsCharging", false);
+                animator.SetTrigger("Attack");
+            }
             foreach (var c in ownCells)
             {
                 if (warningMap.HasTile(c)) warningMap.SetColor(c, attackFlashColor);
             }
-            
+
             foreach (var c in sharedCells)
             {
                 if (warningMap.HasTile(c)) warningMap.SetColor(c, attackFlashColor);
             }
 
             yield return new WaitForSeconds(0.1f);
+
+            if (hammerImpactVFXPrefab != null)
+                StartCoroutine(SpawnImpactVFXSequence(new List<Vector3Int>(warningCells)));
+
 
             float fadeDur = 0.4f;
             float elapsed = 0f;
@@ -723,6 +822,7 @@ public class EnemyAI : MonoBehaviour
 
             if (dodged)
             {
+                if (AudioManager.instance != null) AudioManager.instance.PlayShieldBreak();
                 if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
                 {
                     Instantiate(TurnManager.instance.dodgeEffectPrefab, player.transform.position, Quaternion.identity);
@@ -834,6 +934,22 @@ public class EnemyAI : MonoBehaviour
     }
 
     public bool IsMoving() => isMoving || isBumping;
+
+    private IEnumerator SpawnImpactVFXSequence(List<Vector3Int> cells)
+    {
+        foreach (var c in cells)
+        {
+            Vector3 worldPos = groundMap.GetCellCenterWorld(c);
+            worldPos.z = 0f;
+            worldPos.x += vfxXOffset;
+            worldPos.y += vfxYOffset;
+            GameObject vfx = Instantiate(hammerImpactVFXPrefab, worldPos, Quaternion.identity);
+            Destroy(vfx, 3f);
+            yield return new WaitForSeconds(0.05f);
+            AudioManager.instance?.PlayHammer();
+            yield return new WaitForSeconds(vfxDelayBetweenCells);
+        }
+    }
 
     private bool IsNeighbor(Vector3Int cell1, Vector3Int cell2)
     {

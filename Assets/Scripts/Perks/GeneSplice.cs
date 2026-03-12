@@ -37,7 +37,7 @@ public class GeneSplicePerk : BasePerk
         {
             // 1. KENDİSİ HARİÇ olsun.
             // 2. YENİ DÜZELTME: MAX SEVİYEYE ULAŞMAMIŞ yetenekleri filtrele. Max olanı boşuna seçmesin!
-            if (perk != this && perk.currentLevel < perk.maxLevel) 
+            if (perk != this && perk.maxLevel > 1 && perk.currentLevel < perk.maxLevel)
             {
                 upgradablePerks.Add(perk);
             }
@@ -47,8 +47,8 @@ public class GeneSplicePerk : BasePerk
         {
             int randomIndex = Random.Range(0, upgradablePerks.Count);
             BasePerk selectedPerk = upgradablePerks[randomIndex];
-            
-            // YENİ SİSTEMİMİZ: O yeteneğin kendi özel Upgrade'ini çalıştır!
+
+            if (selectedPerk.currentLevel >= selectedPerk.maxLevel) return;
             selectedPerk.Upgrade();
 
             Debug.Log($"✨ Gene Splice: {selectedPerk.perkName} güçlendirildi! (Yeni Seviye: {selectedPerk.currentLevel})");

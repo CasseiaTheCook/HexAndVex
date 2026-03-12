@@ -73,8 +73,8 @@ public class ScreenFader : MonoBehaviour
         // 2. Sahneyi yükle
         loadAction?.Invoke();
 
-        // Sahnenin tam oturması için 1 kare bekle
-        yield return null;
+        // Sahnenin tam oturması için 1 saniye siyah ekranda bekle
+        yield return new WaitForSecondsRealtime(1f);
 
         // Yeni sahnedeki fader'ı bul
         InitializeFader();
