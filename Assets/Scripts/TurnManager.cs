@@ -170,45 +170,13 @@ public class TurnManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F8)) SpawnDebugAoEEnemies();
         if (Input.GetKeyDown(KeyCode.F9))
         {
-            foreach (var e in enemies)
-            {
-                if (e != null && e.enemyBehavior == EnemyAI.EnemyBehavior.TelegraphAoE && e.health.currentHP > 0 && e.skipTurns <= 0)
-                {
-                    e.isChargingAttack = true;
-                    e.warningCells = e.GetComponent<EnemyAI>().warningCells;
-                    Vector3Int playerCell = player.GetCurrentCellPosition();
-                    var cells = GetLineOfCells_Debug(e.GetCurrentCellPosition(), playerCell, e.aoeAttackRange, e);
-                    e.warningCells = cells;
-                    foreach (var wCell in cells) DrawWarningTile(wCell);
-                }
-            }
+            if (player != null && player.health != null)
+                player.health.TakeDamage(player.health.currentHP + 999);
         }
 #endif
     }
 
 #if UNITY_EDITOR
-    private List<Vector3Int> GetLineOfCells_Debug(Vector3Int startCell, Vector3Int targetCell, int length, EnemyAI enemy)
-    {
-        List<Vector3Int> line = new List<Vector3Int>();
-        Vector3Int[] oddOff = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
-        Vector3Int[] evenOff = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
-        int bestDir = 0; float minDist = float.MaxValue;
-        Vector3Int[] startOffsets = (startCell.y % 2 != 0) ? evenOff : oddOff;
-        for (int i = 0; i < 6; i++)
-        {
-            float d = enemy.Distance(startCell + startOffsets[i], targetCell);
-            if (d < minDist) { minDist = d; bestDir = i; }
-        }
-        Vector3Int cur = startCell;
-        for (int i = 0; i < length; i++)
-        {
-            Vector3Int[] offs = (cur.y % 2 != 0) ? evenOff : oddOff;
-            cur += offs[bestDir];
-            if (groundMap.HasTile(cur)) line.Add(cur);
-        }
-        return line;
-    }
-
     private void SpawnDebugAoEEnemies()
     {
         if (LevelGenerator.instance == null || LevelGenerator.instance.aoeEnemyPrefab == null) return;

@@ -42,6 +42,7 @@ public class LevelUpManager : MonoBehaviour
 
     [Header("Debug")]
     [HideInInspector] public GameObject forcedPerk;
+    [HideInInspector] public GameObject forcedPerk2;
 
     private int hoveredCardIndex = -1;
     private bool[] cardAnimDone;
@@ -68,7 +69,10 @@ public class LevelUpManager : MonoBehaviour
             if (i == 0 && forcedPerk != null && !IsPerkMaxedOut(forcedPerk))
             {
                 randomPerk = forcedPerk;
-                // forcedPerk max seviyeye ulaşınca SelectPerk'te otomatik temizlenir
+            }
+            else if (i == 1 && forcedPerk2 != null && !IsPerkMaxedOut(forcedPerk2) && forcedPerk2 != forcedPerk)
+            {
+                randomPerk = forcedPerk2;
             }
 
             while (randomPerk == null || currentChoices.Contains(randomPerk) || IsPerkMaxedOut(randomPerk))
@@ -265,6 +269,7 @@ public class LevelUpManager : MonoBehaviour
             if (legendaryPerks.Contains(chosenPerk)) legendaryPerks.Remove(chosenPerk);
             Debug.Log($"🔥 {activeInstance.perkName} Max Seviyeye ulaştı! Havuzdan kalıcı olarak silindi.");
             if (forcedPerk == chosenPerk) forcedPerk = null;
+            if (forcedPerk2 == chosenPerk) forcedPerk2 = null;
         }
 
         foreach (var perk in existingPerks)
