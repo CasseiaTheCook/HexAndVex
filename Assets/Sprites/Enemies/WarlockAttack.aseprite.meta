@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 764fb88d4a495f01f9c7b46a53687bbe
+guid: 29c2d4cff52f7314fb5034e06e874ad4
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -102,7 +102,7 @@ ScriptedImporter:
     generateIndividualEvents: 1
     generateSpriteAtlas: 1
   importFileNodeState: 1
-  platformSettingsDirtyTick: 639089544291294792
+  platformSettingsDirtyTick: 639089544372177305
   textureAssetName: 
   singleSpriteImportData:
   - name: 
@@ -129,7 +129,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: Frame_0
     originalName: 
-    pivot: {x: 0.537037, y: 0}
+    pivot: {x: 0.5, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -137,9 +137,9 @@ ScriptedImporter:
       serializedVersion: 2
       x: 4
       y: 4
-      width: 216
-      height: 209
-    spriteID: 802eafcaf83f7568a88fee18869db69e
+      width: 200
+      height: 200
+    spriteID: a685a832a0799ad479521f218f6c75ee
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -150,17 +150,17 @@ ScriptedImporter:
     uvTransform: {x: 4, y: 4}
   - name: Frame_1
     originalName: 
-    pivot: {x: 0.537037, y: 0}
+    pivot: {x: 0.5, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
       x: 4
-      y: 221
-      width: 216
-      height: 209
-    spriteID: fec8af294bed80ba7bb46dd5cf971cae
+      y: 212
+      width: 200
+      height: 200
+    spriteID: 4ad3fdf86daa84045bb95b82f428c981
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -168,20 +168,20 @@ ScriptedImporter:
     indices: 
     edges: []
     tessellationDetail: 0
-    uvTransform: {x: 4, y: 221}
+    uvTransform: {x: 4, y: 212}
   - name: Frame_2
     originalName: 
-    pivot: {x: 0.537037, y: 0}
+    pivot: {x: 0.5, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 228
+      x: 212
       y: 4
-      width: 216
-      height: 209
-    spriteID: 52f4b9b30f3ef2b47a2c5337286a9271
+      width: 200
+      height: 200
+    spriteID: bcc682f0d1f5dca4b9432277e31e52ff
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -189,42 +189,21 @@ ScriptedImporter:
     indices: 
     edges: []
     tessellationDetail: 0
-    uvTransform: {x: 228, y: 4}
-  - name: Frame_3
-    originalName: 
-    pivot: {x: 0.537037, y: 0}
-    alignment: 9
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 228
-      y: 221
-      width: 216
-      height: 209
-    spriteID: a5f85c83361321642abf3a411a04af93
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 228, y: 221}
+    uvTransform: {x: 212, y: 4}
   spriteSheetImportData:
-  - name: WarlockIdle_0
+  - name: WarlockAttack_0
     originalName: 
-    pivot: {x: 0.50099075, y: 0.4408998}
+    pivot: {x: 0.55134916, y: 0.33615002}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 105
-      y: 307
-      width: 29
-      height: 42
-    spriteID: e95ca16e071ebf84d993f70f17d0ef1d
+      x: 82
+      y: 298
+      width: 39
+      height: 55
+    spriteID: 60278b9b80ec47943ab5ea9ce2caafc9
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -233,40 +212,19 @@ ScriptedImporter:
     edges: []
     tessellationDetail: 0
     uvTransform: {x: 0, y: 0}
-  - name: WarlockIdle_1
+  - name: WarlockAttack_1
     originalName: 
-    pivot: {x: 0.5000011, y: 0.44047692}
+    pivot: {x: 0.55115706, y: 0.34899917}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 329
-      y: 307
-      width: 29
-      height: 42
-    spriteID: 7933623ea4f71c644b90052cc547fb23
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
-  - name: WarlockIdle_2
-    originalName: 
-    pivot: {x: 0.49931046, y: 0.44047657}
-    alignment: 9
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 105
+      x: 82
       y: 90
-      width: 29
-      height: 42
-    spriteID: 2f63f71cd87b3564695b7c05c268aa76
+      width: 39
+      height: 53
+    spriteID: 494b102f2da21ae44a9e1265b97ef302
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -275,19 +233,19 @@ ScriptedImporter:
     edges: []
     tessellationDetail: 0
     uvTransform: {x: 0, y: 0}
-  - name: WarlockIdle_3
+  - name: WarlockAttack_2
     originalName: 
-    pivot: {x: 0.5000011, y: 0.45073196}
+    pivot: {x: 0.5511514, y: 0.34901428}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 329
+      x: 290
       y: 90
-      width: 29
-      height: 41
-    spriteID: f6afc107fdbf5c44e8bba0d5aa56e854
+      width: 39
+      height: 53
+    spriteID: 5fb647b2dea50a84db47a612755af2ed
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -300,52 +258,43 @@ ScriptedImporter:
   asepriteLayers:
   - layerIndex: 0
     uuid:
-      value0: 3464139947
+      value0: 843099595
       value1: 0
       value2: 0
       value3: 0
     guid: 0
-    name: WarlockIdle
+    name: WarlockAttack
     layerFlags: 0
     layerType: 0
     blendMode: 0
     cells:
-    - name: Frame_1
-      frameIndex: 1
-      additiveSortOrder: 0
-      cellRect:
-        x: -16
-        y: 0
-        width: 216
-        height: 209
-      spriteId: 802eafcaf83f7568a88fee18869db69e
     - name: Frame_0
       frameIndex: 0
       additiveSortOrder: 0
       cellRect:
-        x: -16
+        x: 0
         y: 0
-        width: 216
-        height: 209
-      spriteId: fec8af294bed80ba7bb46dd5cf971cae
+        width: 200
+        height: 200
+      spriteId: a685a832a0799ad479521f218f6c75ee
+    - name: Frame_1
+      frameIndex: 1
+      additiveSortOrder: 0
+      cellRect:
+        x: 0
+        y: 0
+        width: 200
+        height: 200
+      spriteId: 4ad3fdf86daa84045bb95b82f428c981
     - name: Frame_2
       frameIndex: 2
       additiveSortOrder: 0
       cellRect:
-        x: -16
+        x: 0
         y: 0
-        width: 216
-        height: 209
-      spriteId: 52f4b9b30f3ef2b47a2c5337286a9271
-    - name: Frame_3
-      frameIndex: 3
-      additiveSortOrder: 0
-      cellRect:
-        x: -16
-        y: 0
-        width: 216
-        height: 209
-      spriteId: a5f85c83361321642abf3a411a04af93
+        width: 200
+        height: 200
+      spriteId: bcc682f0d1f5dca4b9432277e31e52ff
     linkedCells: []
     tileCells: []
     tileSetIndex: 0
