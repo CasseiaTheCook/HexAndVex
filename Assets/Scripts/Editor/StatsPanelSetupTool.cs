@@ -60,7 +60,7 @@ public static class StatsPanelSetupTool
         vl.childForceExpandHeight = false;
         vl.padding = new RectOffset(8, 8, 4, 4);
 
-        string[] labels = { "Turns Played", "Dice Rolled", "Damage Dealt", "Enemies Killed", "Gold Earned" };
+        string[] labels = { "Levels Played", "Dice Rolled", "Damage Dealt", "Enemies Killed", "Gold Earned" };
         var valueTexts = new TMP_Text[labels.Length];
         for (int i = 0; i < labels.Length; i++)
         {
@@ -118,7 +118,7 @@ public static class StatsPanelSetupTool
 
         // StatsPanelUI
         var panelUI = statsPanel.AddComponent<StatsPanelUI>();
-        panelUI.turnsValue  = valueTexts[0];
+        panelUI.levelsValue = valueTexts[0];
         panelUI.diceValue   = valueTexts[1];
         panelUI.damageValue = valueTexts[2];
         panelUI.killsValue  = valueTexts[3];
@@ -201,7 +201,7 @@ public static class StatsPanelSetupTool
         vl.childForceExpandHeight = false;
         vl.padding = new RectOffset(8, 8, 4, 4);
 
-        string[] labels = { "Turns Played", "Dice Rolled", "Damage Dealt", "Enemies Killed", "Gold Earned" };
+        string[] labels = { "Levels Played", "Dice Rolled", "Damage Dealt", "Enemies Killed", "Gold Earned" };
         var valueTexts = new TMP_Text[labels.Length];
         for (int i = 0; i < labels.Length; i++)
         {
@@ -257,7 +257,7 @@ public static class StatsPanelSetupTool
 
         // StatsPanelUI
         var panelUI = statsPanel.AddComponent<StatsPanelUI>();
-        panelUI.turnsValue  = valueTexts[0];
+        panelUI.levelsValue = valueTexts[0];
         panelUI.diceValue   = valueTexts[1];
         panelUI.damageValue = valueTexts[2];
         panelUI.killsValue  = valueTexts[3];

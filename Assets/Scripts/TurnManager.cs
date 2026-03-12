@@ -416,6 +416,8 @@ public void ResetGame()
         if (CoinDropVFX.instance != null) while (CoinDropVFX.instance.activeCoinCount > 0) yield return null;
         yield return new WaitForSeconds(0.3f);
 
+        RunManager.instance.totalLevelsPlayed++;
+
         if (Shopmanager.instance != null)
         {
             bool isBossLevel = RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 0;

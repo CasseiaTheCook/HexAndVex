@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public class StatsPanelUI : MonoBehaviour
 {
     [Header("Stat Rows (Inspector'dan sırayla bağla)")]
-    public TMP_Text turnsValue;
+    public TMP_Text levelsValue;
     public TMP_Text diceValue;
     public TMP_Text damageValue;
     public TMP_Text killsValue;
@@ -25,7 +25,7 @@ public class StatsPanelUI : MonoBehaviour
         if (RunManager.instance == null) return;
         var rm = RunManager.instance;
 
-        if (turnsValue)  turnsValue.text  = FormatWithBest(rm.totalTurnsPlayed,   RunManager.BestTurns);
+        if (levelsValue) levelsValue.text = FormatWithBest(rm.totalLevelsPlayed,  RunManager.BestLevels);
         if (diceValue)   diceValue.text   = FormatWithBest(rm.totalDiceRolled,    RunManager.BestDice);
         if (damageValue) damageValue.text = FormatWithBest(rm.totalDamageDealt,   RunManager.BestDamage);
         if (killsValue)  killsValue.text  = FormatWithBest(rm.totalEnemiesKilled, RunManager.BestKills);
