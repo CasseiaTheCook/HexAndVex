@@ -32,6 +32,7 @@ public class AudioManager : MonoBehaviour
     [Range(0f, 1f)] public float sfxVolume = 1f;
 
     private AudioSource audioSource;
+    private AudioMixer audioMixer;
 
     void Awake()
     {
@@ -48,6 +49,30 @@ public class AudioManager : MonoBehaviour
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        
+        // AudioMixer'ı Resources'tan yükle (yolunu kontrol et)
+        audioMixer = Resources.Load<AudioMixer>("NewAudioMixer");
+        if (audioMixer == null) audioMixer = FindObjectOfType<AudioMixer>();
+        
+        // Saved ses ayarlarını yükle
+        LoadAudioSettings();
+    }
+
+    private void LoadAudioSettings()
+    {
+        if (audioMixer == null) return;
+        
+        float masterVol = PlayerPrefs.GetFloat("MasterVol", 0.75f);
+        float musicVol = PlayerPrefs.GetFloat("MusicVol", 0.75f);
+        float sfxVol = PlayerPrefs.GetFloat("SfxVol", 0.75f);
+        
+        masterVolume = masterVol;
+        sfxVolume = sfxVol;
+        
+        // Mixer parametrelerini set et
+        audioMixer.SetFloat("MasterVol", Mathf.Log10(Mathf.Max(0.0001f, masterVol)) * 20);
+        audioMixer.SetFloat("MusicVol", Mathf.Log10(Mathf.Max(0.0001f, musicVol)) * 20);
+        audioMixer.SetFloat("SfxVol", Mathf.Log10(Mathf.Max(0.0001f, sfxVol)) * 20);
     }
 
     private void Play(AudioClip clip, float volumeScale = 1f, float pitchMin = 1f, float pitchMax = 1f)

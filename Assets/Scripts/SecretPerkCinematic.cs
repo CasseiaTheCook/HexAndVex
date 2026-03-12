@@ -472,6 +472,7 @@ public class SecretPerkCinematic : MonoBehaviour
         {
             perkNameText.text = fullName.Substring(0, i + 1);
             if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
+            CameraController.ShakeLight();
             yield return new WaitForSecondsRealtime(typeDelay);
         }
 
