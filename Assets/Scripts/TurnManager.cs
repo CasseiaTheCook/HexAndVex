@@ -274,7 +274,7 @@ public class TurnManager : MonoBehaviour
     // ========================================================
     // YENİ: MAYIN BIRAKMA / YER DEĞİŞTİRME KOMUTU
     // ========================================================
-    public void TryDropMine(Vector3Int cell)
+    public void TryDropMine(Vector3Int cell, Vector3 offset = default)
     {
         if (activeMineObj != null)
         {
@@ -284,6 +284,7 @@ public class TurnManager : MonoBehaviour
         activeMineCell = cell;
         Vector3 pos = groundMap.GetCellCenterWorld(cell);
         pos.z = 0;
+        pos += offset; // Offset ekle
 
         if (phantomMinePrefab != null)
         {
@@ -887,9 +888,10 @@ public void ResetGame()
 
             if (RunManager.instance != null && RunManager.instance.activePerks.Exists(p => p is PhantomLimbPerk))
             {
-                TryDropMine(player.GetCurrentCellPosition());
-
                 var perk = RunManager.instance.activePerks.Find(p => p is PhantomLimbPerk);
+                Vector3 mineOffset = (perk as PhantomLimbPerk)?.mineOffset ?? Vector3.zero;
+                TryDropMine(player.GetCurrentCellPosition(), mineOffset);
+
                 if (perk != null) perk.TriggerVisualPop();
             }
         }
@@ -1207,6 +1209,10 @@ public void ResetGame()
 
     private IEnumerator MultiAttack(List<EnemyAI> targets)
     {
+        // Skip button'ı zarlar atılırken disable et
+        if (LevelUpManager.instance != null && LevelUpManager.instance.skipButton != null)
+            LevelUpManager.instance.skipButton.interactable = false;
+            
         bool hasBioMag = RunManager.instance.activePerks.Exists(p => p is BioMagnetismPerk);
         if (hasBioMag)
         {
@@ -1481,7 +1487,7 @@ public void ResetGame()
                 }
             }
             bool dies = enemy.health.currentHP <= actualDamage;
-            enemy.health.TakeDamage(actualDamage);
+            enemy.health.TakeDamage(actualDamage, true);
             
             // Slash efekti spawn et
             if (slashEffectPrefab != null)
@@ -1507,7 +1513,7 @@ public void ResetGame()
                 int voodooHits = Mathf.Min(voodooPerk.currentLevel, others.Count);
                 for (int v = 0; v < voodooHits; v++)
                 {
-                    others[v].health.TakeDamage(damagePerEnemy);
+                    others[v].health.TakeDamage(damagePerEnemy, true);
                     
                     // Slash efekti spawn et
                     if (slashEffectPrefab != null)
@@ -1805,6 +1811,7 @@ public void ResetGame()
     {
         if (txt == null) yield break;
         if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
+        CameraController.ShakeLight();
         float duration = 0.15f; float elapsed = 0f;
         Transform t = txt.transform; Vector3 startScale = new Vector3(2f, 2f, 2f);
         t.localScale = startScale;
@@ -1838,6 +1845,7 @@ public void ResetGame()
     {
         if (textElement == null) yield break;
         if (AudioManager.instance != null) AudioManager.instance.PlayTextEffect();
+        CameraController.ShakeLight();
         Transform t = textElement.transform; Vector3 startScale = new Vector3(3f, 3f, 3f); Vector3 endScale = Vector3.one;
         float duration = 0.15f; float elapsed = 0f;
         while (elapsed < duration)

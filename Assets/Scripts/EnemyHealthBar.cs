@@ -34,6 +34,17 @@ public class EnemyHealthBar : MonoBehaviour
     [Header("Eski HP Yazısını Gizle")]
     public bool hideOriginalHPText = true;
 
+    [Header("Outline Ayarları")]
+    public float outlineWidth = 1f;
+    public Color outlineColor = Color.black;
+
+    [Header("Font Ayarları")]
+    public TMP_FontAsset hpFont;
+    public float fontSize = 24f;
+
+    [Header("Sorting Order")]
+    public int sortingOrder = -1;
+
     private HealthScript health;
     private RectTransform fillRT;
     private RectTransform trailRT;
@@ -64,8 +75,40 @@ public class EnemyHealthBar : MonoBehaviour
         if (hideOriginalHPText && health.hptext != null)
             health.hptext.gameObject.SetActive(false);
 
+        // Outline ayarlarını uygula
+        if (bgImage != null)
+        {
+            Outline outline = bgImage.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.effectDistance = new Vector2(outlineWidth, outlineWidth);
+                outline.effectColor = outlineColor;
+            }
+        }
+
+        // Font ayarlarını uygula
+        if (hpLabel != null)
+        {
+            if (hpFont != null) hpLabel.font = hpFont;
+            hpLabel.fontSize = fontSize;
+            hpLabel.enableAutoSizing = false;
+            
+            // Layout element'i düzelt
+            LayoutElement layout = hpLabel.GetComponent<LayoutElement>();
+            if (layout != null)
+            {
+                layout.preferredWidth = -1;
+                layout.preferredHeight = -1;
+            }
+        }
+
         trailRatio = 1f;
         targetRatio = 1f;
+        
+        // Sorting order'ı set et
+        if (barCanvas != null)
+            barCanvas.sortingOrder = sortingOrder;
+        
         UpdateBar();
     }
 

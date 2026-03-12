@@ -24,6 +24,9 @@ public class DamageNumber : MonoBehaviour
         
         // Başlangıçta hafif büyük görünsün (Pop-up etkisi)
         transform.localScale = Vector3.one * 1.5f;
+
+        // Text effect oynadığında hafif camera shake
+        CameraController.ShakeLight();
     }
 
     private void Update()

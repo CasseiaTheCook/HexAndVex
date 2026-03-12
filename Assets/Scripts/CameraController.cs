@@ -6,9 +6,9 @@ public class CameraController : MonoBehaviour
     public float panSpeed = 15f; 
 
     [Header("Zoom Ayarları (Perspektif)")]
-    public float zoomSpeed = 25f; // Perspektif için biraz daha yüksek hız
-    public float minZoomZ = -5f;  // En fazla ne kadar YAKLAŞSIN (Kamera Z değeri)
-    public float maxZoomZ = -25f; // En fazla ne kadar UZAKLAŞSIN (Kamera Z değeri)
+    public float zoomSpeed = 25f;
+    public float minZoomZ = -5f;
+    public float maxZoomZ = -25f;
 
     [Header("Kamera Sınırları")]
     public Vector2 minBounds = new Vector2(-20f, -20f); 
@@ -16,12 +16,19 @@ public class CameraController : MonoBehaviour
 
     private Camera cam;
     private Vector3 dragOrigin;
+    
+    // Shake offset
+    private Vector3 shakeOffset = Vector3.zero;
+    private float shakeTimer = 0f;
+    private float shakeDuration = 0f;
+    private float shakeMagnitude = 0f;
+    private Vector3 targetPosition = Vector3.zero;
 
     void Start()
     {
         cam = Camera.main;
+        targetPosition = transform.position;
         
-        // Yanlışlıkla Orthographic kaldıysa otomatik Perspektife çevirelim
         if (cam.orthographic) 
         {
             cam.orthographic = false;
@@ -33,6 +40,7 @@ public class CameraController : MonoBehaviour
         HandleKeyboardPan();
         HandleMouseDragPan();
         HandleZoom();
+        UpdateShake();
         ClampCameraPosition();
     }
 
@@ -42,7 +50,7 @@ public class CameraController : MonoBehaviour
         float y = Input.GetAxisRaw("Vertical");
 
         Vector3 move = new Vector3(x, y, 0).normalized * panSpeed * Time.deltaTime;
-        transform.Translate(move, Space.World);
+        targetPosition += move;
     }
 
     private void HandleMouseDragPan()
@@ -56,17 +64,13 @@ public class CameraController : MonoBehaviour
         {
             Vector3 currentMousePos = GetMouseWorldPosition();
             Vector3 difference = dragOrigin - currentMousePos;
-            
-            // Farenin hareketi kadar kamerayı da o yöne çekiyoruz
-            transform.position += difference; 
+            targetPosition += difference;
         }
     }
 
-    // YENİ: Perspektif kamerada farenin zemin (Z=0) üzerindeki tam konumunu bulur!
     private Vector3 GetMouseWorldPosition()
     {
         Vector3 mousePos = Input.mousePosition;
-        // Kameranın derinliğini (Z ekseni) mutlak değer olarak veriyoruz ki fare zemin seviyesini algılasın
         mousePos.z = Mathf.Abs(cam.transform.position.z); 
         return cam.ScreenToWorldPoint(mousePos);
     }
@@ -76,22 +80,48 @@ public class CameraController : MonoBehaviour
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0.0f)
         {
-            // Perspektif kamerada Zoom, kameranın Z ekseninde ileri veya geri gitmesidir.
-            Vector3 pos = transform.position;
+            Vector3 pos = targetPosition;
             pos.z += scroll * zoomSpeed;
-            
-            // Kameranın Z sınırlarını belirliyoruz (örn: -25 ile -5 arası)
             pos.z = Mathf.Clamp(pos.z, maxZoomZ, minZoomZ); 
-            
-            transform.position = pos;
+            targetPosition = pos;
         }
+    }
+
+    private void UpdateShake()
+    {
+        if (shakeTimer > 0f)
+        {
+            shakeTimer -= Time.deltaTime;
+            float progress = 1f - (shakeTimer / shakeDuration);
+            float falloff = 1f - (progress * progress);
+            shakeOffset = Random.insideUnitSphere * shakeMagnitude * falloff;
+        }
+        else
+        {
+            shakeOffset = Vector3.zero;
+        }
+
+        transform.position = targetPosition + shakeOffset;
     }
 
     private void ClampCameraPosition()
     {
-        float clampedX = Mathf.Clamp(transform.position.x, minBounds.x, maxBounds.x);
-        float clampedY = Mathf.Clamp(transform.position.y, minBounds.y, maxBounds.y);
-        
-        transform.position = new Vector3(clampedX, clampedY, transform.position.z);
+        float clampedX = Mathf.Clamp(targetPosition.x, minBounds.x, maxBounds.x);
+        float clampedY = Mathf.Clamp(targetPosition.y, minBounds.y, maxBounds.y);
+        targetPosition = new Vector3(clampedX, clampedY, targetPosition.z);
+    }
+
+    public void Shake(float duration, float magnitude)
+    {
+        shakeDuration = duration;
+        shakeTimer = duration;
+        shakeMagnitude = magnitude;
+    }
+
+    public static void ShakeLight()
+    {
+        CameraController controller = FindObjectOfType<CameraController>();
+        if (controller != null)
+            controller.Shake(0.1f, 0.075f);
     }
 }

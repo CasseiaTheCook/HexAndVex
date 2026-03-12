@@ -7,7 +7,7 @@ using System.Collections;
 /// Hasar, iyileştirme, yumuşak renk geçişleri (Damage Flash), yumuşak saydamlaşma ve ölüm animasyonunu yönetir.
 /// </summary>
 public class HealthScript : MonoBehaviour
-{
+{    public static HitstopManager hitstopManager;
     [Header("HP Settings")]
     public int maxHP = 3;
     public int currentHP;
@@ -48,7 +48,7 @@ public class HealthScript : MonoBehaviour
         updateHealth();
     }
 
-    public void TakeDamage(int dmg)
+    public void TakeDamage(int dmg, bool applyHitstop = false)
     {
         if (isDead) return;
 
@@ -57,11 +57,22 @@ public class HealthScript : MonoBehaviour
         if (enemyAI != null && enemyAI.enemyBehavior == EnemyAI.EnemyBehavior.Boss)
         {
             var boss = enemyAI.GetComponent<SpawnerBossAI>();
-            if (boss != null && boss.isShielded) return;
+            if (boss != null && boss.isShielded)
+            {
+                Debug.Log("Boss kalkanı aktif - Hasar verilmedi!");
+                return;
+            }
         }
 
         if (AudioManager.instance != null) AudioManager.instance.PlayTakeDamage();
         currentHP -= dmg;
+
+        // Impact anında hafif camera shake
+        CameraController.ShakeLight();
+        
+        // Hitstop uygula
+        if (applyHitstop && HitstopManager.instance != null)
+            HitstopManager.instance.TriggerHitstop();
 
         if (gameObject.CompareTag("Player"))
         {
