@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Tilemaps;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -362,6 +363,7 @@ public class LevelGenerator : MonoBehaviour
 
         availableSpawnCells = availableSpawnCells.OrderByDescending(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).ToList();
 
+        EnemyAI spawnedBossAI = null;
         if (bossPrefab != null && availableSpawnCells.Count > 0)
         {
             Vector3Int bossCell = availableSpawnCells[0];
@@ -375,6 +377,7 @@ public class LevelGenerator : MonoBehaviour
             bossAI.health.updateHealth();
 
             StartCoroutine(bossAI.FadeSpawnCoroutine());
+            spawnedBossAI = bossAI;
 
             availableSpawnCells.RemoveAt(0);
         }
@@ -402,9 +405,25 @@ public class LevelGenerator : MonoBehaviour
             }
         }
 
-        TurnManager.instance.isPlayerTurn = true;
         TurnManager.instance.hasAttackedThisTurn = false;
-        TurnManager.instance.player.UpdateHighlights();
+
+        // Boss giriş animasyonu — biterken isPlayerTurn açılır
+        if (spawnedBossAI != null && BossIntroSequence.instance != null)
+        {
+            // FadeSpawn bitsin diye kısa bekle
+            StartCoroutine(DelayedBossIntro(spawnedBossAI));
+        }
+        else
+        {
+            TurnManager.instance.isPlayerTurn = true;
+            TurnManager.instance.player.UpdateHighlights();
+        }
+    }
+
+    private IEnumerator DelayedBossIntro(EnemyAI boss)
+    {
+        yield return new WaitForSeconds(0.8f); // FadeSpawn animasyonu tamamlansın
+        BossIntroSequence.instance.PlayIntro(boss);
     }
 
     private void GenerateColumns()

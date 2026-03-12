@@ -55,6 +55,14 @@ public class LevelUpManager : MonoBehaviour
 
     public void ShowLevelUpScreen()
     {
+        // Tüm perkler max seviyeye ulaştıysa perk seçme ekranını atla
+        if (AreAllPerksMaxed())
+        {
+            Debug.Log("Tüm perkler max seviyede — perk seçme ekranı atlanıyor.");
+            SkipLevelUpScreen();
+            return;
+        }
+
         levelUpPanel.SetActive(true);
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(true);
         currentChoices.Clear();
@@ -240,12 +248,23 @@ public class LevelUpManager : MonoBehaviour
     private GameObject GetAnyValidFallback()
     {
         List<GameObject> allAvailable = new List<GameObject>();
+        allAvailable.AddRange(legendaryPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
         allAvailable.AddRange(epicPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
         allAvailable.AddRange(rarePerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
         allAvailable.AddRange(commonPerks.Where(p => !currentChoices.Contains(p) && !IsPerkMaxedOut(p)));
 
         if (allAvailable.Count > 0) return allAvailable[Random.Range(0, allAvailable.Count)];
         return null;
+    }
+
+    /// <summary>Tüm perkler max seviyeye ulaştıysa true döner.</summary>
+    public bool AreAllPerksMaxed()
+    {
+        foreach (var p in commonPerks)    if (!IsPerkMaxedOut(p)) return false;
+        foreach (var p in rarePerks)      if (!IsPerkMaxedOut(p)) return false;
+        foreach (var p in epicPerks)      if (!IsPerkMaxedOut(p)) return false;
+        foreach (var p in legendaryPerks) if (!IsPerkMaxedOut(p)) return false;
+        return true;
     }
 
     public void SelectPerk(int index)
@@ -422,6 +441,24 @@ public class LevelUpManager : MonoBehaviour
 
         // Gene Splice gibi upgrade sekanslarının görünmesi için kısa bekleme
         yield return new WaitForSeconds(1f);
+
+        if (ScreenFader.instance != null)
+        {
+            ScreenFader.instance.FadeAndLoad(() =>
+            {
+                LevelGenerator.instance.GenerateNextLevel();
+            });
+        }
+        else
+        {
+            LevelGenerator.instance.GenerateNextLevel();
+        }
+    }
+
+    /// <summary>Perk seçme ekranını göstermeden sonraki levele geç.</summary>
+    private void SkipLevelUpScreen()
+    {
+        RunManager.instance.currentLevel++;
 
         if (ScreenFader.instance != null)
         {
