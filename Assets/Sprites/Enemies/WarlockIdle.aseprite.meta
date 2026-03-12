@@ -310,8 +310,8 @@ ScriptedImporter:
     layerType: 0
     blendMode: 0
     cells:
-    - name: Frame_1
-      frameIndex: 1
+    - name: Frame_0
+      frameIndex: 0
       additiveSortOrder: 0
       cellRect:
         x: -16
@@ -319,8 +319,8 @@ ScriptedImporter:
         width: 216
         height: 209
       spriteId: 802eafcaf83f7568a88fee18869db69e
-    - name: Frame_0
-      frameIndex: 0
+    - name: Frame_1
+      frameIndex: 1
       additiveSortOrder: 0
       cellRect:
         x: -16
