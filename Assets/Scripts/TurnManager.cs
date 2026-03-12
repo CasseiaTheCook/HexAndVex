@@ -173,6 +173,8 @@ public class TurnManager : MonoBehaviour
             if (player != null && player.health != null)
                 player.health.TakeDamage(player.health.currentHP + 999);
         }
+        if (Input.GetKeyDown(KeyCode.F10)) DebugEquipAllPerks();
+        if (Input.GetKeyDown(KeyCode.F12)) DebugUpgradeAllPerks();
 #endif
     }
 
@@ -208,6 +210,42 @@ public class TurnManager : MonoBehaviour
             ai.health.maxHP = 50; ai.health.currentHP = 50; ai.health.updateHealth();
             RegisterEnemy(ai); StartCoroutine(ai.FadeSpawnCoroutine());
         }
+    }
+
+    private void DebugEquipAllPerks()
+    {
+        if (LevelUpManager.instance == null || RunManager.instance == null) return;
+        var lum = LevelUpManager.instance;
+        List<List<GameObject>> allLists = new List<List<GameObject>> { lum.commonPerks, lum.rarePerks, lum.epicPerks, lum.legendaryPerks };
+        int added = 0;
+        foreach (var list in allLists)
+        {
+            foreach (var prefab in list)
+            {
+                if (prefab == null) continue;
+                BasePerk ps = prefab.GetComponent<BasePerk>();
+                if (RunManager.instance.activePerks.Exists(p => p.GetType() == ps.GetType())) continue;
+                RunManager.instance.AddPerk(prefab);
+                added++;
+            }
+        }
+        Debug.Log($"[DEBUG] {added} perk eklendi!");
+    }
+
+    private void DebugUpgradeAllPerks()
+    {
+        if (RunManager.instance == null) return;
+        int upgraded = 0;
+        foreach (var perk in RunManager.instance.activePerks)
+        {
+            if (perk == null) continue;
+            while (perk.currentLevel < perk.maxLevel)
+            {
+                perk.Upgrade();
+                upgraded++;
+            }
+        }
+        Debug.Log($"[DEBUG] {upgraded} upgrade yapıldı! Tüm perkler max seviyede.");
     }
 #endif
 
