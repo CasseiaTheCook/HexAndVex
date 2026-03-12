@@ -322,6 +322,7 @@ public void ResetGame()
         rm.totalTurnsPlayed = 0;
         rm.totalDiceRolled = 0;
         rm.totalGoldEarned = 0;
+        rm.totalLevelsPlayed = 0;
     }
 
     // 3. TurnManager'ın kendi listelerini temizle
