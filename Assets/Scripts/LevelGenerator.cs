@@ -290,6 +290,7 @@ public class LevelGenerator : MonoBehaviour
         }
 
         TurnManager.instance.isPlayerTurn = true;
+        TurnManager.instance.hasAttackedThisTurn = false;
         TurnManager.instance.player.UpdateHighlights();
 
         TurnManager.instance.Invoke("LockAllEnemyIntents", 0.1f);
@@ -403,6 +404,7 @@ public class LevelGenerator : MonoBehaviour
         }
 
         TurnManager.instance.isPlayerTurn = true;
+        TurnManager.instance.hasAttackedThisTurn = false;
         TurnManager.instance.player.UpdateHighlights();
     }
 

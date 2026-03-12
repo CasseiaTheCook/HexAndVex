@@ -371,6 +371,7 @@ public void ResetGame()
     {
         if (dodgeEffectPrefab == null) yield break;
 
+        if (AudioManager.instance != null) AudioManager.instance.PlayShieldBreak();
         GameObject fx = Instantiate(dodgeEffectPrefab, pos, Quaternion.identity);
         SpriteRenderer[] renderers = fx.GetComponentsInChildren<SpriteRenderer>();
 
@@ -854,7 +855,7 @@ public void ResetGame()
 
     private IEnumerator LockIntentsNextFrame()
     {
-        yield return new WaitForSeconds(0.35f);
+        yield return null;
         LockAllEnemyIntents();
         ShowAllEnemyIntents();
     }

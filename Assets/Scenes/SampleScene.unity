@@ -16647,6 +16647,7 @@ MonoBehaviour:
   vacuumClip: {fileID: 8300000, guid: 2bbbcf3b3c8283c4a83a6491c98876bc, type: 3}
   textEffectClip: {fileID: 8300000, guid: 28598892a072c2349a913948e9baa583, type: 3}
   secretPerkClip: {fileID: 0}
+  shieldBreakClip: {fileID: 8300000, guid: a4edd902313b87d46a13d970ddae9659, type: 3}
   masterVolume: 1
   sfxVolume: 1
 --- !u!1 &1735267719
@@ -20620,7 +20621,7 @@ PrefabInstance:
       objectReference: {fileID: 11400000, guid: 476e3731eebf13644a87900f39656aa6, type: 2}
     - target: {fileID: 8821926101173592961, guid: 5240a9081f270534a978d0729793271d, type: 3}
       propertyPath: playerVisualOffsetY
-      value: 0.05
+      value: 0.07
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

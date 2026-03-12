@@ -370,13 +370,13 @@ public class SpawnerBossAI : MonoBehaviour
         if (isSummoning) yield break; 
         isSummoning = true;
 
-        // Tüm düşmanları ve bossun konumunu al
+        // Tüm düşmanları, bossun konumunu ve totemleri al
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         Vector3Int bossCell = myEnemyAI.GetCurrentCellPosition();
         List<Vector3Int> occupiedCells = new List<Vector3Int> { playerCell, bossCell };
-        foreach (var minion in summonedMinions)
+        foreach (var e in TurnManager.instance.enemies)
         {
-            if (minion != null) occupiedCells.Add(minion.GetCurrentCellPosition());
+            if (e != null && e.health.currentHP > 0) occupiedCells.Add(e.GetCurrentCellPosition());
         }
 
         // Harita üstünde homojen totem dağılması

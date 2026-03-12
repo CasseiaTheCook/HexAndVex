@@ -261,6 +261,7 @@ public class WarlockEnemyAI : MonoBehaviour
 
                 if (dodged)
                 {
+                    if (AudioManager.instance != null) AudioManager.instance.PlayShieldBreak();
                     if (TurnManager.instance != null && TurnManager.instance.dodgeEffectPrefab != null)
                         Instantiate(TurnManager.instance.dodgeEffectPrefab, TurnManager.instance.player.transform.position, Quaternion.identity);
                 }

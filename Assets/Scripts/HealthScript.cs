@@ -70,7 +70,7 @@ public class HealthScript : MonoBehaviour
         }
 
         EnemyAI enemy = GetComponentInParent<EnemyAI>();
-        if (enemy != null)
+        if (enemy != null && enemy.enemyBehavior != EnemyAI.EnemyBehavior.Boss && enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
         {
             enemy.skipTurns = Mathf.Max(enemy.skipTurns, 1);
             enemy.SetStunVisual(true);
@@ -127,13 +127,13 @@ public class HealthScript : MonoBehaviour
 
         // Eğer halihazırda bir saydamlaşma animasyonu varsa durdur, yenisini başlat
         if (alphaFadeCoroutine != null) StopCoroutine(alphaFadeCoroutine);
-        alphaFadeCoroutine = StartCoroutine(FadeAlphaCoroutine(targetAlpha));
+        alphaFadeCoroutine = StartCoroutine(FadeAlphaCoroutine(targetAlpha, deepStun));
     }
 
-    private IEnumerator FadeAlphaCoroutine(float targetAlpha)
+    private IEnumerator FadeAlphaCoroutine(float targetAlpha, bool fadingIn)
     {
         float startAlpha = originalColor.a;
-        float duration = 0.3f; // Saydamlaşma/Belirginleşme hızı (0.3 saniye)
+        float duration = fadingIn ? 0.3f : 0.7f; // Saydamlaşma hızlı, belirginleşme yavaş
         float elapsed = 0f;
 
         while (elapsed < duration)
@@ -201,11 +201,16 @@ public class HealthScript : MonoBehaviour
 
     private IEnumerator DeathAnimation()
     {
+        // Animator'ı kapat ki sprite override etmesin
+        Animator anim = GetComponentInChildren<Animator>();
+        if (anim != null) anim.enabled = false;
+
         float duration = 0.4f;
         float elapsed = 0f;
 
         Vector3 startScale = transform.localScale;
-        Color startColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
+        // Tüm SpriteRenderer'ları yakala (child'lar dahil)
+        SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
 
         while (elapsed < duration)
         {
@@ -214,9 +219,13 @@ public class HealthScript : MonoBehaviour
 
             transform.localScale = Vector3.Lerp(startScale, Vector3.zero, t);
 
-            if (spriteRenderer != null)
+            foreach (var sr in allRenderers)
             {
-                spriteRenderer.color = new Color(startColor.r, startColor.g, startColor.b, Mathf.Lerp(startColor.a, 0f, t));
+                if (sr != null)
+                {
+                    Color c = sr.color;
+                    sr.color = new Color(c.r, c.g, c.b, Mathf.Lerp(1f, 0f, t));
+                }
             }
 
             yield return null;
