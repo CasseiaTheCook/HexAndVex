@@ -58,6 +58,7 @@ public class HealthScript : MonoBehaviour
         if (gameObject.CompareTag("Player"))
         {
             RunManager.instance.totalDamageReceived += dmg; // Alınan hasarı kaydet
+            RunManager.instance.playerCurrentHealth = currentHP; // Senkronize et
         }
         
         if (damageTextPrefab != null)
@@ -72,7 +73,13 @@ public class HealthScript : MonoBehaviour
         EnemyAI enemy = GetComponentInParent<EnemyAI>();
         if (enemy != null && enemy.enemyBehavior != EnemyAI.EnemyBehavior.Boss && enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
         {
-            enemy.skipTurns = Mathf.Max(enemy.skipTurns, 1);
+            int stunTurns = 1;
+            if (RunManager.instance != null)
+            {
+                foreach (var p in RunManager.instance.activePerks)
+                    if (p is NeuroStasisMistPerk mist) { stunTurns += mist.GetStunBonus(); break; }
+            }
+            enemy.skipTurns = Mathf.Max(enemy.skipTurns, stunTurns);
             enemy.SetStunVisual(true);
             // Stun alpha'sını hemen başlat (sonra TriggerExplosion tarafından reset edilebilsin)
             SetStunnedAlpha(true);

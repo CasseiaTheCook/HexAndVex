@@ -1367,7 +1367,17 @@ public void ResetGame()
 
         if (!skipDiceVisuals && PerkListUI.instance != null) PerkListUI.instance.ForceClose();
 
-        if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
+        // Fatal Sight Protocol: isCriticalHit may already be set by a perk in ModifyCombat
+        if (payload.isCriticalHit)
+        {
+            if (!skipDiceVisuals)
+            {
+                UpdateTotalDamageDisplay(payload.GetFinalDamage());
+                if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
+                yield return StartCoroutine(SkippableWait(0.5f));
+            }
+        }
+        else if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true; UpdateTotalDamageDisplay(payload.GetFinalDamage());
             if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return StartCoroutine(SkippableWait(0.5f));
@@ -1414,12 +1424,25 @@ public void ResetGame()
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
 
         var voodooPerk = RunManager.instance.activePerks.Find(p => p is VoodooParasitePerk) as VoodooParasitePerk;
+        var retributionPerk = RunManager.instance.activePerks.Find(p => p is RetributionSplicerPerk) as RetributionSplicerPerk;
 
         foreach (var enemy in targets)
         {
             if (enemy == null) continue;
-            bool dies = enemy.health.currentHP <= damagePerEnemy;
-            enemy.health.TakeDamage(damagePerEnemy);
+            int actualDamage = damagePerEnemy;
+            if (retributionPerk != null)
+            {
+                int stackBonus = retributionPerk.GetBonusFor(enemy);
+                retributionPerk.RegisterHit(enemy);
+                actualDamage += stackBonus;
+                if (stackBonus > 0)
+                {
+                    retributionPerk.TriggerVisualPop();
+                    if (!skipDiceVisuals && PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(retributionPerk);
+                }
+            }
+            bool dies = enemy.health.currentHP <= actualDamage;
+            enemy.health.TakeDamage(actualDamage);
             
             // Slash efekti spawn et
             if (slashEffectPrefab != null)
@@ -1955,7 +1978,7 @@ public void ResetGame()
         return centerCell;
     }
 
-    private List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
+    public List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
     {
         List<EnemyAI> adjacentList = new List<EnemyAI>();
         foreach (var enemy in enemies) if (enemy != null && enemy.health.currentHP > 0) if (IsNeighbor(playerCell, enemy.GetCurrentCellPosition())) adjacentList.Add(enemy);
