@@ -9,6 +9,10 @@ public class WarlockEnemyAI : MonoBehaviour
     public int idleTurns = 2;         
     public int attackDamage = 2;      
 
+    [Header("Impact VFX")]
+    public GameObject impactVFXPrefab;  // Her vuruşta spawn edilecek effect (3 sec sonra silinir)
+    public float vfxYOffset = -0.6f;   // Y offset
+
     [Header("Uyarı Tile (Büyücüye Özel Renk)")]
     public TileBase warningTile;      
 
@@ -258,6 +262,9 @@ public class WarlockEnemyAI : MonoBehaviour
             
             yield return new WaitForSeconds(0.1f);
 
+            // IMPACT VFX: Tüm cell'lere aynı anda effect spawn et
+            SpawnImpactEffects(cells);
+
             // DAMAGE VERMEK: Visual başladığında HEMEN ver (fade başlamadan)
             Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
             if (cells.Contains(playerCell))
@@ -397,6 +404,21 @@ public class WarlockEnemyAI : MonoBehaviour
         ClearAllWarnings();
         cyclePhase = 0;
         currentIdleCounter = 0;
+    }
+
+    private void SpawnImpactEffects(List<Vector3Int> cells)
+    {
+        if (impactVFXPrefab == null) return;
+
+        // Tüm cell'lere aynı anda effect spawn et
+        foreach (var c in cells)
+        {
+            Vector3 worldPos = groundMap.GetCellCenterWorld(c);
+            worldPos.z = 0f;
+            worldPos.y += vfxYOffset;  // -0.6 offset
+            GameObject vfx = Instantiate(impactVFXPrefab, worldPos, Quaternion.identity);
+            Destroy(vfx, 3f);  // 3 saniye sonra sil
+        }
     }
 
     public bool IsReadyToExplodeAttack1() => readyToExplodeAttack1;

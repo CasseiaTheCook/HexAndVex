@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class PhantomLimbPerk : BasePerk
 {
-    [Header("Mine Ayarları")]
-    public Vector3 mineOffset = Vector3.zero;
+    // Mine offset hard-coded
+    private Vector3 mineOffset = new Vector3(-0.07f, 0f, 0f); // X: 0.5, Y: 0, Z: 0
     
     void OnEnable()
     {
@@ -13,5 +13,10 @@ public class PhantomLimbPerk : BasePerk
     public override void OnAcquire()
     {
         TriggerVisualPop();
+    }
+
+    public Vector3 GetMineOffset()
+    {
+        return mineOffset;
     }
 }

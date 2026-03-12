@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 2f78c30a9952de547a6c9a7f7c8d01d1
+guid: 5947d23045785e946a8aa8c1739c825c
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -129,7 +129,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: BossIdle
     originalName: 
-    pivot: {x: 0.54, y: -2.4146342}
+    pivot: {x: 0.54, y: -1.9411765}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -138,8 +138,8 @@ ScriptedImporter:
       x: 4
       y: 4
       width: 50
-      height: 41
-    spriteID: 688cad0d065e82e4d9ea04a017f506a3
+      height: 51
+    spriteID: d10f54bf890b39e448f1712eadb8ca2c
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -170,8 +170,8 @@ ScriptedImporter:
         x: 123
         y: 99
         width: 50
-        height: 41
-      spriteId: 688cad0d065e82e4d9ea04a017f506a3
+        height: 51
+      spriteId: d10f54bf890b39e448f1712eadb8ca2c
     linkedCells: []
     tileCells: []
     tileSetIndex: 0
