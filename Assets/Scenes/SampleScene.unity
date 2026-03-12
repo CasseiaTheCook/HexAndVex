@@ -6227,7 +6227,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9716d47d8c031c94fb498ea4bf1b366c, type: 2}
   - {fileID: 11400000, guid: b5e9a3c7d1f8264e0a9b3d5f7c1e4a68, type: 2}
   secretItem: {fileID: 0}
-  secretItemChance: 1
+  secretItemChance: 0.02
   shopSlotContainer: {fileID: 1400458065}
   shopSlotPrefab: {fileID: 8164334485540262811, guid: 22dde9155aaf3554f9955e1432f107fd, type: 3}
   shopSlotCount: 3
@@ -15504,6 +15504,7 @@ MonoBehaviour:
   startingMaxHP: 3
   startingDiceCount: 2
   startingCritMultiplier: 1.5
+  startingCritChance: 0.1
 --- !u!4 &1504787228
 Transform:
   m_ObjectHideFlags: 0

@@ -30,8 +30,8 @@ public class RunManager : MonoBehaviour
     public int shopRerollStack = 0; // Her shop reroll'da +1, zarların base değerine kalıcı eklenir
 
     [Header("Combat Stats")]
-    public float criticalChance = 0f; // 0.0 to 1.0
-    public float criticalDamageMultiplier = 1.5f;
+    public float criticalChance = 0.10f; // 0.0 to 1.0
+    public float criticalDamageMultiplier = 2.0f;
 
     [Header("Active Perks")]
     public Transform perkUIContainer; // Assign a Horizontal Layout Group UI panel here!

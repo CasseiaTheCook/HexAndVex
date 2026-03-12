@@ -2,11 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Terminal Fury Gland (Legendary)
-/// Always active. Multiplier = 1 + (missingHP + 1) * 0.5 * level
-/// Lv1: fullHP=x1.5, -1hp=x2.0, -2hp=x2.5 ...
-/// Lv2: fullHP=x2.0, -1hp=x3.0, -2hp=x4.0 ...
-/// Lv3: fullHP=x2.5, -1hp=x4.0, -2hp=x5.5 ...
-/// Glass Canon (max 3hp) scales identically relative to max.
+/// Always active. Multiplier = maxHP / currentHP
+/// 5/5 HP = 1x, 1/5 HP = 5x
 /// </summary>
 public class TerminalFuryGlandPerk : BasePerk
 {
@@ -15,7 +12,7 @@ public class TerminalFuryGlandPerk : BasePerk
         perkName    = "Terminal Fury Gland";
         description = "Always deal bonus damage. The lower your HP, the stronger the multiplier.";
         rarity      = PerkRarity.Legendary;
-        maxLevel    = 3;
+        maxLevel    = 1;
         priority    = 15;
     }
 
@@ -25,12 +22,11 @@ public class TerminalFuryGlandPerk : BasePerk
         var tm = TurnManager.instance;
         if (rm == null || tm == null || tm.player == null) return;
 
-        int effectiveMax = rm.playerMaxHealth;
-        int currentHP   = tm.player.health.currentHP;
-        int missingHP   = effectiveMax - currentHP;
+        int maxHP     = rm.playerMaxHealth;
+        int currentHP = tm.player.health.currentHP;
+        if (currentHP < 1) currentHP = 1; // 0'a bölme koruması
 
-        // Always gives a bonus: base from being alive, more from missing HP
-        float multiplier = 1f + (missingHP + 1) * 0.5f * currentLevel;
+        float multiplier = (float)maxHP / currentHP;
         payload.multiplier *= multiplier;
 
         TriggerVisualPop();

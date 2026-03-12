@@ -47,8 +47,8 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Fatal Sight Protocol
-  description: All attacks are Critical Hits. Each 1% Crit Chance converts to +1.5%
-    Crit Damage per level.
+  description: All attacks are Critical Hits. Each 1% Crit Chance converts to +1%
+    Crit Damage per crit chance.
   icon: {fileID: 7205323475282424750, guid: 91b16546711746c42ae7b70c987ed37d, type: 3}
   priority: 1
   isRerollPerk: 0

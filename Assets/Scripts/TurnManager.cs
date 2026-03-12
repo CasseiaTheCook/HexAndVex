@@ -86,7 +86,8 @@ public class TurnManager : MonoBehaviour
     public int startingGold = 0;
     public int startingMaxHP = 3;
     public int startingDiceCount = 2;
-    public float startingCritMultiplier = 1.5f;
+    public float startingCritMultiplier = 2.0f;
+    public float startingCritChance = 0.10f;
 
     void Awake()
     {
@@ -312,7 +313,7 @@ public void ResetGame()
         rm.bonusGold = 0;
         rm.hasBioBarrier = false;
         rm.luckyCloverLevel = 0;
-        rm.criticalChance = 0f;
+        rm.criticalChance = startingCritChance;
 
         // Perkleri temizle (Sahnedeki objeleri yok et)
         foreach (BasePerk perk in rm.activePerks)
