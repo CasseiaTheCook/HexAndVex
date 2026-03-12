@@ -99,7 +99,8 @@ public class SpawnerBossAI : MonoBehaviour
 
     private IEnumerator HitAndTeleportSequence()
     {
-        isTransitioning = true; 
+        isTransitioning = true;
+        if (AudioManager.instance != null) AudioManager.instance.PlayBossGrunt();
 
         if (isAoEWarningActive)
         {

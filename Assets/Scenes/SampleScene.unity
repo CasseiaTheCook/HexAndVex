@@ -13324,8 +13324,13 @@ MonoBehaviour:
   holdDuration: 1.4
   zoomBackDuration: 0.7
   spawnDelay: 0.8
-  shakeDuration: 1
-  shakeMagnitude: 0.22
+  vacuumRingPrefab: {fileID: 3347869054971392747, guid: c7a3816837d36de42b9625f4cf7763f5, type: 3}
+  ringInterval: 0.3
+  ringStartScale: 0.2
+  ringEndScale: 5
+  ringDuration: 0.5
+  shakeDuration: 2
+  shakeMagnitude: 0.15
   roarPopupPrefab: {fileID: 0}
 --- !u!1 &1324700611
 GameObject:
@@ -16377,7 +16382,9 @@ MonoBehaviour:
   textEffectClip: {fileID: 8300000, guid: 28598892a072c2349a913948e9baa583, type: 3}
   secretPerkClip: {fileID: 0}
   shieldBreakClip: {fileID: 8300000, guid: a4edd902313b87d46a13d970ddae9659, type: 3}
-  bossRoarClip: {fileID: 0}
+  bossRoarClip: {fileID: 8300000, guid: 29be4f2be315a84408630d38aee84c44, type: 3}
+  bossGruntClip: {fileID: 8300000, guid: 03963fa4b4e72f4469b77d07a147739b, type: 3}
+  warlockGruntClip: {fileID: 8300000, guid: f149c61d39c5cd34ab6c31fa53bd23c8, type: 3}
   masterVolume: 1
   sfxVolume: 1
 --- !u!1001 &1767279535
