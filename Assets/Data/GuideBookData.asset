@@ -36,11 +36,11 @@ MonoBehaviour:
       with unique Perks to manipulate your rolls and bend the odds in your favor!'
     illustration: {fileID: 0}
     category: Combat
-  - title: Synergies & Combinations
+  - title: Interruption
     bodyText: Attacking an enemy while they were ready for attacking interrupts their
       attack for one turn.
     illustration: {fileID: 0}
-    category: Perks
+    category: Combat
   - title: Skipping
     bodyText: At any point during your movement phase, you may choose to Skip your
       turn instead of relocating. This is a vital defensive maneuver. If you are
