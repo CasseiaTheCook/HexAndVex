@@ -173,6 +173,8 @@ public class TurnManager : MonoBehaviour
             if (player != null && player.health != null)
                 player.health.TakeDamage(player.health.currentHP + 999);
         }
+        if (Input.GetKeyDown(KeyCode.F10)) DebugEquipAllPerks();
+        if (Input.GetKeyDown(KeyCode.F12)) DebugUpgradeAllPerks();
 #endif
     }
 
@@ -208,6 +210,42 @@ public class TurnManager : MonoBehaviour
             ai.health.maxHP = 50; ai.health.currentHP = 50; ai.health.updateHealth();
             RegisterEnemy(ai); StartCoroutine(ai.FadeSpawnCoroutine());
         }
+    }
+
+    private void DebugEquipAllPerks()
+    {
+        if (LevelUpManager.instance == null || RunManager.instance == null) return;
+        var lum = LevelUpManager.instance;
+        List<List<GameObject>> allLists = new List<List<GameObject>> { lum.commonPerks, lum.rarePerks, lum.epicPerks, lum.legendaryPerks };
+        int added = 0;
+        foreach (var list in allLists)
+        {
+            foreach (var prefab in list)
+            {
+                if (prefab == null) continue;
+                BasePerk ps = prefab.GetComponent<BasePerk>();
+                if (RunManager.instance.activePerks.Exists(p => p.GetType() == ps.GetType())) continue;
+                RunManager.instance.AddPerk(prefab);
+                added++;
+            }
+        }
+        Debug.Log($"[DEBUG] {added} perk eklendi!");
+    }
+
+    private void DebugUpgradeAllPerks()
+    {
+        if (RunManager.instance == null) return;
+        int upgraded = 0;
+        foreach (var perk in RunManager.instance.activePerks)
+        {
+            if (perk == null) continue;
+            while (perk.currentLevel < perk.maxLevel)
+            {
+                perk.Upgrade();
+                upgraded++;
+            }
+        }
+        Debug.Log($"[DEBUG] {upgraded} upgrade yapıldı! Tüm perkler max seviyede.");
     }
 #endif
 
@@ -1367,7 +1405,17 @@ public void ResetGame()
 
         if (!skipDiceVisuals && PerkListUI.instance != null) PerkListUI.instance.ForceClose();
 
-        if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
+        // Fatal Sight Protocol: isCriticalHit may already be set by a perk in ModifyCombat
+        if (payload.isCriticalHit)
+        {
+            if (!skipDiceVisuals)
+            {
+                UpdateTotalDamageDisplay(payload.GetFinalDamage());
+                if (criticalText != null) StartCoroutine(CriticalTextPopAnimation());
+                yield return StartCoroutine(SkippableWait(0.5f));
+            }
+        }
+        else if (!skipDiceVisuals && Random.value < RunManager.instance.criticalChance)
         {
             payload.isCriticalHit = true; UpdateTotalDamageDisplay(payload.GetFinalDamage());
             if (criticalText != null) StartCoroutine(CriticalTextPopAnimation()); yield return StartCoroutine(SkippableWait(0.5f));
@@ -1414,12 +1462,25 @@ public void ResetGame()
         List<EnemyAI> knockedEnemies = new List<EnemyAI>(); List<EnemyAI> deadEnemiesThisTurn = new List<EnemyAI>();
 
         var voodooPerk = RunManager.instance.activePerks.Find(p => p is VoodooParasitePerk) as VoodooParasitePerk;
+        var retributionPerk = RunManager.instance.activePerks.Find(p => p is RetributionSplicerPerk) as RetributionSplicerPerk;
 
         foreach (var enemy in targets)
         {
             if (enemy == null) continue;
-            bool dies = enemy.health.currentHP <= damagePerEnemy;
-            enemy.health.TakeDamage(damagePerEnemy);
+            int actualDamage = damagePerEnemy;
+            if (retributionPerk != null)
+            {
+                int stackBonus = retributionPerk.GetBonusFor(enemy);
+                retributionPerk.RegisterHit(enemy);
+                actualDamage += stackBonus;
+                if (stackBonus > 0)
+                {
+                    retributionPerk.TriggerVisualPop();
+                    if (!skipDiceVisuals && PerkListUI.instance != null) PerkListUI.instance.TriggerShakeForPerk(retributionPerk);
+                }
+            }
+            bool dies = enemy.health.currentHP <= actualDamage;
+            enemy.health.TakeDamage(actualDamage);
             
             // Slash efekti spawn et
             if (slashEffectPrefab != null)
@@ -1955,7 +2016,7 @@ public void ResetGame()
         return centerCell;
     }
 
-    private List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
+    public List<EnemyAI> GetAdjacentEnemies(Vector3Int playerCell)
     {
         List<EnemyAI> adjacentList = new List<EnemyAI>();
         foreach (var enemy in enemies) if (enemy != null && enemy.health.currentHP > 0) if (IsNeighbor(playerCell, enemy.GetCurrentCellPosition())) adjacentList.Add(enemy);
