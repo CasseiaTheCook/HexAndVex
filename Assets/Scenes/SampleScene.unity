@@ -303,7 +303,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -313,7 +313,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -5427000974185616262, guid: 9733e62dc74c2444ba45bb922518e68a, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -6493,7 +6493,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 75.3, y: -9.8346}
+  m_AnchoredPosition: {x: 63.7, y: -9.8346}
   m_SizeDelta: {x: 20, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &747912489
@@ -6509,7 +6509,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0.019607844, b: 0.047058824, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -8157,6 +8157,7 @@ MonoBehaviour:
   skipButtonImage: {fileID: 1267672139}
   levelUpCanvasGroup: {fileID: 1574552225}
   forcedPerk: {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
+  forcedPerk2: {fileID: 0}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0
@@ -8516,7 +8517,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d503a7391537f914c929e85deb8de746, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatsPanelUI
-  turnsValue: {fileID: 1866904930}
+  levelsValue: {fileID: 0}
   diceValue: {fileID: 1744219612}
   damageValue: {fileID: 1018708076}
   killsValue: {fileID: 1569359624}
@@ -9975,8 +9976,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 7.700012, y: -0.08271599}
-  m_SizeDelta: {x: -28, y: -3}
+  m_AnchoredPosition: {x: 7.700012, y: -0.00002002716}
+  m_SizeDelta: {x: -28, y: -0.000020981}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1078717818
 MonoBehaviour:
@@ -10000,7 +10001,7 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 12800000, guid: 8ac376a084b29084baa07883dcc43177, type: 3}
-    m_FontSize: 18
+    m_FontSize: 20
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 1
@@ -12080,6 +12081,7 @@ MonoBehaviour:
   totalTurnsPlayed: 0
   totalDiceRolled: 0
   totalGoldEarned: 0
+  totalLevelsPlayed: 0
 --- !u!4 &1247468681
 Transform:
   m_ObjectHideFlags: 0
@@ -15887,7 +15889,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d503a7391537f914c929e85deb8de746, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatsPanelUI
-  turnsValue: {fileID: 644508364}
+  levelsValue: {fileID: 0}
   diceValue: {fileID: 1851468633}
   damageValue: {fileID: 1144437746}
   killsValue: {fileID: 1712232547}
@@ -16648,6 +16650,7 @@ MonoBehaviour:
   textEffectClip: {fileID: 8300000, guid: 28598892a072c2349a913948e9baa583, type: 3}
   secretPerkClip: {fileID: 0}
   shieldBreakClip: {fileID: 8300000, guid: a4edd902313b87d46a13d970ddae9659, type: 3}
+  bossRoarClip: {fileID: 0}
   masterVolume: 1
   sfxVolume: 1
 --- !u!1 &1735267719

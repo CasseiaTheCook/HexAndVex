@@ -23,6 +23,7 @@ public class AudioManager : MonoBehaviour
     public AudioClip textEffectClip;   // Bam bam zar text animasyonu
     public AudioClip secretPerkClip;   // Secret perk sinematik açılış sesi (opsiyonel)
     public AudioClip shieldBreakClip;  // Kalkan kırılma / dodge
+    public AudioClip bossRoarClip;     // Boss giriş animasyonu kükreme sesi
 
     [Header("Ses Ayarları")]
     [Range(0f, 1f)] public float masterVolume = 1f;
@@ -73,4 +74,5 @@ public class AudioManager : MonoBehaviour
     public void PlayTextEffect()  => Play(textEffectClip,  0.75f,0.85f, 1.2f);
     public void PlaySecretPerk()   => Play(secretPerkClip,  1f,   0.95f, 1.05f);
     public void PlayShieldBreak()  => Play(shieldBreakClip, 1f,   0.9f,  1.1f);
+    public void PlayBossRoar()     => Play(bossRoarClip != null ? bossRoarClip : lightningClip, 1.2f, 0.7f, 0.8f);
 }
