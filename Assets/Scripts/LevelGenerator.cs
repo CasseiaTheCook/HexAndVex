@@ -35,7 +35,6 @@ public class LevelGenerator : MonoBehaviour
     public GameObject warlockEnemyPrefab;
     public int warlockStartLevel = 6; // İlk bosstan sonra (level 6+)
     [Range(0f, 1f)] public float warlockSpawnChance = 0.10f;
-
     public float CurrentEnemyHealth
     {
         get { return 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel); }
@@ -59,7 +58,7 @@ public class LevelGenerator : MonoBehaviour
             GameObject bgObj = GameObject.Find("BackgroundMap");
             if (bgObj != null) backgroundMap = bgObj.GetComponent<Tilemap>();
         }
-        
+
         // ==========================================
         // YENİ: Hazard Map'i otomatik bul (Eğer Unity'den atanmamışsa)
         // ==========================================
@@ -73,24 +72,24 @@ public class LevelGenerator : MonoBehaviour
     void Start()
     {
         StartCoroutine(LevelBaslatmaSırası());
-    }
 
+    }
     System.Collections.IEnumerator LevelBaslatmaSırası()
     {
-        yield return null; 
+        yield return null;
 
+        // Fader'ın animasyonunu beklemeye veya callback'ine güvenmeye gerek yok!
+        // Vibe'ı bozmadan leveli doğrudan üretiyoruz.
+        GenerateNextLevel();
+
+        // Eğer sahnede fader varsa, kodu kilitlemeden sadece görsel görevini yapsın.
         if (ScreenFader.instance != null)
         {
-            Debug.Log("Fader bulundu, karartma başlıyor...");
-            ScreenFader.instance.FadeAndLoad(() =>
-            {
-                GenerateNextLevel();
-            });
-        }
-        else
-        {
-            Debug.LogWarning("Fader bulunamadı, direkt yükleniyor!");
-            GenerateNextLevel();
+            Debug.Log("Harita çizildi. Ekran karartması (veya aydınlanması) arka planda çalışıyor.");
+
+            // Eğer ScreenFader scriptinin içinde ekranı açan FadeIn gibi bir metot varsa
+            // onu buraya yazabilirsin. Şimdilik FadeAndLoad'un map'i engellemesini kestik.
+            // ScreenFader.instance.FadeIn(); 
         }
     }
 
@@ -137,7 +136,7 @@ public class LevelGenerator : MonoBehaviour
                     {
                         // Her halükarda normal bir zemin döşe
                         groundMap.SetTile(cell, groundTile);
-                        
+
                         if (Random.value < 0.10f)
                         {
                             // ==========================================
@@ -146,7 +145,7 @@ public class LevelGenerator : MonoBehaviour
                             if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
                             hazardCells.Add(cell);
                         }
-                        
+
                         validCells.Add(cell);
                     }
                 }
@@ -272,10 +271,10 @@ public class LevelGenerator : MonoBehaviour
             enemyAI.groundMap = this.groundMap;
 
             float randomMultiplier = Random.Range(0.8f, 1.25f);
-            
+
             if (Random.value < 0.10f)
             {
-                randomMultiplier *= 2.0f; 
+                randomMultiplier *= 2.0f;
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
             }
 
@@ -326,13 +325,13 @@ public class LevelGenerator : MonoBehaviour
                     if (Random.value > 0.05f)
                     {
                         groundMap.SetTile(cell, groundTile);
-                        
+
                         if (Random.value < 0.05f && Vector3Int.zero != cell)
                         {
                             if (hazardMap != null) hazardMap.SetTile(cell, hazardTile); // YENİ
                             hazardCells.Add(cell);
                         }
-                        
+
                         validCells.Add(cell);
                     }
                 }
@@ -365,7 +364,7 @@ public class LevelGenerator : MonoBehaviour
 
         if (bossPrefab != null && availableSpawnCells.Count > 0)
         {
-            Vector3Int bossCell = availableSpawnCells[0]; 
+            Vector3Int bossCell = availableSpawnCells[0];
             Vector3 bossPos = groundMap.GetCellCenterWorld(bossCell);
 
             GameObject bossObj = Instantiate(bossPrefab, bossPos, Quaternion.identity);
@@ -384,7 +383,7 @@ public class LevelGenerator : MonoBehaviour
         {
             for (int i = 0; i < 4; i++)
             {
-                if (availableSpawnCells.Count == 0) break; 
+                if (availableSpawnCells.Count == 0) break;
 
                 int index = (i * (availableSpawnCells.Count / 4));
                 Vector3Int totemCell = availableSpawnCells[index];

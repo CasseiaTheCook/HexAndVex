@@ -303,7 +303,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -924,7 +924,7 @@ RectTransform:
   - {fileID: 819310899}
   - {fileID: 133809732}
   - {fileID: 1402390102}
-  m_Father: {fileID: 1570701094}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -4307,6 +4307,7 @@ Transform:
   - {fileID: 663098664}
   - {fileID: 1782209586}
   - {fileID: 937609419}
+  - {fileID: 1633122035}
   - {fileID: 1504787228}
   - {fileID: 1247468681}
   m_Father: {fileID: 0}
@@ -5618,7 +5619,7 @@ RectTransform:
   - {fileID: 1105950808}
   - {fileID: 2060786061}
   - {fileID: 1415132395}
-  m_Father: {fileID: 1570701094}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -8157,6 +8158,7 @@ MonoBehaviour:
   skipButtonImage: {fileID: 1267672139}
   levelUpCanvasGroup: {fileID: 1574552225}
   forcedPerk: {fileID: 5336392581835503264, guid: 8ccf6ebc72f40fa41bf98afebb2d428e, type: 3}
+  forcedPerk2: {fileID: 0}
 --- !u!4 &937609419
 Transform:
   m_ObjectHideFlags: 0
@@ -8516,7 +8518,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d503a7391537f914c929e85deb8de746, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatsPanelUI
-  turnsValue: {fileID: 1866904930}
+  levelsValue: {fileID: 0}
   diceValue: {fileID: 1744219612}
   damageValue: {fileID: 1018708076}
   killsValue: {fileID: 1569359624}
@@ -12080,6 +12082,7 @@ MonoBehaviour:
   totalTurnsPlayed: 0
   totalDiceRolled: 0
   totalGoldEarned: 0
+  totalLevelsPlayed: 0
 --- !u!4 &1247468681
 Transform:
   m_ObjectHideFlags: 0
@@ -13457,7 +13460,7 @@ RectTransform:
   m_Children:
   - {fileID: 677733308}
   - {fileID: 298776303}
-  m_Father: {fileID: 1570701094}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -14371,7 +14374,7 @@ MonoBehaviour:
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: 
-          m_IntArgument: 0
+          m_IntArgument: 1
           m_FloatArgument: 0
           m_StringArgument: 
           m_BoolArgument: 0
@@ -15547,44 +15550,6 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!1 &1570701093
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1570701094}
-  m_Layer: 0
-  m_Name: Canvases
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1570701094
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1570701093}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -145.00142, y: 437.61942, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1324700617}
-  - {fileID: 29143922}
-  - {fileID: 1633122035}
-  - {fileID: 16494592}
-  - {fileID: 1574552221}
-  - {fileID: 641170134}
-  - {fileID: 40458107}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1572587941
 GameObject:
   m_ObjectHideFlags: 0
@@ -15702,14 +15667,14 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1574552220}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 478774106}
   - {fileID: 1403122829}
-  m_Father: {fileID: 1570701094}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -15887,7 +15852,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d503a7391537f914c929e85deb8de746, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatsPanelUI
-  turnsValue: {fileID: 644508364}
+  levelsValue: {fileID: 0}
   diceValue: {fileID: 1851468633}
   damageValue: {fileID: 1144437746}
   killsValue: {fileID: 1712232547}
@@ -19991,7 +19956,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1570701094}
+    m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 104036903269115111, guid: 3caa8c8aa9eefb7ac899f95396b00199, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
@@ -20137,7 +20102,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1570701094}
+    m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 934617719021636361, guid: 1d0c792d0037d479f812f7974d8aaadd, type: 3}
       propertyPath: m_hasFontAssetChanged
@@ -20317,15 +20282,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3411730947514261540, guid: 1d0c792d0037d479f812f7974d8aaadd, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 3411730947514261540, guid: 1d0c792d0037d479f812f7974d8aaadd, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 3411730947514261540, guid: 1d0c792d0037d479f812f7974d8aaadd, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 3411730947514261540, guid: 1d0c792d0037d479f812f7974d8aaadd, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -20639,7 +20604,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1570701094}
+    m_TransformParent: {fileID: 448844201}
     m_Modifications:
     - target: {fileID: 470057570132860269, guid: 129c2b5f87ad977d1a97b0bf71213c2f, type: 3}
       propertyPath: m_Name
@@ -20725,7 +20690,12 @@ SceneRoots:
   - {fileID: 1114187817}
   - {fileID: 1953228745}
   - {fileID: 448844201}
-  - {fileID: 1570701094}
+  - {fileID: 1324700617}
+  - {fileID: 1574552221}
+  - {fileID: 3473545429061916082}
+  - {fileID: 884444815440572377}
+  - {fileID: 40458107}
+  - {fileID: 641170134}
   - {fileID: 529440802}
   - {fileID: 181019084}
   - {fileID: 779959443}

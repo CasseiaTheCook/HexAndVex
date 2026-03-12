@@ -26,20 +26,41 @@ public class ScreenFader : MonoBehaviour
             return;
         }
     }
-
+    /*
+        private void Start()
+        {
+            // İlk açılışta fader'ı bul ve aç
+            InitializeFader();
+            if (faderGroup != null) StartCoroutine(Fade(0f));
+        }
+    */
     private void Start()
     {
-        // İlk açılışta fader'ı bul ve aç
+        // İlk açılışta fader'ı bul
         InitializeFader();
-        if (faderGroup != null) StartCoroutine(Fade(0f));
-    }
 
+        if (faderGroup != null)
+        {
+            // Sadece oyun ilk başladığında ekranı zorla simsiyah yapıyoruz.
+            faderGroup.alpha = 1f;
+
+            // GÜVENLİK KİLİDİ: Eğer OnSceneLoaded da aynı anda tetiklendiyse
+            // iki animasyon birbiriyle savaşmasın diye önce her şeyi durduruyoruz.
+            StopAllCoroutines();
+
+            // Şimdi siyahı yavaşça aydınlatıp sahneyi göster.
+            StartCoroutine(Fade(0f));
+        }
+    }
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         InitializeFader();
         // EĞER FadeAndLoad ile gelmiyorsak (direkt Play dediysek veya başka bir geçişse)
         if (!isTransitioning)
         {
+            // DİKKAT: Burada alpha = 1f YAPMIYORUZ! 
+            // Titremeyi engellemek için sildiğin için o pürüzsüz vibe korundu. 
+            // Ekran FadeAndLoad ile zaten siyah kalmış olduğu için buradan sakince açılacak.
             StartCoroutine(Fade(0f));
         }
     }
@@ -92,19 +113,31 @@ public class ScreenFader : MonoBehaviour
     {
         if (faderGroup == null) yield break;
 
+        // ÇÖZÜM 1: Sadece 1 kare değil, motorun tam uyanması için 
+        // animasyona başlamadan önce çok kısa bir süre (0.1 sn) bekliyoruz.
+        yield return new WaitForSecondsRealtime(0.1f); 
+
         float startAlpha = faderGroup.alpha;
         float elapsed = 0f;
         faderGroup.blocksRaycasts = true;
 
         while (elapsed < fadeDuration)
         {
-            elapsed += Time.unscaledDeltaTime; 
-            if(faderGroup != null)
+            // ÇÖZÜM 2: AMORTİSÖR (Zaman Sınırlandırması)
+            // Eğer oyun o an ağır bir işlem yapıp donarsa (örneğin 0.2 sn), 
+            // bunu 0.033 saniye (yaklaşık 30 FPS adımı) olarak kabul et.
+            // Böylece değer asla 1'den 0.8'e atlayamaz, en fazla 0.97'ye düşer ve pürüzsüz iner.
+            float safeDeltaTime = Mathf.Min(Time.unscaledDeltaTime, 0.033f);
+            
+            elapsed += safeDeltaTime;
+            
+            if (faderGroup != null)
                 faderGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / fadeDuration);
+            
             yield return null;
         }
 
-        if(faderGroup != null)
+        if (faderGroup != null)
         {
             faderGroup.alpha = targetAlpha;
             if (targetAlpha <= 0.05f) faderGroup.blocksRaycasts = false;
