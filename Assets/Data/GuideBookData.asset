@@ -119,3 +119,12 @@ MonoBehaviour:
       you may find something interesting like -???-.
     illustration: {fileID: 0}
     category: Perks
+  - title: Synergies & Combinations
+    bodyText: At any point during your movement phase, you may choose to Skip your
+      turn instead of relocating. This is a vital defensive maneuver. If you are
+      already positioned adjacent to enemies when you Skip, you will immediately
+      initiate a strike against them. Certain Implants are specifically engineered
+      to provide massive bonuses when you choose to stand your ground and use this
+      feature.
+    illustration: {fileID: 0}
+    category: Perks
