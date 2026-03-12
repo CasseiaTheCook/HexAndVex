@@ -116,7 +116,10 @@ public class LevelUpManager : MonoBehaviour
                 }
 
                 if (choiceLevelTexts.Length > i && choiceLevelTexts[i] != null)
-                    choiceLevelTexts[i].text = "Lv " + displayLevel.ToString();
+                {
+                    int fromLevel = (existing != null) ? existing.currentLevel : 0;
+                    choiceLevelTexts[i].text = $"Lv {fromLevel} <color=#00FF00>→ Lv {displayLevel}</color>";
+                }
 
                 if (choiceDescriptionTexts.Length > i && choiceDescriptionTexts[i] != null)
                 {
