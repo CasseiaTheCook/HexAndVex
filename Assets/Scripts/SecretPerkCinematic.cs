@@ -621,6 +621,8 @@ public class SecretPerkCinematic : MonoBehaviour
         perkIconImage.color = new Color(1, 1, 1, 0);
         perkIconImage.rectTransform.localScale = Vector3.zero;
         perkNameText.text = "";
+        perkNameText.rectTransform.anchoredPosition = Vector2.zero;
+        perkSubText.rectTransform.anchoredPosition = Vector2.zero;
         perkSubText.color = new Color(0.7f, 0.7f, 0.7f, 0f);
         blackOverlay.color = new Color(0, 0, 0, 0);
     }

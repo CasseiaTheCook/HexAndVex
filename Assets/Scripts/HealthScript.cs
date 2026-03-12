@@ -52,6 +52,14 @@ public class HealthScript : MonoBehaviour
     {
         if (isDead) return;
 
+        // Boss kalkanı varken hasar vurulmaz
+        EnemyAI enemyAI = GetComponentInParent<EnemyAI>();
+        if (enemyAI != null && enemyAI.enemyBehavior == EnemyAI.EnemyBehavior.Boss)
+        {
+            var boss = enemyAI.GetComponent<SpawnerBossAI>();
+            if (boss != null && boss.isShielded) return;
+        }
+
         if (AudioManager.instance != null) AudioManager.instance.PlayTakeDamage();
         currentHP -= dmg;
 
@@ -244,5 +252,8 @@ public class HealthScript : MonoBehaviour
     public void updateHealth()
     {
         if (hptext != null) hptext.text = currentHP.ToString() + "/" + maxHP;
+
+        var healthBar = GetComponent<EnemyHealthBar>();
+        if (healthBar != null) healthBar.UpdateBar();
     }
 }
