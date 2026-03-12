@@ -304,6 +304,7 @@ public class WarlockEnemyAI : MonoBehaviour
     private IEnumerator HitAndTeleportSequence()
     {
         isTransitioning = true;
+        if (AudioManager.instance != null) AudioManager.instance.PlayWarlockGrunt();
         ClearAllWarnings();
 
         yield return StartCoroutine(WarlockTeleportFade(1f, 0f, 0.25f));
