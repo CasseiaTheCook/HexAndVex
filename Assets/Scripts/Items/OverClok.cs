@@ -5,7 +5,7 @@ public class OverClok : BaseItem
 {
     void OnEnable()
     {
-        itemName = "Over-Clok";
+        itemName = "Over-Clock";
         description = "Sıradaki ilk zar toplamının 2 katı hasar ver";
         price = 7;
     }

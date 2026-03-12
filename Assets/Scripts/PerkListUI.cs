@@ -431,7 +431,7 @@ public class PerkListUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         textLE.preferredWidth = 260f;
         textLE.preferredHeight = iconSize;
         TextMeshProUGUI tmp = textObj.GetComponent<TextMeshProUGUI>();
-        tmp.text = $"<color=#FFD933>Reroll Stack:</color>  <color=#FFFFFF>+{stack}</color> <color=#AAAAAA>tüm zarlara</color>";
+        tmp.text = $"<color=#FFD933>Genetic Cartel:</color>  <color=#FFFFFF>+{stack}</color> <color=#AAAAAA>tüm zarlara</color>";
         tmp.fontSize = 12;
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
         tmp.color = Color.white;

@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16b19c9d643346642a8c91f3d7bb3e65, type: 3}
   m_Name: OverClok
   m_EditorClassIdentifier: Assembly-CSharp::OverClok
-  itemName: Over-Clok
-  description: The next attack deals damage equal to twice the sum of the dice roll.
+  itemName: Over-Clock
+  description: The next attack deals damage equal to twice the sum of the total dice
+    roll.
   price: 7
   icon: {fileID: -9164013207837993937, guid: d707fa2f81d2ad644b8e49cc4cc9d45c, type: 3}

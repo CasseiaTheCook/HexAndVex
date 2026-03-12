@@ -443,7 +443,7 @@ public class LevelUpManager : MonoBehaviour
         Time.timeScale = 1f;
 
         // Gene Splice gibi upgrade sekanslarının görünmesi için kısa bekleme
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(0.5f);
 
         if (ScreenFader.instance != null)
         {

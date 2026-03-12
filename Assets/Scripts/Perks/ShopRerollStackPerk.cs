@@ -4,7 +4,7 @@ public class ShopRerollStackPerk : BasePerk
 {
     public override void OnAcquire()
     {
-        perkName = "Reroll Stack";
+        perkName = "Genetic Cartel";
         description = GetDescription();
         priority = 30;
     }
