@@ -32,10 +32,17 @@ public class BossIntroSequence : MonoBehaviour
 
     [Header("Kamera")]
     public float zoomTargetZ      = -6f;
-    public float zoomDuration     = 0.9f;
-    public float holdDuration     = 1.4f;   // Popup göründükten sonra bekle
-    public float zoomBackDuration = 0.7f;
-    public float spawnDelay       = 0.8f;   // FadeSpawn bitmesi için bekleme
+    public float zoomDuration     = 0.5f;
+    public float holdDuration     = 2.0f;   // Popup göründükten sonra bekle
+    public float zoomBackDuration = 0.4f;
+    public float spawnDelay       = 0.4f;   // FadeSpawn bitmesi için bekleme
+
+    [Header("Vacuum Ring Efekti")]
+    public GameObject vacuumRingPrefab; // Inspector'dan vacuum prefab'ını ata
+    public float ringInterval     = 0.5f;  // Her kaç saniyede bir ring gelsin
+    public float ringStartScale   = 0.2f;  // Başlangıç boyutu
+    public float ringEndScale     = 3.0f;  // Bitiş boyutu
+    public float ringDuration     = 0.45f; // Her ring'in expand+fade süresi
 
     [Header("Shake")]
     public float shakeDuration  = 0.6f;
@@ -73,7 +80,10 @@ public class BossIntroSequence : MonoBehaviour
         Vector3 bossPos    = boss.transform.position;
         Vector3 camBossPos = new Vector3(bossPos.x, bossPos.y, zoomTargetZ);
 
-        // 1. ZOOM IN
+        // 1. ZOOM IN + Ring döngüsü başlat
+        
+        Coroutine ringLoop = StartCoroutine(RingLoopRoutine(boss.transform.position));
+
         float elapsed = 0f;
         while (elapsed < zoomDuration)
         {
@@ -94,6 +104,8 @@ public class BossIntroSequence : MonoBehaviour
         // 4. HOLD
         float holdLeft = holdDuration - shakeDuration;
         if (holdLeft > 0f) yield return new WaitForSeconds(holdLeft);
+
+        StopCoroutine(ringLoop);
 
         // 5. POPUP FADE OUT
         if (popup != null) StartCoroutine(FadeOutPopup(popup, popupFadeOutDuration));
@@ -209,6 +221,44 @@ public class BossIntroSequence : MonoBehaviour
             yield return null;
         }
         t.localScale = Vector3.one;
+    }
+
+    // ── Vacuum Ring Loop ─────────────────────────────────────────────────────
+    private IEnumerator RingLoopRoutine(Vector3 center)
+    {
+        while (true)
+        {
+            if (vacuumRingPrefab != null)
+                StartCoroutine(SpawnRingCoroutine(center));
+            yield return new WaitForSeconds(ringInterval);
+        }
+    }
+
+    private IEnumerator SpawnRingCoroutine(Vector3 center)
+    {
+        if (vacuumRingPrefab == null) yield break;
+
+        GameObject ring = Instantiate(vacuumRingPrefab, center, Quaternion.identity);
+        SpriteRenderer[] renderers = ring.GetComponentsInChildren<SpriteRenderer>();
+
+        float elapsed = 0f;
+        while (elapsed < ringDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / ringDuration;
+            float scale = Mathf.Lerp(ringStartScale, ringEndScale, t);
+            ring.transform.localScale = new Vector3(scale, scale, 1f);
+
+            float alpha = Mathf.Lerp(1f, 0f, t);
+            foreach (var sr in renderers)
+            {
+                Color c = sr.color;
+                c.a = alpha;
+                sr.color = c;
+            }
+            yield return null;
+        }
+        Destroy(ring);
     }
 
     private IEnumerator FadeOutPopup(GameObject popup, float duration)
