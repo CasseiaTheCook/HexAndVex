@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 29c2d4cff52f7314fb5034e06e874ad4
+guid: 4c0c0ad6df9ca3845a8ec76d8faf53ed
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -72,7 +72,7 @@ ScriptedImporter:
     textureFormatSet: 0
     applyGammaDecoding: 0
   previousAsepriteImporterSettings:
-    fileImportMode: 0
+    fileImportMode: 1
     importHiddenLayers: 0
     layerImportMode: 1
     defaultPivotSpace: 0
@@ -87,7 +87,7 @@ ScriptedImporter:
     generateIndividualEvents: 1
     generateSpriteAtlas: 1
   asepriteImporterSettings:
-    fileImportMode: 0
+    fileImportMode: 1
     importHiddenLayers: 0
     layerImportMode: 1
     defaultPivotSpace: 0
@@ -102,7 +102,7 @@ ScriptedImporter:
     generateIndividualEvents: 1
     generateSpriteAtlas: 1
   importFileNodeState: 1
-  platformSettingsDirtyTick: 639089544372177305
+  platformSettingsDirtyTick: 0
   textureAssetName: 
   singleSpriteImportData:
   - name: 
@@ -139,7 +139,7 @@ ScriptedImporter:
       y: 4
       width: 200
       height: 200
-    spriteID: a685a832a0799ad479521f218f6c75ee
+    spriteID: 43bcea0959275d14a8584369aefb903c
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -160,7 +160,7 @@ ScriptedImporter:
       y: 212
       width: 200
       height: 200
-    spriteID: 4ad3fdf86daa84045bb95b82f428c981
+    spriteID: 970ea1c73e2f11340993bda782490b37
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -181,7 +181,7 @@ ScriptedImporter:
       y: 4
       width: 200
       height: 200
-    spriteID: bcc682f0d1f5dca4b9432277e31e52ff
+    spriteID: c1288e223f17bcf4d8cfcfae52511155
     spriteBone: []
     spriteOutline: []
     vertices: []
@@ -190,70 +190,7 @@ ScriptedImporter:
     edges: []
     tessellationDetail: 0
     uvTransform: {x: 212, y: 4}
-  spriteSheetImportData:
-  - name: WarlockAttack_0
-    originalName: 
-    pivot: {x: 0.55134916, y: 0.33615002}
-    alignment: 9
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 82
-      y: 298
-      width: 39
-      height: 55
-    spriteID: 60278b9b80ec47943ab5ea9ce2caafc9
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
-  - name: WarlockAttack_1
-    originalName: 
-    pivot: {x: 0.55115706, y: 0.34899917}
-    alignment: 9
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 82
-      y: 90
-      width: 39
-      height: 53
-    spriteID: 494b102f2da21ae44a9e1265b97ef302
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
-  - name: WarlockAttack_2
-    originalName: 
-    pivot: {x: 0.5511514, y: 0.34901428}
-    alignment: 9
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 290
-      y: 90
-      width: 39
-      height: 53
-    spriteID: 5fb647b2dea50a84db47a612755af2ed
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
+  spriteSheetImportData: []
   tileSetImportData: []
   asepriteLayers:
   - layerIndex: 0
@@ -276,7 +213,7 @@ ScriptedImporter:
         y: 0
         width: 200
         height: 200
-      spriteId: a685a832a0799ad479521f218f6c75ee
+      spriteId: 43bcea0959275d14a8584369aefb903c
     - name: Frame_1
       frameIndex: 1
       additiveSortOrder: 0
@@ -285,7 +222,7 @@ ScriptedImporter:
         y: 0
         width: 200
         height: 200
-      spriteId: 4ad3fdf86daa84045bb95b82f428c981
+      spriteId: 970ea1c73e2f11340993bda782490b37
     - name: Frame_2
       frameIndex: 2
       additiveSortOrder: 0
@@ -294,49 +231,13 @@ ScriptedImporter:
         y: 0
         width: 200
         height: 200
-      spriteId: bcc682f0d1f5dca4b9432277e31e52ff
+      spriteId: c1288e223f17bcf4d8cfcfae52511155
     linkedCells: []
     tileCells: []
     tileSetIndex: 0
     parentIndex: -1
   tileSets: []
-  platformSettings:
-  - name: DefaultTexturePlatform
-    overridden: 0
-    ignorePlatformSupport: 0
-    maxTextureSize: 16384
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 0
-    compressionQuality: 50
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    androidETC2FallbackOverride: 0
-  - name: Standalone
-    overridden: 0
-    ignorePlatformSupport: 0
-    maxTextureSize: 16384
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 0
-    compressionQuality: 50
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    androidETC2FallbackOverride: 0
-  - name: Android
-    overridden: 0
-    ignorePlatformSupport: 0
-    maxTextureSize: 16384
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 0
-    compressionQuality: 50
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    androidETC2FallbackOverride: 0
+  platformSettings: []
   generatePhysicsShape: 0
   secondarySpriteTextures: []
   spritePackingTag: 

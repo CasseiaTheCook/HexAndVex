@@ -211,6 +211,12 @@ public class EnemyAI : MonoBehaviour
             if (hpCanvas != null) hpCanvas.sortingOrder = order + 3;
         }
 
+        if (health != null)
+        {
+            var healthBar = health.GetComponent<EnemyHealthBar>();
+            if (healthBar != null) healthBar.SetSortingOrder(order + 4);
+        }
+
         // TelegraphAoE: hemen üstündeki hücrede başka düşman varsa saydamlaş
         if (enemyBehavior == EnemyBehavior.TelegraphAoE && TurnManager.instance != null)
         {
