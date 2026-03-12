@@ -597,7 +597,7 @@ GameObject:
   - component: {fileID: 4180499100227071098}
   - component: {fileID: 2833456923564832084}
   m_Layer: 0
-  m_Name: Row_Turns Played
+  m_Name: Row_Levels Played
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2298,7 +2298,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Turns Played:'
+  m_text: 'Levels Played:'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}
   m_sharedMaterial: {fileID: 7936242644131845956, guid: df6d6f51a644b9e488d31f21677b7869, type: 2}

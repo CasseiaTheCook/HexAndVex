@@ -501,7 +501,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ShopSlot
   buyButton: {fileID: 1004812115261592425}
   itemIconImage: {fileID: 6826924040881010923}
-  customFont: {fileID: 0}
+  customFont: {fileID: 11400000, guid: b7c9f5d1a1c75f6468063fd2da1da109, type: 2}
   soldOutOverlay: {fileID: 1487361201548811638}
   coinSprite: {fileID: 0}
   tooltipName: 

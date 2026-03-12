@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
-using System.Linq; 
+using System.Linq;
 
 public class LevelUpManager : MonoBehaviour
 {
@@ -33,12 +33,14 @@ public class LevelUpManager : MonoBehaviour
     public Button rerollPerkButton; // Inspector'dan bağla
 
     [Header("Skip Butonu")]
+    public Button skipButton; // Inspector'dan bağla
     public Image skipButtonImage; // Inspector'dan bağla
+    private Color skipButtonOriginalColor;
 
     private List<GameObject> currentChoices = new List<GameObject>();
 
     [Header("Animasyon Ayarları")]
-    public CanvasGroup levelUpCanvasGroup; 
+    public CanvasGroup levelUpCanvasGroup;
 
     [Header("Debug")]
     [HideInInspector] public GameObject forcedPerk;
@@ -51,6 +53,10 @@ public class LevelUpManager : MonoBehaviour
     {
         if (instance == null) instance = this;
         SetupCardHoverListeners();
+
+        // Skip butonunun orijinal rengini kaydet
+        if (skipButtonImage != null)
+            skipButtonOriginalColor = skipButtonImage.color;
     }
 
     public void ShowLevelUpScreen()
@@ -98,7 +104,7 @@ public class LevelUpManager : MonoBehaviour
             {
                 currentChoices.Add(randomPerk);
                 BasePerk perkScript = randomPerk.GetComponent<BasePerk>();
-                
+
                 BasePerk existing = RunManager.instance.activePerks.Find(p => p.GetType() == perkScript.GetType());
                 int displayLevel = (existing != null) ? existing.currentLevel + 1 : 1;
 
@@ -150,14 +156,14 @@ public class LevelUpManager : MonoBehaviour
                 int index = i;
                 choiceButtons[i].onClick.RemoveAllListeners();
                 choiceButtons[i].onClick.AddListener(() => SelectPerk(index));
-                choiceButtons[i].gameObject.SetActive(true); 
+                choiceButtons[i].gameObject.SetActive(true);
             }
             else
             {
                 choiceButtons[i].gameObject.SetActive(false);
             }
         }
-        
+
         // Reroll butonu
         if (rerollPerkButton != null)
         {
@@ -166,9 +172,9 @@ public class LevelUpManager : MonoBehaviour
             rerollPerkButton.onClick.AddListener(RerollPerkChoices);
         }
 
-        // Skip butonunun Image rengini siyah yap
-        if (skipButtonImage != null)
-            skipButtonImage.color = Color.black;
+        // Skip butonunu deaktif yap (interactable = false)
+        if (skipButton != null)
+            skipButton.interactable = false;
 
         Time.timeScale = 0f;
         StopAllCoroutines();
@@ -190,17 +196,17 @@ public class LevelUpManager : MonoBehaviour
     private bool IsPerkMaxedOut(GameObject perkPrefab)
     {
         if (perkPrefab == null || RunManager.instance == null) return true;
-        
+
         BasePerk checkPerk = perkPrefab.GetComponent<BasePerk>();
 
         // CanBeOffered kontrolü — koşullu perkler (GeneSplice vb.)
         if (!checkPerk.CanBeOffered()) return true;
 
         BasePerk existing = RunManager.instance.activePerks.Find(p => p.GetType() == checkPerk.GetType());
-        
+
         if (existing != null && existing.currentLevel >= existing.maxLevel)
         {
-            return true; 
+            return true;
         }
         return false;
     }
@@ -214,21 +220,21 @@ public class LevelUpManager : MonoBehaviour
         // Lv2: Epic %25 / Rare %33 / Common %42
         // Lv3: Epic %33 / Rare %33 / Common %33
         int cloverLv = RunManager.instance != null ? RunManager.instance.luckyCloverLevel : 0;
-        float epicThresh  = cloverLv == 0 ? 10f : cloverLv == 1 ? 17f : cloverLv == 2 ? 25f : 33f;
-        float rareThresh  = cloverLv == 0 ? 40f : cloverLv == 1 ? 50f : cloverLv == 2 ? 58f : 66f;
+        float epicThresh = cloverLv == 0 ? 10f : cloverLv == 1 ? 17f : cloverLv == 2 ? 25f : 33f;
+        float rareThresh = cloverLv == 0 ? 40f : cloverLv == 1 ? 50f : cloverLv == 2 ? 58f : 66f;
 
         float roll = Random.Range(0f, 100f);
-        if (roll < epicThresh && epicPerks.Count > 0)       return epicPerks[Random.Range(0, epicPerks.Count)];
-        else if (roll < rareThresh && rarePerks.Count > 0)  return rarePerks[Random.Range(0, rarePerks.Count)];
-        else if (commonPerks.Count > 0)                     return commonPerks[Random.Range(0, commonPerks.Count)];
+        if (roll < epicThresh && epicPerks.Count > 0) return epicPerks[Random.Range(0, epicPerks.Count)];
+        else if (roll < rareThresh && rarePerks.Count > 0) return rarePerks[Random.Range(0, rarePerks.Count)];
+        else if (commonPerks.Count > 0) return commonPerks[Random.Range(0, commonPerks.Count)];
         return null;
     }
 
     private PerkRarity GetRarityFromList(GameObject perk)
     {
         if (legendaryPerks.Contains(perk)) return PerkRarity.Legendary;
-        if (epicPerks.Contains(perk))      return PerkRarity.Epic;
-        if (rarePerks.Contains(perk))      return PerkRarity.Rare;
+        if (epicPerks.Contains(perk)) return PerkRarity.Epic;
+        if (rarePerks.Contains(perk)) return PerkRarity.Rare;
         // Secret perkler normal havuzda olmaz ama güvenlik için kontrol
         BasePerk bp = perk.GetComponent<BasePerk>();
         if (bp != null && bp.rarity == PerkRarity.Secret) return PerkRarity.Secret;
@@ -239,12 +245,12 @@ public class LevelUpManager : MonoBehaviour
     {
         switch (rarity)
         {
-            case PerkRarity.Common:    return new Color(0.8f, 0.8f, 0.8f); // Gri
-            case PerkRarity.Rare:      return new Color(0.2f, 0.5f, 1f);   // Mavi
-            case PerkRarity.Epic:      return new Color(0.6f, 0.2f, 1f);   // Mor
+            case PerkRarity.Common: return new Color(0.8f, 0.8f, 0.8f); // Gri
+            case PerkRarity.Rare: return new Color(0.2f, 0.5f, 1f);   // Mavi
+            case PerkRarity.Epic: return new Color(0.6f, 0.2f, 1f);   // Mor
             case PerkRarity.Legendary: return new Color(1f, 0.6f, 0f);     // Turuncu/Altın
-            case PerkRarity.Secret:    return new Color(1f, 0.27f, 0.27f); // Kırmızı
-            default:                   return Color.white;
+            case PerkRarity.Secret: return new Color(1f, 0.27f, 0.27f); // Kırmızı
+            default: return Color.white;
         }
     }
 
@@ -263,9 +269,9 @@ public class LevelUpManager : MonoBehaviour
     /// <summary>Tüm perkler max seviyeye ulaştıysa true döner.</summary>
     public bool AreAllPerksMaxed()
     {
-        foreach (var p in commonPerks)    if (!IsPerkMaxedOut(p)) return false;
-        foreach (var p in rarePerks)      if (!IsPerkMaxedOut(p)) return false;
-        foreach (var p in epicPerks)      if (!IsPerkMaxedOut(p)) return false;
+        foreach (var p in commonPerks) if (!IsPerkMaxedOut(p)) return false;
+        foreach (var p in rarePerks) if (!IsPerkMaxedOut(p)) return false;
+        foreach (var p in epicPerks) if (!IsPerkMaxedOut(p)) return false;
         foreach (var p in legendaryPerks) if (!IsPerkMaxedOut(p)) return false;
         return true;
     }
@@ -276,13 +282,13 @@ public class LevelUpManager : MonoBehaviour
 
         GameObject chosenPerk = currentChoices[index];
         List<BasePerk> existingPerks = new List<BasePerk>(RunManager.instance.activePerks);
-        
+
         RunManager.instance.AddPerk(chosenPerk);
         RunManager.instance.currentLevel++;
 
         BasePerk checkScript = chosenPerk.GetComponent<BasePerk>();
         BasePerk activeInstance = RunManager.instance.activePerks.Find(p => p.GetType() == checkScript.GetType());
-        
+
         if (activeInstance != null && activeInstance.currentLevel >= activeInstance.maxLevel)
         {
             if (commonPerks.Contains(chosenPerk)) commonPerks.Remove(chosenPerk);
@@ -436,14 +442,18 @@ public class LevelUpManager : MonoBehaviour
         if (levelUpCanvasGroup != null) levelUpCanvasGroup.gameObject.SetActive(false);
         foreach (var btn in choiceButtons) btn.interactable = true;
 
-        // Skip butonunun Image rengini beyaz yap
-        if (skipButtonImage != null)
-            skipButtonImage.color = Color.white;
+        // Skip butonunu aktif yap ve rengini restore et
+        if (skipButton != null)
+        {
+            skipButton.interactable = true;
+            if (skipButtonImage != null)
+                skipButtonImage.color = skipButtonOriginalColor;
+        }
 
         Time.timeScale = 1f;
 
         // Gene Splice gibi upgrade sekanslarının görünmesi için kısa bekleme
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSeconds(0.5f);
 
         if (ScreenFader.instance != null)
         {

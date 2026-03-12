@@ -11,7 +11,8 @@ public class SpawnerBossAI : MonoBehaviour
     [Header("Boss Ayarları")]
     public int activeTotems = 4;
     public bool isShielded = true;
-    public GameObject shieldVisual; 
+    public GameObject shieldVisual;      // Prefab veya sahne objesi — her ikisi de çalışır
+    private GameObject shieldInstance;   // Runtime'da spawn edilen instance
 
     [Header("AoE Saldırı Ayarları (4 Adımlı Döngü)")]
     public int aoeCycleStep = 0; 
@@ -60,7 +61,23 @@ public class SpawnerBossAI : MonoBehaviour
 
         activeTotems = 4;
         isShielded = true;
-        if (shieldVisual != null) shieldVisual.SetActive(true);
+        if (shieldVisual != null)
+        {
+            // Prefab mı sahne objesi mi anlamak için: prefab ise sahnede değildir
+            if (shieldVisual.scene.name == null || shieldVisual.scene.name == "")
+            {
+                // Prefab — instantiate et, boss'a child yap
+                shieldInstance = Instantiate(shieldVisual, transform.position, Quaternion.identity, transform);
+                shieldInstance.transform.localPosition = Vector3.zero;
+            }
+            else
+            {
+                // Sahne objesi — direkt kullan
+                shieldInstance = shieldVisual;
+                shieldInstance.SetActive(true);
+            }
+            StartCoroutine(ShieldPulseLoop());
+        }
 
         previousHP = myEnemyAI.health.maxHP;
 
@@ -464,22 +481,54 @@ public class SpawnerBossAI : MonoBehaviour
         // Kısa süre bekle ki aynı frame'deki birden fazla totem ölümü yakalansın
         yield return new WaitForSeconds(0.1f);
 
+        bool lastTotem = activeTotems <= 0;
+
+        // Ses + patlama efektleri
+        if (lastTotem)
+        {
+            if (AudioManager.instance != null) AudioManager.instance.PlayLightning();
+            // Birkaç patlama boss çevresinde arka arkaya
+            if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    Vector3 offset = new Vector3(Random.Range(-0.6f, 0.6f), Random.Range(-0.4f, 0.4f), 0f);
+                    GameObject fx = Instantiate(TurnManager.instance.explosionPrefab, transform.position + offset, Quaternion.identity);
+                    StartCoroutine(FadeAndDestroyExplosion(fx));
+                    yield return new WaitForSeconds(0.12f);
+                }
+            }
+            // Güçlü kamera sarsıntısı
+            StartCoroutine(CameraShake(0.8f, 0.22f));
+        }
+        else
+        {
+            if (AudioManager.instance != null) AudioManager.instance.PlayExplosion();
+            if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
+            {
+                Vector3 offset = new Vector3(Random.Range(-0.4f, 0.4f), Random.Range(-0.3f, 0.3f), 0f);
+                GameObject fx = Instantiate(TurnManager.instance.explosionPrefab, transform.position + offset, Quaternion.identity);
+                StartCoroutine(FadeAndDestroyExplosion(fx));
+            }
+            StartCoroutine(CameraShake(0.4f, 0.14f));
+        }
+
+        // Minionları öldür
         foreach (var minion in summonedMinions)
         {
             if (minion != null && minion.health.currentHP > 0)
-            {
                 StartCoroutine(minion.FadeDieCoroutine());
-            }
         }
         summonedMinions.Clear();
 
-        yield return new WaitForSeconds(0.45f);
+        // Son totemse biraz daha bekle, epik his için
+        yield return new WaitForSeconds(lastTotem ? 1.1f : 0.55f);
 
         // Normal bölüm sayısı hesapla
         int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
         int countToSpawn = 0;
 
-        if (activeTotems <= 0)
+        if (lastTotem)
         {
             // Tüm totemler kırılınca: normal sayı kadar spawn et
             isShielded = false;
@@ -491,17 +540,11 @@ public class SpawnerBossAI : MonoBehaviour
         {
             // Hala totemler varsa: sayıyı tamamla veya sadece 1 daha spawn et
             int currentMinionCount = summonedMinions.Count(m => m != null && m.health.currentHP > 0);
-            
+
             if (currentMinionCount < desiredMinionCount)
-            {
-                // Tamamla
                 countToSpawn = desiredMinionCount - currentMinionCount;
-            }
             else
-            {
-                // Sadece 1 tane daha
                 countToSpawn = 1;
-            }
         }
 
         yield return StartCoroutine(SummonMinions(countToSpawn));
@@ -510,19 +553,57 @@ public class SpawnerBossAI : MonoBehaviour
         totemSequenceRunning = false;
     }
 
+    private IEnumerator CameraShake(float duration, float magnitude)
+    {
+        Camera cam = Camera.main;
+        if (cam == null) yield break;
+
+        Vector3 origin = cam.transform.position;
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float strength = Mathf.Lerp(magnitude, 0f, elapsed / duration);
+            cam.transform.position = new Vector3(
+                origin.x + Random.Range(-1f, 1f) * strength,
+                origin.y + Random.Range(-1f, 1f) * strength,
+                origin.z);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        cam.transform.position = origin;
+    }
+
+    private IEnumerator ShieldPulseLoop()
+    {
+        if (shieldInstance == null) yield break;
+        Vector3 baseScale = shieldInstance.transform.localScale;
+        float t = 0f;
+        while (shieldInstance != null && isShielded)
+        {
+            t += Time.deltaTime * 1.2f; // nefes alma hızı
+            float pulse = 1f + Mathf.Sin(t * Mathf.PI * 2f) * 0.04f; // ±%4
+            shieldInstance.transform.localScale = baseScale * pulse;
+            yield return null;
+        }
+        if (shieldInstance != null)
+            shieldInstance.transform.localScale = baseScale;
+    }
+
     private IEnumerator ShatterShieldVisual()
     {
-        if (shieldVisual == null) yield break;
+        if (shieldInstance == null) yield break;
+
+        if (AudioManager.instance != null) AudioManager.instance.PlayShieldBreak();
 
         if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
         {
             GameObject fx = Instantiate(TurnManager.instance.explosionPrefab, transform.position, Quaternion.identity);
-            StartCoroutine(FadeAndDestroyExplosion(fx)); 
+            StartCoroutine(FadeAndDestroyExplosion(fx));
         }
 
-        SpriteRenderer shieldSr = shieldVisual.GetComponent<SpriteRenderer>();
-        Vector3 startScale = shieldVisual.transform.localScale;
-        Vector3 targetScale = startScale * 2.5f; 
+        SpriteRenderer[] shieldSrs = shieldInstance.GetComponentsInChildren<SpriteRenderer>();
+        Vector3 startScale = shieldInstance.transform.localScale;
+        Vector3 targetScale = startScale * 2.5f;
 
         float duration = 0.3f;
         float elapsed = 0f;
@@ -532,25 +613,19 @@ public class SpawnerBossAI : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
 
-            shieldVisual.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
-            
-            if (shieldSr != null)
+            shieldInstance.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
+
+            foreach (var sr in shieldSrs)
             {
-                Color c = shieldSr.color;
+                Color c = sr.color;
                 c.a = Mathf.Lerp(1f, 0f, t);
-                shieldSr.color = c;
+                sr.color = c;
             }
             yield return null;
         }
 
-        shieldVisual.SetActive(false);
-        shieldVisual.transform.localScale = startScale; 
-        if (shieldSr != null)
-        {
-            Color c = shieldSr.color;
-            c.a = 1f;
-            shieldSr.color = c;
-        }
+        Destroy(shieldInstance);
+        shieldInstance = null;
     }
 
     private IEnumerator FadeAndDestroyExplosion(GameObject fx)

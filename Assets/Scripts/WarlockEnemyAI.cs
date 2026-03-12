@@ -24,6 +24,9 @@ public class WarlockEnemyAI : MonoBehaviour
     private bool readyToExplodeAttack1 = false;
     private bool readyToExplodeAttack2 = false;
 
+    [Header("Animasyon")]
+    public Animator animator;
+
     private EnemyAI myEnemyAI;
     private Tilemap groundMap;
     
@@ -154,6 +157,7 @@ public class WarlockEnemyAI : MonoBehaviour
 
             case 1:
                 if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
+                if (animator != null) animator.SetBool("IsCharging", true);
                 attack1WarningCells = GetAttack1Cells(playerCell);
                 ShowWarningCells(attack1WarningCells, new Color(0.7f, 0.2f, 0.9f, 0f), new Color(0.7f, 0.2f, 0.9f, 1f));
                 cyclePhase = 2;
@@ -225,6 +229,7 @@ public class WarlockEnemyAI : MonoBehaviour
     public IEnumerator ExecuteAttack1()
     {
         readyToExplodeAttack1 = false;
+        if (animator != null) { animator.SetBool("IsCharging", false); animator.SetTrigger("Attack"); }
         List<Vector3Int> cellsToExplode = new List<Vector3Int>(attack1WarningCells);
         attack1WarningCells.Clear();
         yield return StartCoroutine(ExplodeWarningCells(cellsToExplode, new Color(0.9f, 0.5f, 1f, 1f)));
@@ -237,6 +242,7 @@ public class WarlockEnemyAI : MonoBehaviour
     public IEnumerator ExecuteAttack2()
     {
         readyToExplodeAttack2 = false;
+        if (animator != null) animator.SetTrigger("Attack");
         List<Vector3Int> cellsToExplode = new List<Vector3Int>(attack2WarningCells);
         attack2WarningCells.Clear();
         yield return StartCoroutine(ExplodeWarningCells(cellsToExplode, new Color(1f, 0.5f, 0.9f, 1f)));
@@ -305,6 +311,7 @@ public class WarlockEnemyAI : MonoBehaviour
     {
         isTransitioning = true;
         if (AudioManager.instance != null) AudioManager.instance.PlayWarlockGrunt();
+        if (animator != null) { animator.SetBool("IsCharging", false); animator.SetTrigger("GotHit"); }
         ClearAllWarnings();
 
         yield return StartCoroutine(WarlockTeleportFade(1f, 0f, 0.25f));
