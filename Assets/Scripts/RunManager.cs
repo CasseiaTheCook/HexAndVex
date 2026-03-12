@@ -60,6 +60,7 @@ public class RunManager : MonoBehaviour
     public int totalTurnsPlayed = 0;
     public int totalDiceRolled = 0;
     public int totalGoldEarned = 0;
+    public int totalLevelsPlayed = 0;
 
     // Best run (PlayerPrefs ile kalıcı)
     public static int BestKills      => PlayerPrefs.GetInt("best_kills", 0);
@@ -67,14 +68,16 @@ public class RunManager : MonoBehaviour
     public static int BestTurns      => PlayerPrefs.GetInt("best_turns", 0);
     public static int BestDice       => PlayerPrefs.GetInt("best_dice", 0);
     public static int BestGold       => PlayerPrefs.GetInt("best_gold", 0);
+    public static int BestLevels     => PlayerPrefs.GetInt("best_levels", 0);
 
     public void SaveBestRun()
     {
-        if (totalEnemiesKilled > BestKills)  PlayerPrefs.SetInt("best_kills",  totalEnemiesKilled);
-        if (totalDamageDealt   > BestDamage) PlayerPrefs.SetInt("best_damage", totalDamageDealt);
-        if (totalTurnsPlayed   > BestTurns)  PlayerPrefs.SetInt("best_turns",  totalTurnsPlayed);
-        if (totalDiceRolled    > BestDice)   PlayerPrefs.SetInt("best_dice",   totalDiceRolled);
-        if (totalGoldEarned    > BestGold)   PlayerPrefs.SetInt("best_gold",   totalGoldEarned);
+        if (totalEnemiesKilled > BestKills)   PlayerPrefs.SetInt("best_kills",   totalEnemiesKilled);
+        if (totalDamageDealt   > BestDamage)  PlayerPrefs.SetInt("best_damage",  totalDamageDealt);
+        if (totalTurnsPlayed   > BestTurns)   PlayerPrefs.SetInt("best_turns",   totalTurnsPlayed);
+        if (totalDiceRolled    > BestDice)    PlayerPrefs.SetInt("best_dice",    totalDiceRolled);
+        if (totalGoldEarned    > BestGold)    PlayerPrefs.SetInt("best_gold",    totalGoldEarned);
+        if (totalLevelsPlayed  > BestLevels)  PlayerPrefs.SetInt("best_levels",  totalLevelsPlayed);
         PlayerPrefs.Save();
     }
 
@@ -132,7 +135,7 @@ public class RunManager : MonoBehaviour
     }
     public string GetStatsSummary()
     {
-        return $"Turns Played: {totalTurnsPlayed}\n" +
+        return $"Levels Played: {totalLevelsPlayed}\n" +
                $"Dice Rolled: {totalDiceRolled}\n" +
                $"Damage Dealt: {totalDamageDealt}\n" +
                $"Enemies Killed: {totalEnemiesKilled}\n" +

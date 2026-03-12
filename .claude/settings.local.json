@@ -9,7 +9,9 @@
       "Bash(find /c/GitHub/HexAndVex -name *GeneSplice* -o -name *Gene*)",
       "Bash(python3 -c \"print\\(''ok''\\)\")",
       "Bash(python -c \"print\\(''ok''\\)\")",
-      "Bash(__NEW_LINE_8ad021a675c54029__ echo:*)"
+      "Bash(__NEW_LINE_8ad021a675c54029__ echo:*)",
+      "Bash(find c:GitHubHexAndVexAssetsPrefabsUI -name *Canvas* -o -name *Stats*)",
+      "Bash(grep -r \"totalTurnsPlayed\\\\|totalDiceRolled\\\\|totalDamageDealt\\\\|totalEnemiesKilled\\\\|totalGoldEarned\" c:/GitHub/HexAndVex/Assets/Scripts --include=*.cs)"
     ]
   }
 }
