@@ -42,12 +42,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 06aabd52ba5cc6649a300ff2c9e766cc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HostSyndromePerk
   currentLevel: 1
   maxLevel: 1
   perkName: Host Syndrome
   description: Gain +1 to each die roll for every enemy adjacent to you.
-  icon: {fileID: 0}
+  icon: {fileID: 5675857177134463956, guid: 758f83c2fbf3caa47873b87a5e441644, type: 3}
   priority: 5
   isRerollPerk: 0
+  rarity: 0

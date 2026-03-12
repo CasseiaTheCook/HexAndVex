@@ -42,12 +42,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 612feb1384d59ed4f9635821489bd096, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RetributionSplicerPerk
   currentLevel: 1
   maxLevel: 3
   perkName: Retribution Splicer
-  description: Each hit on the same target stacks +2 flat damage. No limit. +1 more per level.
-  icon: {fileID: 0}
+  description: Each hit on the same target stacks +2 flat damage. No limit. +1 more
+    per level.
+  icon: {fileID: -1752765643127241397, guid: a9be665cb8180c0488ecd08f1df59b9a, type: 3}
   priority: 20
   isRerollPerk: 0
+  rarity: 0

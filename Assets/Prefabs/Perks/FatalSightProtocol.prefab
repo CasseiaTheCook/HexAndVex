@@ -42,12 +42,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dcfdf6114c8776f47b80ed93f1c681c4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FatalSightProtocolPerk
   currentLevel: 1
   maxLevel: 3
   perkName: Fatal Sight Protocol
-  description: "All attacks are Critical Hits. Each 1% Crit Chance converts to +1.5% Crit Damage per level."
-  icon: {fileID: 0}
+  description: All attacks are Critical Hits. Each 1% Crit Chance converts to +1.5%
+    Crit Damage per level.
+  icon: {fileID: 7205323475282424750, guid: 91b16546711746c42ae7b70c987ed37d, type: 3}
   priority: 1
   isRerollPerk: 0
+  rarity: 0

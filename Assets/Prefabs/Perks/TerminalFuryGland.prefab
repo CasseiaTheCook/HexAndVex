@@ -42,12 +42,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4dda6bfda509c464cad0fa9fb6b822ed, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerminalFuryGlandPerk
   currentLevel: 1
   maxLevel: 3
   perkName: Terminal Fury Gland
   description: Always deal bonus damage. The lower your HP, the stronger the multiplier.
-  icon: {fileID: 0}
+  icon: {fileID: -7887244125207754765, guid: 1e1dbff9df71d6446a9df6b3cc03cefa, type: 3}
   priority: 15
   isRerollPerk: 0
+  rarity: 0
