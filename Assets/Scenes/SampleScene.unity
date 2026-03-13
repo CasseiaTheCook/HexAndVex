@@ -6197,6 +6197,51 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &656570547
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 656570549}
+  - component: {fileID: 656570548}
+  m_Layer: 0
+  m_Name: ScaffoldManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &656570548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 656570547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2e2a87f0e8ce6448aadc89a2876c6d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ScaffoldManager
+  collapseDuration: 0.35
+--- !u!4 &656570549
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 656570547}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.77089, y: 0.15171, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &663098662
 GameObject:
   m_ObjectHideFlags: 0
@@ -10474,11 +10519,12 @@ MonoBehaviour:
   groundMap: {fileID: 1259843048}
   backgroundMap: {fileID: 1235740318}
   hazardMap: {fileID: 1038138751}
-  scaffoldMap: {fileID: 0}
+  scaffoldMap: {fileID: 1891077902}
   groundTile: {fileID: 11400000, guid: 25c4e2f3083975546a162f5d78863fcd, type: 2}
   hazardTile: {fileID: 11400000, guid: ddc0f38700579ca4ab073a9853d63f97, type: 2}
-  scaffoldTile: {fileID: 0}
-  scaffoldSpawnChance: 0.08
+  scaffoldTile: {fileID: 11400000, guid: 59268a29cb3589c4bbded42282141218, type: 2}
+  lowerScaffoldTile: {fileID: 11400000, guid: 7fd86b76ae964fc41bf144700e9f26f1, type: 2}
+  scaffoldSpawnChance: 0.5
   columnTile: {fileID: 11400000, guid: d2b8750910e031b4bbace650254c0f1b, type: 2}
   playerPrefab: {fileID: 4451673360095616607}
   meleeEnemyPrefab: {fileID: 506802351436183914, guid: a0ec16531194a034583e5fd3b77d313f, type: 3}
@@ -20551,9 +20597,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1259843046}
   - {fileID: 1891077900}
   - {fileID: 1038138749}
+  - {fileID: 1259843046}
   - {fileID: 1235740316}
   - {fileID: 550921159}
   - {fileID: 1235414917}
@@ -21465,3 +21511,4 @@ SceneRoots:
   - {fileID: 1013731719}
   - {fileID: 1018708073}
   - {fileID: 1419829619}
+  - {fileID: 656570549}

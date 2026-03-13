@@ -2,26 +2,17 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 
 public class ScaffoldManager : MonoBehaviour
 {
     public static ScaffoldManager instance;
 
     [Header("Scaffold Ayarları")]
-    [Tooltip("Üstüne basıldıktan sonra titreme süresi (saniye). Bu süre dolunca çöker.")]
-    public float shakeDuration = 1.2f;
-
     [Tooltip("Çökme animasyonu süresi (saniye).")]
     public float collapseDuration = 0.35f;
 
-    [Tooltip("Scaffold çöktüğünde üstündeki varlığa verilen hasar.")]
-    public int collapseDamage = 1;
-
-    // Aktif scaffold'lar: hücre -> coroutine bilgisi
+    // Aktif scaffold'lar: hücre -> titreşim coroutine
     private Dictionary<Vector3Int, Coroutine> shakeCoroutines = new Dictionary<Vector3Int, Coroutine>();
-    // Hangi scaffold'lar aktive edilmiş (basılmış)
-    private HashSet<Vector3Int> activatedScaffolds = new HashSet<Vector3Int>();
     // Şu anda çökmekte olan scaffold'lar (tekrar tetikleme önleme)
     private HashSet<Vector3Int> collapsingScaffolds = new HashSet<Vector3Int>();
 
@@ -30,9 +21,6 @@ public class ScaffoldManager : MonoBehaviour
         if (instance == null) instance = this;
     }
 
-    /// <summary>
-    /// Bu hücre scaffold mı?
-    /// </summary>
     public bool IsScaffoldCell(Vector3Int cell)
     {
         return LevelGenerator.instance != null
@@ -40,93 +28,87 @@ public class ScaffoldManager : MonoBehaviour
             && LevelGenerator.instance.scaffoldCells.Contains(cell);
     }
 
-    /// <summary>
-    /// Bu scaffold şu anda çökmekte mi?
-    /// </summary>
     public bool IsCollapsing(Vector3Int cell)
     {
         return collapsingScaffolds.Contains(cell);
     }
 
     /// <summary>
-    /// Bir varlık (oyuncu veya düşman) scaffold hücresine bastığında çağrılır.
-    /// Scaffold titremeye başlar ve shakeDuration sonra otomatik çöker.
+    /// Oyuncu scaffold'a bastığında çağrılır. Titreşim başlar.
     /// </summary>
     public void OnEntityEnter(Vector3Int cell)
     {
         if (!IsScaffoldCell(cell)) return;
-        if (activatedScaffolds.Contains(cell)) return;
+        if (shakeCoroutines.ContainsKey(cell)) return;
         if (collapsingScaffolds.Contains(cell)) return;
 
-        activatedScaffolds.Add(cell);
-        Coroutine shake = StartCoroutine(ShakeAndCollapseCoroutine(cell));
+        Coroutine shake = StartCoroutine(ShakeCoroutine(cell));
         shakeCoroutines[cell] = shake;
     }
 
     /// <summary>
-    /// Bir varlık scaffold hücresinden ayrıldığında çağrılır.
-    /// Eğer scaffold aktif edilmişse hemen çöker.
+    /// Oyuncu scaffold'dan ayrıldığında çağrılır. Titreşim durur, scaffold düşer.
     /// </summary>
     public void OnEntityLeave(Vector3Int cell)
     {
-        if (!activatedScaffolds.Contains(cell)) return;
+        if (!shakeCoroutines.ContainsKey(cell)) return;
         if (collapsingScaffolds.Contains(cell)) return;
 
-        // Titreme coroutine'ini durdur
         StopShakeCoroutine(cell);
-        activatedScaffolds.Remove(cell);
-
-        // Transform matrisini sıfırla
         ResetTileTransform(cell);
 
-        // Hemen çök
-        StartCoroutine(CollapseCoroutine(cell));
+        HexMovement playerMovement = TurnManager.instance?.player;
+
+        // Çöküşü sadece oyuncunun hareketi bir "knockback" DEĞİLSE tetikle.
+        // Bu, hem oyuncunun kendi gönüllü hareketini hem de düşmanların hareketini kapsar,
+        // ama oyuncunun itilmesini hariç tutar.
+        if (playerMovement != null && !playerMovement.isKnockbackMove)
+        {
+            StartCoroutine(CollapseCoroutine(cell));
+        }
     }
 
     /// <summary>
-    /// Titreme + süre dolunca otomatik çökme.
-    /// Varlık üstünde kalsa bile shakeDuration sonra çöker.
+    /// Süresiz titreşim. Oyuncu üstünde durduğu sürece devam eder.
     /// </summary>
-    private IEnumerator ShakeAndCollapseCoroutine(Vector3Int cell)
+    private IEnumerator ShakeCoroutine(Vector3Int cell)
     {
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
+        Tilemap groundMap = LevelGenerator.instance.groundMap; // Titreşim için groundMap'i de al
         if (scaffoldMap == null) yield break;
 
         float elapsed = 0f;
-        float baseIntensity = 0.02f;
-        float speed = 25f;
+        float intensity = 0.02f;
+        float speed = 15f;
 
-        while (elapsed < shakeDuration)
+        while (true)
         {
             elapsed += Time.deltaTime;
 
-            // Titreme yoğunluğu zamanla artar
-            float progress = elapsed / shakeDuration;
-            float intensity = Mathf.Lerp(baseIntensity, baseIntensity * 3f, progress);
-            float currentSpeed = Mathf.Lerp(speed, speed * 2f, progress);
+            float ox = Mathf.Sin(elapsed * speed) * intensity;
+            float oy = Mathf.Cos(elapsed * speed * 1.3f) * intensity * 0.5f;
 
-            float ox = Mathf.Sin(elapsed * currentSpeed) * intensity;
-            float oy = Mathf.Cos(elapsed * currentSpeed * 1.3f) * intensity * 0.5f;
+            Matrix4x4 shakeMatrix = Matrix4x4.TRS(
+                new Vector3(ox, oy, 0f), Quaternion.identity, Vector3.one);
 
+            // Üst katmanı titret
             if (scaffoldMap.HasTile(cell))
             {
-                scaffoldMap.SetTransformMatrix(cell, Matrix4x4.TRS(
-                    new Vector3(ox, oy, 0f), Quaternion.identity, Vector3.one));
+                scaffoldMap.SetTransformMatrix(cell, shakeMatrix);
+            }
+
+            // Alt katmanı da aynı şekilde titret
+            if (groundMap != null && groundMap.HasTile(cell))
+            {
+                groundMap.SetTransformMatrix(cell, shakeMatrix);
             }
 
             yield return null;
         }
-
-        // Süre doldu - scaffold üstünde durulsa bile çöker
-        shakeCoroutines.Remove(cell);
-        activatedScaffolds.Remove(cell);
-
-        ResetTileTransform(cell);
-        StartCoroutine(CollapseCoroutine(cell));
     }
 
     /// <summary>
-    /// Scaffold çökme animasyonu. Tile'ları kaldırır ve üstündeki varlığa hasar verir.
+    /// Scaffold çökme animasyonu. Tile'ları kaldırır.
     /// </summary>
     private IEnumerator CollapseCoroutine(Vector3Int cell)
     {
@@ -139,7 +121,6 @@ public class ScaffoldManager : MonoBehaviour
 
         if (AudioManager.instance != null) AudioManager.instance.PlayWall();
 
-        // Çökme animasyonu
         float elapsed = 0f;
         while (elapsed < collapseDuration)
         {
@@ -171,102 +152,14 @@ public class ScaffoldManager : MonoBehaviour
             yield return null;
         }
 
-        // Tile'ları tamamen kaldır
         RemoveTile(scaffoldMap, cell);
         RemoveTile(groundMap, cell);
         RemoveTile(backgroundMap, cell);
 
-        // Takip listesinden çıkar
         if (LevelGenerator.instance != null)
             LevelGenerator.instance.scaffoldCells.Remove(cell);
 
-        // Üstünde duran varlığı kontrol et ve düşür
-        DamageEntityOnCell(cell);
-
         collapsingScaffolds.Remove(cell);
-    }
-
-    /// <summary>
-    /// Çöken scaffold üstündeki oyuncu veya düşmana hasar verir ve güvenli hücreye iter.
-    /// </summary>
-    private void DamageEntityOnCell(Vector3Int cell)
-    {
-        if (TurnManager.instance == null) return;
-
-        // Oyuncu bu hücrede mi?
-        HexMovement player = TurnManager.instance.player;
-        if (player != null && player.GetCurrentCellPosition() == cell)
-        {
-            player.health.TakeDamage(collapseDamage);
-
-            // Oyuncuyu güvenli komşu hücreye it
-            Vector3Int safeCell = FindSafeNeighbor(cell);
-            if (safeCell != cell)
-            {
-                player.StartKnockbackMovement(safeCell);
-            }
-            return;
-        }
-
-        // Düşman bu hücrede mi?
-        EnemyAI enemyOnCell = TurnManager.instance.GetEnemyAtCell(cell);
-        if (enemyOnCell != null)
-        {
-            enemyOnCell.health.TakeDamage(collapseDamage);
-
-            if (enemyOnCell.health.currentHP <= 0)
-            {
-                StartCoroutine(enemyOnCell.FadeDieCoroutine());
-            }
-            else
-            {
-                // Düşmanı güvenli komşu hücreye it
-                Vector3Int safeCell = FindSafeNeighbor(cell);
-                if (safeCell != cell)
-                {
-                    enemyOnCell.StartKnockbackMovement(safeCell);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Verilen hücrenin çevresinde güvenli (ground var, hazard/scaffold değil) bir komşu hücre bulur.
-    /// </summary>
-    private Vector3Int FindSafeNeighbor(Vector3Int cell)
-    {
-        Vector3Int[] oddOff = { new Vector3Int(+1, 0, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(-1, -1, 0), new Vector3Int(0, -1, 0) };
-        Vector3Int[] evenOff = { new Vector3Int(+1, 0, 0), new Vector3Int(+1, +1, 0), new Vector3Int(0, +1, 0), new Vector3Int(-1, 0, 0), new Vector3Int(0, -1, 0), new Vector3Int(+1, -1, 0) };
-
-        Vector3Int[] offsets = (cell.y % 2 != 0) ? evenOff : oddOff;
-        Tilemap groundMap = LevelGenerator.instance.groundMap;
-
-        // Önce güvenli hücre ara (hazard değil, scaffold değil, düşman/oyuncu yok)
-        foreach (var off in offsets)
-        {
-            Vector3Int neighbor = cell + off;
-            if (groundMap != null && groundMap.HasTile(neighbor)
-                && !LevelGenerator.instance.hazardCells.Contains(neighbor)
-                && !LevelGenerator.instance.scaffoldCells.Contains(neighbor)
-                && !collapsingScaffolds.Contains(neighbor))
-            {
-                // Üstünde başka entity var mı?
-                if (TurnManager.instance.IsEnemyAtCell(neighbor)) continue;
-                if (TurnManager.instance.player != null && TurnManager.instance.player.GetCurrentCellPosition() == neighbor) continue;
-
-                return neighbor;
-            }
-        }
-
-        // Güvenli hücre bulunamadıysa, en azından ground olan herhangi bir komşu
-        foreach (var off in offsets)
-        {
-            Vector3Int neighbor = cell + off;
-            if (groundMap != null && groundMap.HasTile(neighbor))
-                return neighbor;
-        }
-
-        return cell; // Hiç komşu yoksa yerinde kal (edge case)
     }
 
     private void StopShakeCoroutine(Vector3Int cell)
@@ -284,6 +177,11 @@ public class ScaffoldManager : MonoBehaviour
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
         if (scaffoldMap != null && scaffoldMap.HasTile(cell))
             scaffoldMap.SetTransformMatrix(cell, Matrix4x4.identity);
+
+        // Alt katmanın da pozisyonunu sıfırla
+        Tilemap groundMap = LevelGenerator.instance.groundMap;
+        if (groundMap != null && groundMap.HasTile(cell))
+            groundMap.SetTransformMatrix(cell, Matrix4x4.identity);
     }
 
     private void RemoveTile(Tilemap map, Vector3Int cell)
@@ -296,15 +194,11 @@ public class ScaffoldManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Level geçişlerinde tüm scaffold durumunu sıfırla.
-    /// </summary>
     public void ClearAll()
     {
         foreach (var coroutine in shakeCoroutines.Values)
             if (coroutine != null) StopCoroutine(coroutine);
         shakeCoroutines.Clear();
-        activatedScaffolds.Clear();
         collapsingScaffolds.Clear();
         StopAllCoroutines();
     }

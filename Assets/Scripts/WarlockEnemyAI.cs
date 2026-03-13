@@ -127,7 +127,7 @@ public class WarlockEnemyAI : MonoBehaviour
             if (TurnManager.instance.IsEnemyAtCell(neighbor)) continue;
             if (TurnManager.instance.player.GetCurrentCellPosition() == neighbor) continue;
             if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(neighbor)) continue;
-            if (LevelGenerator.instance != null && LevelGenerator.instance.scaffoldCells.Contains(neighbor)) continue;
+            // if (LevelGenerator.instance != null && LevelGenerator.instance.scaffoldCells.Contains(neighbor)) continue;
 
             float dist = myEnemyAI.Distance(neighbor, playerCell);
             if (dist > bestDist)
@@ -145,8 +145,7 @@ public class WarlockEnemyAI : MonoBehaviour
                 Vector3Int neighbor = currentCell + off;
                 if (groundMap.HasTile(neighbor) && !TurnManager.instance.IsEnemyAtCell(neighbor) &&
                     TurnManager.instance.player.GetCurrentCellPosition() != neighbor &&
-                    (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(neighbor)) &&
-                    (LevelGenerator.instance == null || !LevelGenerator.instance.scaffoldCells.Contains(neighbor)))
+                    (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(neighbor)))
                 {
                     safeCells.Add(neighbor);
                 }

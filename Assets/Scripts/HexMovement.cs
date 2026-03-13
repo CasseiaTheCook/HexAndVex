@@ -26,7 +26,7 @@ public class HexMovement : MonoBehaviour
     private Vector3Int currentCellPosition;
     private Vector3 targetWorldPosition;
     private bool isMoving = false;
-    private bool isKnockbackMove = false;
+    public bool isKnockbackMove = false;
     private bool _preserveFacingNextMove = false;
     private Vector3Int previousCellForScaffold;
 
