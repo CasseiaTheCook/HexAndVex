@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-﻿using UnityEngine;
+﻿﻿using UnityEngine;
 using UnityEngine.Tilemaps;
 using System.Collections;
 using System.Collections.Generic;
@@ -325,7 +324,6 @@ public class EnemyAI : MonoBehaviour
                 {
                     isStunVisualActive = false;
                     if (stunFadeCoroutine != null) StopCoroutine(stunFadeCoroutine);
-                    stunFadeCoroutine = StartCoroutine(FadeStunEffect(0f));
                     if (spawnedStunEffect != null && stunRenderer != null)
                         stunFadeCoroutine = StartCoroutine(FadeStunEffect(0f));
                 }
