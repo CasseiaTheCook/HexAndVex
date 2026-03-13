@@ -292,54 +292,54 @@ public class TurnManager : MonoBehaviour
             activeMineObj = Instantiate(phantomMinePrefab, pos, Quaternion.identity);
         }
     }
-public void ResetGame()
-{
-    // 1. Zamanı normale döndür (Pause'dan geliyorsa)
-    Time.timeScale = 1f;
-
-    // 2. RunManager verilerini sıfırla
-    if (RunManager.instance != null)
+    public void ResetGame()
     {
-        RunManager rm = RunManager.instance;
-        
-        rm.currentLevel = startingLevel;
-        rm.currentGold = startingGold;
-        rm.playerMaxHealth = startingMaxHP;
-        rm.playerCurrentHealth = startingMaxHP; // Canı fulle
-        rm.baseDiceCount = startingDiceCount;
-        rm.criticalDamageMultiplier = startingCritMultiplier;
-        
-        // Diğer gizli statları sıfırla
-        rm.armorChance = 0f;
-        rm.dodgeChance = 0f;
-        rm.bonusGold = 0;
-        rm.hasBioBarrier = false;
-        rm.luckyCloverLevel = 0;
-        rm.criticalChance = startingCritChance;
+        // 1. Zamanı normale döndür (Pause'dan geliyorsa)
+        Time.timeScale = 1f;
 
-        // Perkleri temizle (Sahnedeki objeleri yok et)
-        foreach (BasePerk perk in rm.activePerks)
+        // 2. RunManager verilerini sıfırla
+        if (RunManager.instance != null)
         {
-            if (perk != null) Destroy(perk.gameObject);
+            RunManager rm = RunManager.instance;
+
+            rm.currentLevel = startingLevel;
+            rm.currentGold = startingGold;
+            rm.playerMaxHealth = startingMaxHP;
+            rm.playerCurrentHealth = startingMaxHP; // Canı fulle
+            rm.baseDiceCount = startingDiceCount;
+            rm.criticalDamageMultiplier = startingCritMultiplier;
+
+            // Diğer gizli statları sıfırla
+            rm.armorChance = 0f;
+            rm.dodgeChance = 0f;
+            rm.bonusGold = 0;
+            rm.hasBioBarrier = false;
+            rm.luckyCloverLevel = 0;
+            rm.criticalChance = startingCritChance;
+
+            // Perkleri temizle (Sahnedeki objeleri yok et)
+            foreach (BasePerk perk in rm.activePerks)
+            {
+                if (perk != null) Destroy(perk.gameObject);
+            }
+            rm.activePerks.Clear();
+
+            // İstatistikleri (Stats) sıfırla
+            rm.totalEnemiesKilled = 0;
+            rm.totalDamageDealt = 0;
+            rm.totalDamageReceived = 0;
+            rm.totalTurnsPlayed = 0;
+            rm.totalDiceRolled = 0;
+            rm.totalGoldEarned = 0;
+            rm.totalLevelsPlayed = 0;
         }
-        rm.activePerks.Clear();
 
-        // İstatistikleri (Stats) sıfırla
-        rm.totalEnemiesKilled = 0;
-        rm.totalDamageDealt = 0;
-        rm.totalDamageReceived = 0;
-        rm.totalTurnsPlayed = 0;
-        rm.totalDiceRolled = 0;
-        rm.totalGoldEarned = 0;
-        rm.totalLevelsPlayed = 0;
+        // 3. TurnManager'ın kendi listelerini temizle
+        enemies.Clear();
+        isLevelClearTriggered = false;
+        hasAttackedThisTurn = false;
+
     }
-
-    // 3. TurnManager'ın kendi listelerini temizle
-    enemies.Clear();
-    isLevelClearTriggered = false;
-    hasAttackedThisTurn = false;
-
-}
     public void ClearWarningMap()
     {
         GameObject warningMapObj = GameObject.Find("WarningMap");
@@ -692,7 +692,7 @@ public void ResetGame()
         foreach (var enemy in hitEnemies)
         {
             enemy.health.TakeDamage(totalDamage);
-            
+
             // Slash efekti spawn et (X flip + Y offset)
             if (slashEffectPrefab != null)
             {
@@ -701,7 +701,7 @@ public void ResetGame()
                 GameObject slash = Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
                 slash.transform.localScale = new Vector3(-1, 1, 1); // X ekseninde ters
             }
-            
+
             if (enemy.health.currentHP <= 0)
             {
                 if (enemy.enemyBehavior != EnemyAI.EnemyBehavior.Totem)
@@ -943,7 +943,7 @@ public void ResetGame()
             if (e == null) continue;
             int explosionDamage = Mathf.Max(1, Mathf.RoundToInt(e.health.maxHP * damagePercent));
             e.health.TakeDamage(explosionDamage);
-            
+
             // Patlama sonrası alpha'yı hemen reset et (stun alpha kalmasın)
             // Neighborler isDeepStunnedAlpha false olduğundan SetStunnedAlpha(false) çalışmayabilir
             // Bu yüzden sprite rengini direkt ayarla
@@ -1231,7 +1231,7 @@ public void ResetGame()
         // Skip button'ı zarlar atılırken disable et
         if (LevelUpManager.instance != null && LevelUpManager.instance.skipButton != null)
             LevelUpManager.instance.skipButton.interactable = false;
-            
+
         bool hasBioMag = RunManager.instance.activePerks.Exists(p => p is BioMagnetismPerk);
         if (hasBioMag)
         {
@@ -1507,7 +1507,7 @@ public void ResetGame()
             }
             bool dies = enemy.health.currentHP <= actualDamage;
             enemy.health.TakeDamage(actualDamage, true);
-            
+
             // Slash efekti spawn et (X flip + Y offset)
             if (slashEffectPrefab != null)
             {
@@ -1516,7 +1516,7 @@ public void ResetGame()
                 GameObject slash = Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
                 slash.transform.localScale = new Vector3(-1, 1, 1); // X ekseninde ters
             }
-            
+
             RegisterComboHit();
             knockedEnemies.Add(enemy); if (dies) deadEnemiesThisTurn.Add(enemy);
 
@@ -1535,7 +1535,7 @@ public void ResetGame()
                 for (int v = 0; v < voodooHits; v++)
                 {
                     others[v].health.TakeDamage(damagePerEnemy, true);
-                    
+
                     // Slash efekti spawn et (X flip + Y offset)
                     if (slashEffectPrefab != null)
                     {
@@ -2070,10 +2070,10 @@ public void ResetGame()
         {
             if (centerCell + offsets[i] == awayFromCell)
             {
-                int oppositeIndex = (i + 3) % 6; 
+                int oppositeIndex = (i + 3) % 6;
                 Vector3Int strictKnockbackCell = centerCell + offsets[oppositeIndex];
                 bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(strictKnockbackCell);
-                if ((!groundMap.HasTile(strictKnockbackCell) && !isScaffold) || IsEnemyAtCell(strictKnockbackCell) || player.GetCurrentCellPosition() == strictKnockbackCell) 
+                if ((!groundMap.HasTile(strictKnockbackCell) && !isScaffold) || IsEnemyAtCell(strictKnockbackCell) || player.GetCurrentCellPosition() == strictKnockbackCell)
                     return centerCell;
                 return strictKnockbackCell;
             }
@@ -2108,13 +2108,13 @@ public void ResetGame()
 
     private Vector3Int GetRandomSafeNeighbor(Vector3Int centerCell)
     {
-        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets; 
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets;
         List<Vector3Int> safeNeighbors = new List<Vector3Int>();
         foreach (var off in offsets)
         {
             Vector3Int neighbor = centerCell + off;
             bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(neighbor);
-            if ((groundMap.HasTile(neighbor) || isScaffold) && !IsEnemyAtCell(neighbor) && player.GetCurrentCellPosition() != neighbor && !LevelGenerator.instance.hazardCells.Contains(neighbor)) 
+            if ((groundMap.HasTile(neighbor) || isScaffold) && !IsEnemyAtCell(neighbor) && player.GetCurrentCellPosition() != neighbor && !LevelGenerator.instance.hazardCells.Contains(neighbor))
                 safeNeighbors.Add(neighbor);
         }
         if (safeNeighbors.Count > 0) return safeNeighbors[Random.Range(0, safeNeighbors.Count)];

@@ -12,8 +12,8 @@ public class Shopmanager : MonoBehaviour
     public List<BaseItem> itemPool = new List<BaseItem>();
 
     [Header("Secret Item")]
-    public BaseItem secretItem; // SecretPerkOrb — %1 şansla shopta çıkar (normal), ilk boss sonrası guaranteed
-    [Range(0f, 1f)] public float secretItemChance = 0.001f;
+    public BaseItem secretItem; // SecretPerkOrb
+    [Range(0f, 1f)] public float secretItemChance = 0.001f; // %0.1 (Binde 1) şans
 
     [Header("Shop Slot Sistemi")]
     public Transform shopSlotContainer;
@@ -35,6 +35,9 @@ public class Shopmanager : MonoBehaviour
 
     private int rerollCount = 0;
     private int currentRerollCost;
+
+    // YENİ: Secret Item'ın satın alınıp alınmadığını takip eden değişken
+    private bool hasBoughtSecretItem = false;
 
     void Awake()
     {
@@ -173,8 +176,19 @@ public class Shopmanager : MonoBehaviour
             SetupSlot(slot, i, item);
         }
 
-        // %0.1 şansla secret item slotu ekle (ilk boss sonrası garantili)
-        bool guaranteeSecret = (RunManager.instance != null && RunManager.instance.currentLevel == 5 && rerollCount == 0);
+        // ========================================================
+        // SECRET ITEM MANTIĞI: Alınana kadar Level 5 ve sonrasında garanti, 
+        // alındıktan sonra (veya öncesinde) hep 1/1000 şans!
+        // ========================================================
+        if (RunManager.instance != null && RunManager.instance.currentLevel < 5)
+        {
+            // Yeni oyuna başlandığında (level 1) satın alma durumunu sıfırla
+            hasBoughtSecretItem = false; 
+        }
+
+        // Level 5 ve üzeriysek, GİZLİ EŞYAYI DAHA ÖNCE ALMADIYSAK ve dükkanın İLK AÇILIŞIYSA (rerollCount == 0) garanti ver.
+        bool guaranteeSecret = (RunManager.instance != null && RunManager.instance.currentLevel >= 5 && !hasBoughtSecretItem && rerollCount == 0);
+        
         if (secretItem != null && (guaranteeSecret || Random.value < secretItemChance))
         {
             int secretIndex = spawnedSlots.Count;
@@ -224,7 +238,6 @@ public class Shopmanager : MonoBehaviour
         {
             var btnLabel = slot.buyButton.GetComponentInChildren<TMP_Text>();
 
-            // DÜZELTME: Eski nameText ve priceText çöpleri tamamen silindi!
             if (btnLabel != null)
                 btnLabel.text = "";
 
@@ -246,7 +259,6 @@ public class Shopmanager : MonoBehaviour
 
         if (RunManager.instance.currentGold < item.price)
         {
-            // DÜZELTME: Artık paran yetmediğinde ana paran (coinDisplayText) kırmızı yanacak!
             StartCoroutine(FlashText(coinDisplayText));
             return;
         }
@@ -254,6 +266,14 @@ public class Shopmanager : MonoBehaviour
         RunManager.instance.currentGold -= item.price;
         if (AudioManager.instance != null) AudioManager.instance.PlayPurchase();
         item.Use();
+
+        // ========================================================
+        // EĞER SATIN ALINAN EŞYA SECRET İSE, GARANTİ DURUMUNU İPTAL ET
+        // ========================================================
+        if (item == secretItem)
+        {
+            hasBoughtSecretItem = true;
+        }
 
         purchased[index] = true;
 
@@ -316,12 +336,10 @@ public class Shopmanager : MonoBehaviour
             Transform rerollParent = rerollPriceText.transform.parent;
             if (rerollParent != null && rerollParent.Find("RerollCoinIcon") == null)
             {
-                // Keep existing text anchored/stretched, just add icon as sibling
                 GameObject rIconGO = new GameObject("RerollCoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
                 rIconGO.transform.SetParent(rerollParent, false);
                 rIconGO.layer = gameObject.layer;
                 RectTransform rIconRT = rIconGO.GetComponent<RectTransform>();
-                // Anchor to right-center of button
                 rIconRT.anchorMin = new Vector2(1f, 0.5f);
                 rIconRT.anchorMax = new Vector2(1f, 0.5f);
                 rIconRT.pivot = new Vector2(1f, 0.5f);
@@ -343,6 +361,7 @@ public class Shopmanager : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
         t.color = orig;
     }
+
     // ==========================================
     // Manuel slot konumlandırma (Layout kullanmadan)
     // ==========================================

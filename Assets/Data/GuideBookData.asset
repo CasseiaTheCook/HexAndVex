@@ -26,10 +26,7 @@ MonoBehaviour:
   - title: Hazards
     bodyText: "The battlefield itself is a weapon featuring lethal spikes that damage
       anyone\u2014player or enemy\u2014knocked or pushed into them, allowing you
-      to turn the environment against your foes for a tactical advantage, while fragile
-      scaffolding provides temporary footing that collapses after a single use, forcing
-      you to plan your path carefully as the terrain literally falls apart and permanently
-      shifts the layout of the arena."
+      to turn the environment against your foes for a tactical advantage."
     illustration: {fileID: 0}
     category: Movement
   - title: Combat & Damage

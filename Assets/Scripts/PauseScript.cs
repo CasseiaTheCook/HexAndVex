@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement; // Sahne yönetimi için gerekli
 using TMPro;
+
 public class PauseManager : MonoBehaviour
 {
     // Durdurma menüsü panelini (Canvas) buraya sürükleyeceğiz
@@ -63,7 +64,6 @@ public class PauseManager : MonoBehaviour
         Time.timeScale = 1f; // Önemli: Sahne yüklenmeden zamanı açmalıyız!
                              // Mevcut sahnenin indeksini alıp tekrar yüklüyoruz
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-
     }
 
     // Ana menüye veya başka bir sahneye gitme (Index ile çalışır)
@@ -74,13 +74,15 @@ public class PauseManager : MonoBehaviour
         if (deathMenuUI != null) deathMenuUI.SetActive(false);
         SceneManager.LoadScene(sceneIndex);
     }
+
     // PauseManager.cs içindeki LoadMainMenu fonksiyonu
     public void LoadMainMenu()
     {
         Time.timeScale = 1f; // Zamanı açmak şart, yoksa sahneler sapıtır
+
         // Ölüm menüsünü kapat
         if (deathMenuUI != null) deathMenuUI.SetActive(false);
-        
+
         if (TurnManager.instance != null)
         {
             TurnManager.instance.ResetGame();
@@ -99,14 +101,25 @@ public class PauseManager : MonoBehaviour
             SceneManager.LoadScene(1);
         }
     }
+
+    // KAYBOLAN FONKSİYON GERİ GELDİ
     public void PlayButton(int sceneIndex)
     {
         Time.timeScale = 1f; // Zamanı açmayı unutma!
-        ScreenFader.instance.FadeAndLoad(() =>
+        
+        if (ScreenFader.instance != null)
+        {
+            ScreenFader.instance.FadeAndLoad(() =>
+            {
+                SceneManager.LoadScene(sceneIndex);
+            });
+        }
+        else
         {
             SceneManager.LoadScene(sceneIndex);
-        });
+        }
     }
+
     // Oyundan tamamen çıkma (Sadece gerçek oyunda çalışır, Unity Editor'da çalışmaz)
     public void QuitGame()
     {

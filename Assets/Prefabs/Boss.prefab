@@ -244,6 +244,7 @@ MonoBehaviour:
   activeTotems: 4
   isShielded: 1
   shieldVisual: {fileID: 3347869054971392747, guid: 687484031efea9341964845852145a51, type: 3}
+  lightningStrikePrefab: {fileID: 5467900313531112619, guid: 026454fcc64b479479be3d9d2da67a2a, type: 3}
   aoeCycleStep: 0
   isAoEWarningActive: 0
   readyToExplodeThisTurn: 0
@@ -268,7 +269,7 @@ MonoBehaviour:
   hpLabel: {fileID: 2183311866989599756}
   barWidth: 0.6
   barHeight: 0.1
-  offsetY: 0.25
+  offsetY: 0.45
   fullColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
   midColor: {r: 1, g: 0.8, b: 0, a: 1}
   lowColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
