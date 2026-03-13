@@ -93,7 +93,7 @@ public class SpawnerBossAI : MonoBehaviour
     {
         isTransitioning = true; 
         yield return new WaitForSeconds(0.5f); 
-        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
+        int desiredMinionCount = GetMaxMinionLimit();
         yield return StartCoroutine(SummonMinions(desiredMinionCount));
         isTransitioning = false; 
     }
@@ -242,6 +242,19 @@ public class SpawnerBossAI : MonoBehaviour
         }
     }
 
+    // ========================================================
+    // YENİ: BOSS KAÇINCI SEVİYEDE İSE ONA GÖRE MİNYON SINIRI BELİRLE
+    // ========================================================
+    private int GetMaxMinionLimit()
+    {
+        if (RunManager.instance == null) return 1;
+        
+        int level = RunManager.instance.currentLevel;
+        if (level <= 5) return 1;       // İlk boss: Maks 1 minyon
+        if (level <= 10) return 2;      // İkinci boss: Maks 2 minyon
+        return 3;                       // Üçüncü ve sonrası bosslar: Maks 3 minyon
+    }
+
     private void TriggerHitSpawn()
     {
         if (isTransitioning) return; 
@@ -249,12 +262,16 @@ public class SpawnerBossAI : MonoBehaviour
         
         summonedMinions.RemoveAll(m => m == null || m.health.currentHP <= 0);
         int currentMinions = summonedMinions.Count;
+        
+        // Dinamik sınırı al (Örn: İlk bosssa x = 1)
+        int maxLimit = GetMaxMinionLimit();
         int toSpawn = 0;
 
-        if (currentMinions < 3) 
-            toSpawn = 3 - currentMinions; 
+        if (currentMinions < maxLimit) 
+            toSpawn = maxLimit - currentMinions; // Eksiği tamamla
         else 
-            toSpawn = 1; 
+            toSpawn = 1; // Sınıra ulaşıldıysa veya geçildiyse bile en az 1 tane +1 yap
+
         StartCoroutine(SummonMinions(toSpawn));
     }
 
@@ -333,24 +350,18 @@ public class SpawnerBossAI : MonoBehaviour
 
             yield return new WaitForSeconds(0.1f);
 
-            // ========================================================
-            // YENİ: YILDIRIM EFEKTİNİ ÇAĞIR VE 3 SANİYE SONRA SİL
-            // ========================================================
             if (lightningStrikePrefab != null)
             {
                 foreach (var c in cellsToExplode)
                 {
                     Vector3 strikePos = groundMap.GetCellCenterWorld(c);
-                    strikePos.z = 0f; // Efektin Z pozisyonunu sıfırlayalım
+                    strikePos.z = 0f;
                     
-                    // Efekti yarat
                     GameObject lightning = Instantiate(lightningStrikePrefab, strikePos, Quaternion.identity);
                     
-                    // Tam 3 saniye sonra Destroy fırlat
                     Destroy(lightning, 3f);
                 }
             }
-            // ========================================================
 
             // DAMAGE VERMEK: Visual başladığında HEMEN ver
             Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
@@ -532,7 +543,8 @@ public class SpawnerBossAI : MonoBehaviour
 
         yield return new WaitForSeconds(lastTotem ? 1.1f : 0.55f);
 
-        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
+        // Dinamik Sınırı Kullan (Totemler de bu sınıra uyarak spawn etsin)
+        int maxLimit = GetMaxMinionLimit();
         int countToSpawn = 0;
 
         if (lastTotem)
@@ -540,14 +552,14 @@ public class SpawnerBossAI : MonoBehaviour
             isShielded = false;
             StartCoroutine(ShatterShieldVisual());
             previousHP = myEnemyAI.health.currentHP;
-            countToSpawn = desiredMinionCount;
+            countToSpawn = maxLimit; // Tüm totemler kırılınca direkt sınıra ulaşır
         }
         else
         {
             int currentMinionCount = summonedMinions.Count(m => m != null && m.health.currentHP > 0);
 
-            if (currentMinionCount < desiredMinionCount)
-                countToSpawn = desiredMinionCount - currentMinionCount;
+            if (currentMinionCount < maxLimit)
+                countToSpawn = maxLimit - currentMinionCount;
             else
                 countToSpawn = 1;
         }

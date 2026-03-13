@@ -1279,11 +1279,18 @@ public class TurnManager : MonoBehaviour
         foreach (var p in RunManager.instance.activePerks) if (p is DormantSporePerk ambushPerk) { extraDices += ambushPerk.storedExtraDices; ambushPerk.storedExtraDices = 0; }
         if (RunManager.instance.bonusDiceNextCombat > 0) { extraDices += RunManager.instance.bonusDiceNextCombat; RunManager.instance.bonusDiceNextCombat = 0; }
         for (int i = 0; i < (diceCount + extraDices); i++) currentRolls.Add(Random.Range(1, 7));
-        // Reroll stack: her zara kalıcı bonus ekle
+        // Reroll stack: her zara kalıcı bonus ekle (AMA SADECE PERK VARSA)
         if (RunManager.instance != null && RunManager.instance.shopRerollStack > 0)
         {
-            for (int i = 0; i < currentRolls.Count; i++)
-                currentRolls[i] += RunManager.instance.shopRerollStack;
+            // Genetic Cartel perki aktif mi diye kontrol et
+            // (Eğer senin perkinin script adı farklıysa "GeneticCartelPerk" yazan yeri kendi isminle değiştir)
+            bool hasGeneticCartel = RunManager.instance.activePerks.Exists(p => p.GetType().Name == "GeneticCartelPerk");
+
+            if (hasGeneticCartel)
+            {
+                for (int i = 0; i < currentRolls.Count; i++)
+                    currentRolls[i] += RunManager.instance.shopRerollStack;
+            }
         }
         if (RunManager.instance != null) RunManager.instance.totalDiceRolled += diceCount + extraDices;
         CombatPayload payload = new CombatPayload(currentRolls);
