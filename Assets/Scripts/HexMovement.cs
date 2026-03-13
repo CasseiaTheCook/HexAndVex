@@ -257,7 +257,8 @@ public class HexMovement : MonoBehaviour
 
     public void StartKnockbackMovement(Vector3Int targetCell, bool preserveFacing = false)
     {
-        if (groundMap.HasTile(targetCell))
+        bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(targetCell);
+        if (groundMap.HasTile(targetCell) || isScaffold)
         {
             previousCellForScaffold = currentCellPosition;
             _preserveFacingNextMove = preserveFacing;
@@ -279,7 +280,9 @@ public class HexMovement : MonoBehaviour
         foreach (var off in offsets)
         {
             Vector3Int neighbor = currentCellPosition + off;
-            if (groundMap.HasTile(neighbor))
+            bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(neighbor);
+            
+            if (groundMap.HasTile(neighbor) || isScaffold)
             {
                 bool isHazard = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(neighbor);
                 bool isCollapsing = ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(neighbor);
@@ -300,7 +303,10 @@ public class HexMovement : MonoBehaviour
                     if (far == currentCellPosition) continue; // Başlangıç noktasına geri dönme
                     if (validCells.Contains(far)) continue;   // Zaten range-1'de var
                     if (range2Cells.Contains(far)) continue;  // Zaten eklendi
-                    if (!groundMap.HasTile(far)) continue;
+
+                    bool isFarScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(far);
+                    if (!groundMap.HasTile(far) && !isFarScaffold) continue;
+                    
                     bool isHazard = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(far);
                     if (isHazard) continue;
                     bool isCollapsing = ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(far);

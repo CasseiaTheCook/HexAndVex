@@ -163,12 +163,14 @@ public class LevelGenerator : MonoBehaviour
                         if (roll < scaffoldSpawnChance)
                         {
                             // SCAFFOLD OLUŞTUR
-                            if (scaffoldMap != null && scaffoldTile != null) scaffoldMap.SetTile(cell, scaffoldTile);
+                            // Üst katman: scaffoldMap'e scaffoldTile'ı koy
+                            if (scaffoldMap != null && scaffoldTile != null)
+                            {
+                                scaffoldMap.SetTile(cell, scaffoldTile);
+                            }
 
-                            // groundMap'i zorla güncelle: önce sil, sonra yenisini koy ve rengi sıfırla
+                            // Zemin katman: Bu hücrede zemin olmamalı.
                             groundMap.SetTile(cell, null); 
-                            if (lowerScaffoldTile != null) groundMap.SetTile(cell, lowerScaffoldTile);
-                            groundMap.SetColor(cell, Color.white);
                             
                             scaffoldCells.Add(cell);
                         }
@@ -390,12 +392,14 @@ public class LevelGenerator : MonoBehaviour
                         if (roll < effectiveScaffoldChance && Vector3Int.zero != cell)
                         {
                             // SCAFFOLD OLUŞTUR
-                            if (scaffoldMap != null && scaffoldTile != null) scaffoldMap.SetTile(cell, scaffoldTile);
+                            // Üst katman: scaffoldMap'e scaffoldTile'ı koy
+                            if (scaffoldMap != null && scaffoldTile != null)
+                            {
+                                scaffoldMap.SetTile(cell, scaffoldTile);
+                            }
 
-                            // groundMap'i zorla güncelle: önce sil, sonra yenisini koy ve rengi sıfırla
+                            // Zemin katman: Bu hücrede zemin olmamalı.
                             groundMap.SetTile(cell, null);
-                            if (lowerScaffoldTile != null) groundMap.SetTile(cell, lowerScaffoldTile);
-                            groundMap.SetColor(cell, Color.white);
                             
                             scaffoldCells.Add(cell);
                         }
@@ -520,17 +524,27 @@ public class LevelGenerator : MonoBehaviour
 
     private void GenerateColumns()
     {
-        if (backgroundMap == null || columnTile == null) return;
+        if (backgroundMap == null) return;
         backgroundMap.ClearAllTiles();
 
         foreach (var cell in validCells)
         {
-            // SCAFFOLD olan hücrelere sütun çizmeyi atla
             if (scaffoldCells.Contains(cell))
             {
-                continue;
+                // Scaffold hücrelerine alt scaffold tile'ını koy
+                if (lowerScaffoldTile != null)
+                {
+                    backgroundMap.SetTile(cell, lowerScaffoldTile);
+                }
             }
-            backgroundMap.SetTile(cell, columnTile);
+            else
+            {
+                // Diğerlerine normal sütun tile'ını koy
+                if (columnTile != null)
+                {
+                    backgroundMap.SetTile(cell, columnTile);
+                }
+            }
         }
     }
 

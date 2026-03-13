@@ -74,7 +74,7 @@ public class ScaffoldManager : MonoBehaviour
     private IEnumerator ShakeCoroutine(Vector3Int cell)
     {
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
-        Tilemap groundMap = LevelGenerator.instance.groundMap; // Titreşim için groundMap'i de al
+        Tilemap backgroundMap = LevelGenerator.instance.backgroundMap; // Alt katman için backgroundMap'i al
         if (scaffoldMap == null) yield break;
 
         float elapsed = 0f;
@@ -97,10 +97,10 @@ public class ScaffoldManager : MonoBehaviour
                 scaffoldMap.SetTransformMatrix(cell, shakeMatrix);
             }
 
-            // Alt katmanı da aynı şekilde titret
-            if (groundMap != null && groundMap.HasTile(cell))
+            // Alt katmanı (background) da aynı şekilde titret
+            if (backgroundMap != null && backgroundMap.HasTile(cell))
             {
-                groundMap.SetTransformMatrix(cell, shakeMatrix);
+                backgroundMap.SetTransformMatrix(cell, shakeMatrix);
             }
 
             yield return null;
@@ -116,7 +116,6 @@ public class ScaffoldManager : MonoBehaviour
         collapsingScaffolds.Add(cell);
 
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
-        Tilemap groundMap = LevelGenerator.instance.groundMap;
         Tilemap backgroundMap = LevelGenerator.instance.backgroundMap;
 
         if (AudioManager.instance != null) AudioManager.instance.PlayWall();
@@ -138,11 +137,6 @@ public class ScaffoldManager : MonoBehaviour
                 scaffoldMap.SetTransformMatrix(cell, matrix);
                 scaffoldMap.SetColor(cell, fadeColor);
             }
-            if (groundMap != null && groundMap.HasTile(cell))
-            {
-                groundMap.SetTransformMatrix(cell, matrix);
-                groundMap.SetColor(cell, fadeColor);
-            }
             if (backgroundMap != null && backgroundMap.HasTile(cell))
             {
                 backgroundMap.SetTransformMatrix(cell, matrix);
@@ -153,7 +147,6 @@ public class ScaffoldManager : MonoBehaviour
         }
 
         RemoveTile(scaffoldMap, cell);
-        RemoveTile(groundMap, cell);
         RemoveTile(backgroundMap, cell);
 
         if (LevelGenerator.instance != null)
@@ -178,10 +171,10 @@ public class ScaffoldManager : MonoBehaviour
         if (scaffoldMap != null && scaffoldMap.HasTile(cell))
             scaffoldMap.SetTransformMatrix(cell, Matrix4x4.identity);
 
-        // Alt katmanın da pozisyonunu sıfırla
-        Tilemap groundMap = LevelGenerator.instance.groundMap;
-        if (groundMap != null && groundMap.HasTile(cell))
-            groundMap.SetTransformMatrix(cell, Matrix4x4.identity);
+        // Alt katmanın (background) da pozisyonunu sıfırla
+        Tilemap backgroundMap = LevelGenerator.instance.backgroundMap;
+        if (backgroundMap != null && backgroundMap.HasTile(cell))
+            backgroundMap.SetTransformMatrix(cell, Matrix4x4.identity);
     }
 
     private void RemoveTile(Tilemap map, Vector3Int cell)

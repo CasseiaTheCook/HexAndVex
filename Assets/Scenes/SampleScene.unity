@@ -10524,7 +10524,7 @@ MonoBehaviour:
   hazardTile: {fileID: 11400000, guid: ddc0f38700579ca4ab073a9853d63f97, type: 2}
   scaffoldTile: {fileID: 11400000, guid: 59268a29cb3589c4bbded42282141218, type: 2}
   lowerScaffoldTile: {fileID: 11400000, guid: 7fd86b76ae964fc41bf144700e9f26f1, type: 2}
-  scaffoldSpawnChance: 0.5
+  scaffoldSpawnChance: 0.08
   columnTile: {fileID: 11400000, guid: d2b8750910e031b4bbace650254c0f1b, type: 2}
   playerPrefab: {fileID: 4451673360095616607}
   meleeEnemyPrefab: {fileID: 506802351436183914, guid: a0ec16531194a034583e5fd3b77d313f, type: 3}

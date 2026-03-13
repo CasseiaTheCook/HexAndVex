@@ -582,7 +582,7 @@ public class EnemyAI : MonoBehaviour
             if (IsNeighbor(cell, lockedTargetCell) &&
                 !TurnManager.instance.IsEnemyAtCell(lockedTargetCell) &&
                 TurnManager.instance.player.GetCurrentCellPosition() != lockedTargetCell &&
-                groundMap.HasTile(lockedTargetCell) &&
+                (groundMap.HasTile(lockedTargetCell) || (ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(lockedTargetCell))) &&
                 (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)) &&
                 (ScaffoldManager.instance == null || !ScaffoldManager.instance.IsCollapsing(lockedTargetCell)))
             {
@@ -704,7 +704,7 @@ public class EnemyAI : MonoBehaviour
             Vector3Int[] currOffsets = (currentStep.y % 2 != 0) ? evenOffsets : oddOffsets;
             currentStep += currOffsets[bestDirIndex];
 
-            if (groundMap.HasTile(currentStep)) line.Add(currentStep);
+            if (groundMap.HasTile(currentStep) || (ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(currentStep))) line.Add(currentStep);
         }
         return line;
     }
@@ -907,7 +907,8 @@ public class EnemyAI : MonoBehaviour
                 Vector3Int next = current + off;
                 if (!cameFrom.ContainsKey(next))
                 {
-                    if (!groundMap.HasTile(next)) continue;
+                    bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(next);
+                    if (!groundMap.HasTile(next) && !isScaffold) continue;
                     if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(next)) continue;
                     // if (LevelGenerator.instance != null && LevelGenerator.instance.scaffoldCells != null && LevelGenerator.instance.scaffoldCells.Contains(next)) continue;
                     if (ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(next)) continue;
@@ -931,7 +932,8 @@ public class EnemyAI : MonoBehaviour
     {
         if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss || enemyBehavior == EnemyBehavior.Warlock) return;
 
-        if (groundMap.HasTile(targetCell))
+        bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(targetCell);
+        if (groundMap.HasTile(targetCell) || isScaffold)
         {
             Vector3Int oldCell = cell;
             cell = targetCell; targetWorldPos = groundMap.GetCellCenterWorld(cell);
