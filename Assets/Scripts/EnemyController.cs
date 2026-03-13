@@ -218,6 +218,7 @@ public class EnemyAI : MonoBehaviour
         }
 
         // TelegraphAoE: hemen üstündeki hücrede başka düşman varsa saydamlaş
+        // Veya stun durumundaysa saydamlaş
         if (enemyBehavior == EnemyBehavior.TelegraphAoE && TurnManager.instance != null)
         {
             bool coveredByEnemy = false;
@@ -241,7 +242,8 @@ public class EnemyAI : MonoBehaviour
                 if (e.GetCurrentCellPosition() == directlyAbove) { coveredByEnemy = true; break; }
             }
 
-            float targetAlpha = coveredByEnemy ? 0.4f : 1f;
+            // Stun durumunda veya başka düşman tarafından kaplanırsa saydamlaş
+            float targetAlpha = (skipTurns > 0 || coveredByEnemy) ? 0.45f : 1f;
             if (target != null)
             {
                 Color c = target.color;

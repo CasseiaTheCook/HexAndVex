@@ -149,7 +149,6 @@ GameObject:
   - component: {fileID: 8898184090811179429}
   - component: {fileID: 2824485968955028456}
   - component: {fileID: 4205142481590582313}
-  - component: {fileID: 2590185065022411634}
   m_Layer: 0
   m_Name: Totem
   m_TagString: Enemy
@@ -287,38 +286,6 @@ MonoBehaviour:
   hptext: {fileID: 3984692308681975835}
   damageTextPrefab: {fileID: 5239608292402433139, guid: 1efec6c437e2f7c2c99f961689909674, type: 3}
   deathMenuUI: {fileID: 0}
---- !u!114 &2590185065022411634
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 506802351436183914}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a73bdb6ef14ec741b0a7116f1cafec8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemyHealthBar
-  barCanvas: {fileID: 6525450484915468018}
-  bgImage: {fileID: 7848266190913176696}
-  trailImage: {fileID: 4419644222455166372}
-  fillImage: {fileID: 6146992960984781868}
-  hpLabel: {fileID: 1720358456985797791}
-  barWidth: 0.55
-  barHeight: 0.1
-  offsetY: 0.18
-  fullColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
-  midColor: {r: 1, g: 0.8, b: 0, a: 1}
-  lowColor: {r: 0.8, g: 0.1, b: 0.1, a: 1}
-  trailColor: {r: 0.6, g: 0.6, b: 0.6, a: 0.8}
-  trailSpeed: 1.5
-  trailDelay: 0.4
-  hideOriginalHPText: 1
-  outlineWidth: 1
-  outlineColor: {r: 0, g: 0, b: 0, a: 1}
-  hpFont: {fileID: 0}
-  fontSize: 24
-  sortingOrder: -1
 --- !u!1 &577843859652196693
 GameObject:
   m_ObjectHideFlags: 0

@@ -12,8 +12,8 @@ public class Shopmanager : MonoBehaviour
     public List<BaseItem> itemPool = new List<BaseItem>();
 
     [Header("Secret Item")]
-    public BaseItem secretItem; // SecretPerkOrb — %1 şansla shopta çıkar
-    [Range(0f, 1f)] public float secretItemChance = 0.01f;
+    public BaseItem secretItem; // SecretPerkOrb — %1 şansla shopta çıkar (normal), ilk boss sonrası guaranteed
+    [Range(0f, 1f)] public float secretItemChance = 0.001f;
 
     [Header("Shop Slot Sistemi")]
     public Transform shopSlotContainer;
@@ -173,8 +173,9 @@ public class Shopmanager : MonoBehaviour
             SetupSlot(slot, i, item);
         }
 
-        // %1 şansla secret item slotu ekle
-        if (secretItem != null && Random.value < secretItemChance)
+        // %0.1 şansla secret item slotu ekle (ilk boss sonrası garantili)
+        bool guaranteeSecret = (RunManager.instance != null && RunManager.instance.currentLevel == 5 && rerollCount == 0);
+        if (secretItem != null && (guaranteeSecret || Random.value < secretItemChance))
         {
             int secretIndex = spawnedSlots.Count;
 

@@ -49,6 +49,6 @@ MonoBehaviour:
   perkName: Host Syndrome
   description: Gain +1 to each die roll for every enemy adjacent to you.
   icon: {fileID: 5675857177134463956, guid: 758f83c2fbf3caa47873b87a5e441644, type: 3}
-  priority: 5
+  priority: 1
   isRerollPerk: 0
   rarity: 0

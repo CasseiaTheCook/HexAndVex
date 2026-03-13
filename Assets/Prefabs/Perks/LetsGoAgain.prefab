@@ -49,7 +49,6 @@ MonoBehaviour:
   perkName: Let's Go Again
   description: After all perks trigger, they all trigger once more.
   icon: {fileID: 8544255112842467430, guid: 4e832db8df449c94498f9978be091fd6, type: 3}
-  priority: 0
+  priority: 2
   isRerollPerk: 0
   rarity: 4
-  isDisabled: 0

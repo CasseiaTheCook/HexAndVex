@@ -47,8 +47,8 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Terminal Fury Gland
-  description: Always deal bonus damage. The lower your HP, the stronger the multiplier.
+  description: 1x to all dice but gains 1x for each missing health. (Max 5x)
   icon: {fileID: -7887244125207754765, guid: 1e1dbff9df71d6446a9df6b3cc03cefa, type: 3}
-  priority: 15
+  priority: 2
   isRerollPerk: 0
   rarity: 0

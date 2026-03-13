@@ -1188,6 +1188,22 @@ public void ResetGame()
             SpawnerBossAI.instance.readyToExplodeThisTurn = false;
         }
 
+        // Emniyet: Warlock ready flağlarını sıfırla (eğer bu turda execute edilmediyse)
+        if (readyWarlockAttack1.Count == 0 && readyWarlockAttack2.Count == 0)
+        {
+            foreach (var e in enemies)
+            {
+                if (e != null && e.enemyBehavior == EnemyAI.EnemyBehavior.Warlock)
+                {
+                    WarlockEnemyAI warlock = e.GetComponent<WarlockEnemyAI>();
+                    if (warlock != null)
+                    {
+                        warlock.ClearAttackFlags();
+                    }
+                }
+            }
+        }
+
         EndTurnAndDecreaseStuns();
     }
 

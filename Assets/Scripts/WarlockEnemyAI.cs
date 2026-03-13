@@ -6,19 +6,19 @@ using System.Collections.Generic;
 public class WarlockEnemyAI : MonoBehaviour
 {
     [Header("Saldırı Döngüsü Ayarları")]
-    public int idleTurns = 2;         
-    public int attackDamage = 2;      
+    public int idleTurns = 1;        // Bekleme turu 1'e düşürüldü
+    public int attackDamage = 2;
 
     [Header("Impact VFX")]
     public GameObject impactVFXPrefab;  // Her vuruşta spawn edilecek effect (3 sec sonra silinir)
     public float vfxYOffset = -0.6f;   // Y offset
 
     [Header("Uyarı Tile (Büyücüye Özel Renk)")]
-    public TileBase warningTile;      
+    public TileBase warningTile;
 
     private int currentIdleCounter = 0;
     private int cyclePhase = 0;
-    
+
     private bool isTransitioning = false;
     private int previousHP;
 
@@ -33,7 +33,7 @@ public class WarlockEnemyAI : MonoBehaviour
 
     private EnemyAI myEnemyAI;
     private Tilemap groundMap;
-    
+
     // ========================================================
     // %100 KİŞİSEL HARİTA 
     // ========================================================
@@ -79,7 +79,7 @@ public class WarlockEnemyAI : MonoBehaviour
         // ========================================================
         // DÖNGÜYÜ SENKRONDAN ÇIKAR
         // ========================================================
-        currentIdleCounter = -(myIndex * 2); 
+        currentIdleCounter = -(myIndex * 2);
         cyclePhase = 0;
 
         // ========================================================
@@ -161,9 +161,29 @@ public class WarlockEnemyAI : MonoBehaviour
 
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
 
+        // Eğer attack 1 execute'a hazırsa hemen çalıştır ve charge 2'ye geç aynı turda
+        if (readyToExplodeAttack1)
+        {
+            yield return StartCoroutine(ExecuteAttack1());
+            cyclePhase = 3; // Direkt charge 2'ye geç
+            readyToExplodeAttack1 = false;
+            // Charge 2 setupını hemen yap
+            if (animator != null)
+            {
+                animator.SetBool("IsCharging", true);
+                animator.SetBool("IsAttacking", false);
+            }
+            if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
+            attack2WarningCells = GetAttack2Cells(playerCell);
+            ShowWarningCells(attack2WarningCells, new Color(0.9f, 0.2f, 0.7f, 0f), new Color(0.9f, 0.2f, 0.7f, 1f));
+            cyclePhase = 4;
+            yield break; // Bu turda pause etme, next tura attack 2 execute'a hazır olarak gir
+        }
+
+        // Normal phase progression
         switch (cyclePhase)
         {
-            case 0: 
+            case 0:
                 // İDLE FAZI: Hazırlanma süresi
                 currentIdleCounter++;
                 if (animator != null)
@@ -185,7 +205,7 @@ public class WarlockEnemyAI : MonoBehaviour
                     animator.SetBool("IsAttacking", false);
                 }
                 if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
-                
+
                 attack1WarningCells = GetAttack1Cells(playerCell);
                 ShowWarningCells(attack1WarningCells, new Color(0.7f, 0.2f, 0.9f, 0f), new Color(0.7f, 0.2f, 0.9f, 1f));
                 cyclePhase = 2;
@@ -200,9 +220,21 @@ public class WarlockEnemyAI : MonoBehaviour
                 }
                 readyToExplodeAttack1 = true;
                 cyclePhase = 3;
+
+                // Hemen sonraki fazı da aynı turda yap (Charge 2 setup)
+                if (animator != null)
+                {
+                    animator.SetBool("IsCharging", true);
+                    animator.SetBool("IsAttacking", false);
+                }
+                if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
+
+                attack2WarningCells = GetAttack2Cells(playerCell);
+                ShowWarningCells(attack2WarningCells, new Color(0.9f, 0.2f, 0.7f, 0f), new Color(0.9f, 0.2f, 0.7f, 1f));
+                cyclePhase = 4;
                 break;
 
-            case 3: 
+            case 3:
                 // SALDIRI 2 ŞARJı
                 if (animator != null)
                 {
@@ -210,7 +242,7 @@ public class WarlockEnemyAI : MonoBehaviour
                     animator.SetBool("IsAttacking", false);
                 }
                 if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
-                
+
                 attack2WarningCells = GetAttack2Cells(playerCell);
                 ShowWarningCells(attack2WarningCells, new Color(0.9f, 0.2f, 0.7f, 0f), new Color(0.9f, 0.2f, 0.7f, 1f));
                 cyclePhase = 4;
@@ -234,7 +266,7 @@ public class WarlockEnemyAI : MonoBehaviour
     {
         List<Vector3Int> cells = new List<Vector3Int> { center };
         Vector3Int[] offsets = (center.y % 2 != 0) ? evenOffsets : oddOffsets;
-        int[] attack1Indices = { 2, 4, 0 }; 
+        int[] attack1Indices = { 2, 4, 0 };
         foreach (int i in attack1Indices)
         {
             Vector3Int neighbor = center + offsets[i];
@@ -247,7 +279,7 @@ public class WarlockEnemyAI : MonoBehaviour
     {
         List<Vector3Int> cells = new List<Vector3Int> { center };
         Vector3Int[] offsets = (center.y % 2 != 0) ? evenOffsets : oddOffsets;
-        int[] attack2Indices = { 1, 3, 5 }; 
+        int[] attack2Indices = { 1, 3, 5 };
         foreach (int i in attack2Indices)
         {
             Vector3Int neighbor = center + offsets[i];
@@ -304,14 +336,15 @@ public class WarlockEnemyAI : MonoBehaviour
             if (AudioManager.instance != null) AudioManager.instance.PlayLightning();
             Vector3Int centerCell = cells[0];
             if (myPersonalMap.HasTile(centerCell)) myPersonalMap.SetColor(centerCell, flashColor);
-            
-            yield return new WaitForSeconds(0.1f);
+
+            // Effect bekleme süresi yarıya indi (0.1f -> 0.05f)
+            yield return new WaitForSeconds(0.05f);
             SpawnImpactEffects(new List<Vector3Int> { centerCell });
 
             // === Merkez hasarı kontrol et ===
             Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
             bool playerHit = playerCell == centerCell;
-            
+
             if (playerHit)
             {
                 bool dodged = false;
@@ -336,7 +369,8 @@ public class WarlockEnemyAI : MonoBehaviour
             }
 
             // === Merkez fade ===
-            float fadeDur = 0.3f;
+            // Fade süresi de yarıya indi ki dalgalar daha hızlı aksın (0.3f -> 0.15f)
+            float fadeDur = 0.15f;
             float elapsed = 0f;
             Color endFadeColor = new Color(flashColor.r, flashColor.g, flashColor.b, 0f);
 
@@ -352,7 +386,8 @@ public class WarlockEnemyAI : MonoBehaviour
             if (myPersonalMap.HasTile(centerCell)) myPersonalMap.SetTile(centerCell, null);
 
             // === Kısa bekleme ===
-            yield return new WaitForSeconds(0.05f);
+            // İki dalga arasındaki asıl gecikme yarıya indi (0.05f -> 0.025f)
+            yield return new WaitForSeconds(0.025f);
 
             // === WAVE 2: Dış hatlar ===
             if (cells.Count > 1)
@@ -362,8 +397,9 @@ public class WarlockEnemyAI : MonoBehaviour
                 for (int i = 1; i < cells.Count; i++) outerCells.Add(cells[i]);
 
                 foreach (var c in outerCells) if (myPersonalMap.HasTile(c)) myPersonalMap.SetColor(c, flashColor);
-                
-                yield return new WaitForSeconds(0.1f);
+
+                // Effect bekleme süresi yarıya indi (0.1f -> 0.05f)
+                yield return new WaitForSeconds(0.05f);
                 SpawnImpactEffects(outerCells);
 
                 // === Dış hatlar hasarı ===
@@ -525,4 +561,10 @@ public class WarlockEnemyAI : MonoBehaviour
     public bool IsReadyToExplodeAttack2() => readyToExplodeAttack2;
     public bool IsInIdlePhase() => cyclePhase == 0;
     public bool IsTransitioning() => isTransitioning;
+
+    public void ClearAttackFlags()
+    {
+        readyToExplodeAttack1 = false;
+        readyToExplodeAttack2 = false;
+    }
 }
