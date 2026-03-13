@@ -19,6 +19,7 @@ public class TurnManager : MonoBehaviour
     public GameObject dodgeEffectPrefab;
     public GameObject vacuumVfxPrefab;
     public GameObject slashEffectPrefab; // Düşman hasar alınca çıkan slash efekti
+    public float slashEffectYOffset = 0f; // Y ekseninde offset
 
     // ========================================================
     // MAYIN PREFABI BURAYA GELECEK
@@ -692,11 +693,13 @@ public void ResetGame()
         {
             enemy.health.TakeDamage(totalDamage);
             
-            // Slash efekti spawn et
+            // Slash efekti spawn et (X flip + Y offset)
             if (slashEffectPrefab != null)
             {
                 Vector3 enemyPos = enemy.transform.position;
-                Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                enemyPos.y += slashEffectYOffset;
+                GameObject slash = Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                slash.transform.localScale = new Vector3(-1, 1, 1); // X ekseninde ters
             }
             
             if (enemy.health.currentHP <= 0)
@@ -1505,11 +1508,13 @@ public void ResetGame()
             bool dies = enemy.health.currentHP <= actualDamage;
             enemy.health.TakeDamage(actualDamage, true);
             
-            // Slash efekti spawn et
+            // Slash efekti spawn et (X flip + Y offset)
             if (slashEffectPrefab != null)
             {
                 Vector3 enemyPos = enemy.transform.position;
-                Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                enemyPos.y += slashEffectYOffset;
+                GameObject slash = Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                slash.transform.localScale = new Vector3(-1, 1, 1); // X ekseninde ters
             }
             
             RegisterComboHit();
@@ -1531,11 +1536,13 @@ public void ResetGame()
                 {
                     others[v].health.TakeDamage(damagePerEnemy, true);
                     
-                    // Slash efekti spawn et
+                    // Slash efekti spawn et (X flip + Y offset)
                     if (slashEffectPrefab != null)
                     {
                         Vector3 enemyPos = others[v].transform.position;
-                        Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                        enemyPos.y += slashEffectYOffset;
+                        GameObject slash = Instantiate(slashEffectPrefab, enemyPos, Quaternion.identity);
+                        slash.transform.localScale = new Vector3(-1, 1, 1); // X ekseninde ters
                     }
                 }
                 if (voodooHits > 0) voodooPerk.TriggerVisualPop();
@@ -1698,6 +1705,13 @@ public void ResetGame()
         attackers.RemoveAll(a => a.skipTurns > 0);
         if (attackers.Count == 0) { yield break; }
 
+        // Melee saldırı başladığında animasyonları tetikle
+        foreach (var attacker in attackers)
+        {
+            if (attacker.animator != null)
+                attacker.animator.SetTrigger("Attack");
+        }
+
         yield return new WaitForSeconds(0.2f);
         bool dodged = false;
         if (RunManager.instance != null) dodged = Random.value < RunManager.instance.dodgeChance;
@@ -1733,6 +1747,7 @@ public void ResetGame()
             player.StartKnockbackMovement(playerOriginalCell);
             yield return new WaitUntil(() => !player.IsMoving());
         }
+
         yield return new WaitForSeconds(0.3f);
     }
 
