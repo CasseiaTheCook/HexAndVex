@@ -47,9 +47,8 @@ MonoBehaviour:
   currentLevel: 1
   maxLevel: 3
   perkName: Passive Enzyme
-  description: Get a gold every skip.
+  description: Get a 2 gold every skip.
   icon: {fileID: 7074404283537310230, guid: 82f8293bb55cb2b4bb000ba170c8368b, type: 3}
   priority: 0
   isRerollPerk: 0
   rarity: 0
-  isDisabled: 0

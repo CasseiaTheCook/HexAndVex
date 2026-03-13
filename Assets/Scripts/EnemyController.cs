@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Tilemaps;
 using System.Collections;
 using System.Collections.Generic;
@@ -325,6 +326,8 @@ public class EnemyAI : MonoBehaviour
                     isStunVisualActive = false;
                     if (stunFadeCoroutine != null) StopCoroutine(stunFadeCoroutine);
                     stunFadeCoroutine = StartCoroutine(FadeStunEffect(0f));
+                    if (spawnedStunEffect != null && stunRenderer != null)
+                        stunFadeCoroutine = StartCoroutine(FadeStunEffect(0f));
                 }
             }
         }
@@ -344,6 +347,8 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator FadeStunEffect(float targetAlpha)
     {
+        if (stunRenderer == null || spawnedStunEffect == null) yield break;
+
         float startAlpha = stunRenderer.color.a;
         float elapsed = 0f;
         float duration = 0.25f; 
