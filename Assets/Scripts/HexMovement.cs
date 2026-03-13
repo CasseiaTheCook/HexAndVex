@@ -265,6 +265,7 @@ public class HexMovement : MonoBehaviour
             isKnockbackMove = true;
             currentCellPosition = targetCell;
             MoveCharacter(targetCell);
+            UpdateHighlights();
         }
     }
 

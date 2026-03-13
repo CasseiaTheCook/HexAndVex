@@ -36,6 +36,7 @@ public class LevelUpManager : MonoBehaviour
     public Button skipButton; // Inspector'dan bağla
     public Image skipButtonImage; // Inspector'dan bağla
     private Color skipButtonOriginalColor;
+    private ColorBlock skipButtonOriginalColorBlock;
 
     private List<GameObject> currentChoices = new List<GameObject>();
 
@@ -54,9 +55,11 @@ public class LevelUpManager : MonoBehaviour
         if (instance == null) instance = this;
         SetupCardHoverListeners();
 
-        // Skip butonunun orijinal rengini kaydet
+        // Skip butonunun orijinal rengini ve color block'ı kaydet
         if (skipButtonImage != null)
             skipButtonOriginalColor = skipButtonImage.color;
+        if (skipButton != null)
+            skipButtonOriginalColorBlock = skipButton.colors;
     }
 
     public void ShowLevelUpScreen()
@@ -446,6 +449,7 @@ public class LevelUpManager : MonoBehaviour
         if (skipButton != null)
         {
             skipButton.interactable = true;
+            skipButton.colors = skipButtonOriginalColorBlock;  // ColorBlock'ı restore et
             if (skipButtonImage != null)
                 skipButtonImage.color = skipButtonOriginalColor;
         }

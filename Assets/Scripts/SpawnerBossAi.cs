@@ -14,6 +14,12 @@ public class SpawnerBossAI : MonoBehaviour
     public GameObject shieldVisual;      // Prefab veya sahne objesi — her ikisi de çalışır
     private GameObject shieldInstance;   // Runtime'da spawn edilen instance
 
+    // ==========================================
+    // YENİ: YILDIRIM VEYA VURUŞ EFEKTİ PREFABI
+    // ==========================================
+    [Header("Vuruş Efektleri")]
+    public GameObject lightningStrikePrefab; 
+
     [Header("AoE Saldırı Ayarları (4 Adımlı Döngü)")]
     public int aoeCycleStep = 0; 
     public bool isAoEWarningActive = false; 
@@ -63,19 +69,18 @@ public class SpawnerBossAI : MonoBehaviour
         isShielded = true;
         if (shieldVisual != null)
         {
-            // Prefab mı sahne objesi mi anlamak için: prefab ise sahnede değildir
             if (shieldVisual.scene.name == null || shieldVisual.scene.name == "")
             {
-                // Prefab — instantiate et, boss'a child yap
                 shieldInstance = Instantiate(shieldVisual, transform.position, Quaternion.identity, transform);
                 shieldInstance.transform.localPosition = Vector3.zero;
             }
             else
             {
-                // Sahne objesi — direkt kullan
                 shieldInstance = shieldVisual;
                 shieldInstance.SetActive(true);
             }
+            shieldInstance.transform.localScale = Vector3.one * 3f;
+            shieldInstance.transform.localPosition = new Vector3(0f, 0.1f, 0f);
             StartCoroutine(ShieldPulseLoop());
         }
 
@@ -88,8 +93,7 @@ public class SpawnerBossAI : MonoBehaviour
     {
         isTransitioning = true; 
         yield return new WaitForSeconds(0.5f); 
-        // Normal bölümle aynı formul
-        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
+        int desiredMinionCount = GetMaxMinionLimit();
         yield return StartCoroutine(SummonMinions(desiredMinionCount));
         isTransitioning = false; 
     }
@@ -109,10 +113,7 @@ public class SpawnerBossAI : MonoBehaviour
             if (myEnemyAI.health.currentHP > 0 && myEnemyAI.health.currentHP < previousHP && !isTransitioning)
             {
                 previousHP = myEnemyAI.health.currentHP;
-                
-                // Boss kalkanı kırıldığından sonra her hasar anında minion spawn et
                 TriggerHitSpawn();
-                
                 StartCoroutine(HitAndTeleportSequence());
             }
         }
@@ -126,7 +127,7 @@ public class SpawnerBossAI : MonoBehaviour
         if (isAoEWarningActive)
         {
             isAoEWarningActive = false;
-            readyToExplodeThisTurn = false; // YENİ
+            readyToExplodeThisTurn = false;
             aoeCycleStep = 0; 
             
             if (bossWarningMap != null)
@@ -174,7 +175,6 @@ public class SpawnerBossAI : MonoBehaviour
 
         yield return StartCoroutine(BossTeleportFade(0f, 1f, 0.25f));
 
-        // Boss spawn'laması teleport sonrası (kalkan açıksa)
         if (!isShielded) TriggerHitSpawn();
 
         isTransitioning = false; 
@@ -216,11 +216,9 @@ public class SpawnerBossAI : MonoBehaviour
     {
         if (myEnemyAI.skipTurns > 0) 
         {
-            // Oyuncu bunun yerine attack yazmışsa durumu sıfırla ki next turda hazırlanabilsin
             readyToExplodeThisTurn = false;
             yield break;
         }
-        // isTransitioning sırasında bile cycle ilerlesin, sadece aksiyon yapmasın
         if (isTransitioning)
         {
             if (aoeCycleStep < 2) aoeCycleStep++;
@@ -234,31 +232,47 @@ public class SpawnerBossAI : MonoBehaviour
         else if (aoeCycleStep == 2)
         {
             if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
+            if (myEnemyAI.animator != null) myEnemyAI.animator.SetBool("IsCharging", true);
             ShowCheckerboardWarning();
-            aoeCycleStep = 3; // Uyarı verildi, 3'e geçti
+            aoeCycleStep = 3; 
         }
         else if (aoeCycleStep == 3)
         {
-            // YENİ: Sadece 3'üncü adımda "Patlamaya Hazırım" bayrağını çekiyoruz.
-            // TurnManager bunu görüp patlatacak.
             readyToExplodeThisTurn = true; 
         }
     }
 
+    // ========================================================
+    // YENİ: BOSS KAÇINCI SEVİYEDE İSE ONA GÖRE MİNYON SINIRI BELİRLE
+    // ========================================================
+    private int GetMaxMinionLimit()
+    {
+        if (RunManager.instance == null) return 1;
+        
+        int level = RunManager.instance.currentLevel;
+        if (level <= 5) return 1;       // İlk boss: Maks 1 minyon
+        if (level <= 10) return 2;      // İkinci boss: Maks 2 minyon
+        return 3;                       // Üçüncü ve sonrası bosslar: Maks 3 minyon
+    }
+
     private void TriggerHitSpawn()
     {
-        if (isTransitioning) return; // Totem öldüğü sırada spawn yapma
-        if (isShielded) return; // Kalkan açık olsa spawn yapma
+        if (isTransitioning) return; 
+        if (isShielded) return; 
         
         summonedMinions.RemoveAll(m => m == null || m.health.currentHP <= 0);
         int currentMinions = summonedMinions.Count;
+        
+        // Dinamik sınırı al (Örn: İlk bosssa x = 1)
+        int maxLimit = GetMaxMinionLimit();
         int toSpawn = 0;
 
-        if (currentMinions < 3) 
-            toSpawn = 3 - currentMinions; 
+        if (currentMinions < maxLimit) 
+            toSpawn = maxLimit - currentMinions; // Eksiği tamamla
         else 
-            toSpawn = 1; 
-        Debug.Log($"[Boss] Hit! Current minions: {currentMinions}, Spawning: {toSpawn}");        StartCoroutine(SummonMinions(toSpawn));
+            toSpawn = 1; // Sınıra ulaşıldıysa veya geçildiyse bile en az 1 tane +1 yap
+
+        StartCoroutine(SummonMinions(toSpawn));
     }
 
     private void ShowCheckerboardWarning()
@@ -315,7 +329,8 @@ public class SpawnerBossAI : MonoBehaviour
 
     public IEnumerator ExecuteCheckerboardAoE()
     {
-        // YENİ: Patladıktan sonra her şeyi anında sıfırla ki takılıp kalmasın
+        if (myEnemyAI.animator != null) myEnemyAI.animator.SetBool("IsCharging", false);
+        
         readyToExplodeThisTurn = false;
         aoeCycleStep = 0; 
         isAoEWarningActive = false;
@@ -334,6 +349,19 @@ public class SpawnerBossAI : MonoBehaviour
             }
 
             yield return new WaitForSeconds(0.1f);
+
+            if (lightningStrikePrefab != null)
+            {
+                foreach (var c in cellsToExplode)
+                {
+                    Vector3 strikePos = groundMap.GetCellCenterWorld(c);
+                    strikePos.z = 0f;
+                    
+                    GameObject lightning = Instantiate(lightningStrikePrefab, strikePos, Quaternion.identity);
+                    
+                    Destroy(lightning, 3f);
+                }
+            }
 
             // DAMAGE VERMEK: Visual başladığında HEMEN ver
             Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
@@ -393,7 +421,6 @@ public class SpawnerBossAI : MonoBehaviour
         if (isSummoning) yield break; 
         isSummoning = true;
 
-        // Tüm düşmanları, bossun konumunu ve totemleri al
         Vector3Int playerCell = TurnManager.instance.player.GetCurrentCellPosition();
         Vector3Int bossCell = myEnemyAI.GetCurrentCellPosition();
         List<Vector3Int> occupiedCells = new List<Vector3Int> { playerCell, bossCell };
@@ -402,31 +429,27 @@ public class SpawnerBossAI : MonoBehaviour
             if (e != null && e.health.currentHP > 0) occupiedCells.Add(e.GetCurrentCellPosition());
         }
 
-        // Harita üstünde homojen totem dağılması
         List<Vector3Int> spawnedThisRound = new List<Vector3Int>();
         int radius = arenaRadius;
-        int maxAttempts = Mathf.Max(50, countToSummon * 20); // Spawn başarısını artır
+        int maxAttempts = Mathf.Max(50, countToSummon * 20); 
         int attempts = 0;
 
         while (spawnedThisRound.Count < countToSummon && attempts < maxAttempts)
         {
             attempts++;
             
-            // Rastgele pozisyon
             Vector3Int cell = new Vector3Int(
                 Random.Range(-radius, radius + 1),
                 Random.Range(-radius, radius + 1),
                 0
             );
 
-            // Geçerli konum mu?
             if (!groundMap.HasTile(cell) || 
                 occupiedCells.Contains(cell) || 
-                myEnemyAI.Distance(cell, playerCell) < 2f ||  // 3'ten 2'ye indirdik (az daha yakın olabilir)
+                myEnemyAI.Distance(cell, playerCell) < 2f ||  
                 LevelGenerator.instance.hazardCells.Contains(cell))
                 continue;
 
-            // Diğer bu turda spawn'lanan minions'tan min 2 mesafe?
             bool tooCloseToSpawned = false;
             foreach (var spawnedCell in spawnedThisRound)
             {
@@ -438,7 +461,6 @@ public class SpawnerBossAI : MonoBehaviour
             }
             if (tooCloseToSpawned) continue;
 
-            // Spawn et
             GameObject prefab = Random.value > 0.5f ? LevelGenerator.instance.meleeEnemyPrefab : LevelGenerator.instance.aoeEnemyPrefab;
             Vector3 spawnPos = groundMap.GetCellCenterWorld(cell);
             GameObject minionObj = Instantiate(prefab, spawnPos, Quaternion.identity);
@@ -446,22 +468,20 @@ public class SpawnerBossAI : MonoBehaviour
             EnemyAI minionAI = minionObj.GetComponent<EnemyAI>();
             minionAI.groundMap = this.groundMap;
 
-            // Normal bölümdeki gibi random HP hesabı
             float randomMultiplier = Random.Range(0.8f, 1.25f);
-            if (Random.value < 0.10f)  // %10 ELITE chance
+            if (Random.value < 0.10f)  
             {
                 randomMultiplier *= 2.0f;
                 minionObj.name = "ELITE " + minionObj.name;
             }
 
-            // Boss minionları boss HP'sinin %70'i kadar güçlü olsun (daha zor olsun diye)
             int minionHP = Mathf.RoundToInt(myEnemyAI.health.maxHP * 0.7f * randomMultiplier);
             minionAI.health.maxHP = Mathf.Max(1, minionHP);
             minionAI.health.currentHP = minionAI.health.maxHP;
             minionAI.health.updateHealth();
 
             summonedMinions.Add(minionAI);
-            spawnedThisRound.Add(cell);  // ÖNEMLİ: Loop için count'ı güncelle
+            spawnedThisRound.Add(cell); 
             StartCoroutine(minionAI.FadeSpawnCoroutine());
         }
 
@@ -483,16 +503,13 @@ public class SpawnerBossAI : MonoBehaviour
         totemSequenceRunning = true;
         isTransitioning = true;
 
-        // Kısa süre bekle ki aynı frame'deki birden fazla totem ölümü yakalansın
         yield return new WaitForSeconds(0.1f);
 
         bool lastTotem = activeTotems <= 0;
 
-        // Ses + patlama efektleri
         if (lastTotem)
         {
             if (AudioManager.instance != null) AudioManager.instance.PlayLightning();
-            // Birkaç patlama boss çevresinde arka arkaya
             if (TurnManager.instance != null && TurnManager.instance.explosionPrefab != null)
             {
                 for (int i = 0; i < 4; i++)
@@ -503,7 +520,6 @@ public class SpawnerBossAI : MonoBehaviour
                     yield return new WaitForSeconds(0.12f);
                 }
             }
-            // Güçlü kamera sarsıntısı
             StartCoroutine(CameraShake(0.8f, 0.22f));
         }
         else
@@ -518,7 +534,6 @@ public class SpawnerBossAI : MonoBehaviour
             StartCoroutine(CameraShake(0.4f, 0.14f));
         }
 
-        // Minionları öldür
         foreach (var minion in summonedMinions)
         {
             if (minion != null && minion.health.currentHP > 0)
@@ -526,28 +541,25 @@ public class SpawnerBossAI : MonoBehaviour
         }
         summonedMinions.Clear();
 
-        // Son totemse biraz daha bekle, epik his için
         yield return new WaitForSeconds(lastTotem ? 1.1f : 0.55f);
 
-        // Normal bölüm sayısı hesapla
-        int desiredMinionCount = 2 + (RunManager.instance.currentLevel / 3);
+        // Dinamik Sınırı Kullan (Totemler de bu sınıra uyarak spawn etsin)
+        int maxLimit = GetMaxMinionLimit();
         int countToSpawn = 0;
 
         if (lastTotem)
         {
-            // Tüm totemler kırılınca: normal sayı kadar spawn et
             isShielded = false;
             StartCoroutine(ShatterShieldVisual());
             previousHP = myEnemyAI.health.currentHP;
-            countToSpawn = desiredMinionCount;
+            countToSpawn = maxLimit; // Tüm totemler kırılınca direkt sınıra ulaşır
         }
         else
         {
-            // Hala totemler varsa: sayıyı tamamla veya sadece 1 daha spawn et
             int currentMinionCount = summonedMinions.Count(m => m != null && m.health.currentHP > 0);
 
-            if (currentMinionCount < desiredMinionCount)
-                countToSpawn = desiredMinionCount - currentMinionCount;
+            if (currentMinionCount < maxLimit)
+                countToSpawn = maxLimit - currentMinionCount;
             else
                 countToSpawn = 1;
         }
@@ -585,8 +597,8 @@ public class SpawnerBossAI : MonoBehaviour
         float t = 0f;
         while (shieldInstance != null && isShielded)
         {
-            t += Time.deltaTime * 1.2f; // nefes alma hızı
-            float pulse = 1f + Mathf.Sin(t * Mathf.PI * 2f) * 0.04f; // ±%4
+            t += Time.deltaTime * 1.2f; 
+            float pulse = 1f + Mathf.Sin(t * Mathf.PI * 2f) * 0.04f; 
             shieldInstance.transform.localScale = baseScale * pulse;
             yield return null;
         }

@@ -12,8 +12,8 @@ public class Shopmanager : MonoBehaviour
     public List<BaseItem> itemPool = new List<BaseItem>();
 
     [Header("Secret Item")]
-    public BaseItem secretItem; // SecretPerkOrb — %1 şansla shopta çıkar (normal), ilk boss sonrası guaranteed
-    [Range(0f, 1f)] public float secretItemChance = 0.001f;
+    public BaseItem secretItem; // SecretPerkOrb
+    [Range(0f, 1f)] public float secretItemChance = 0.001f; // %0.1 (Binde 1) şans
 
     [Header("Shop Slot Sistemi")]
     public Transform shopSlotContainer;
@@ -35,6 +35,9 @@ public class Shopmanager : MonoBehaviour
 
     private int rerollCount = 0;
     private int currentRerollCost;
+
+    // YENİ: Secret Item'ın satın alınıp alınmadığını takip eden değişken
+    public static bool hasBoughtSecretItem = false;
 
     void Awake()
     {
@@ -65,6 +68,12 @@ public class Shopmanager : MonoBehaviour
         {
             rerollButton.onClick.RemoveAllListeners();
             rerollButton.onClick.AddListener(TryReroll);
+        }
+
+        // Eğer yeni oyuna (Level 1) başlandıysa secret item durumunu SIFIRLA
+        if (RunManager.instance != null && RunManager.instance.currentLevel <= 1)
+        {
+            hasBoughtSecretItem = false;
         }
 
         SetupCoinIcons();
@@ -142,24 +151,51 @@ public class Shopmanager : MonoBehaviour
 
         if (shopSlotPrefab == null || shopSlotContainer == null) return;
 
+        // ========================================================
+        // SECRET ITEM ENJEKSİYONU: Hangi slota çıkacağını belirliyoruz
+        // ========================================================
+        int secretSlotIndex = -1; // -1 demek çıkmayacak demek
+        
+        bool guaranteeSecret = (RunManager.instance != null && RunManager.instance.currentLevel >= 6 && !hasBoughtSecretItem && rerollCount == 0);
+        bool rollSecret = Random.value < secretItemChance;
+
+        if (secretItem != null && !hasBoughtSecretItem && (guaranteeSecret || rollSecret))
+        {
+            // Çıkacaksa, 0 ile (shopSlotCount-1) arasında rastgele bir slotu gasp eder.
+            secretSlotIndex = Random.Range(0, shopSlotCount);
+        }
+
         List<int> usedIndices = new List<int>();
 
         for (int i = 0; i < shopSlotCount; i++)
         {
-            if (itemPool.Count <= usedIndices.Count) break;
+            BaseItem selectedItem = null;
 
-            int idx;
-            int safety = 0;
-            do {
-                idx = Random.Range(0, itemPool.Count);
-                if (++safety > 100) break;
+            // Eğer bu slot secret item için ayrılmışsa onu koy
+            if (i == secretSlotIndex)
+            {
+                selectedItem = secretItem;
             }
-            while (usedIndices.Contains(idx) ||
-                   (RunManager.instance != null && RunManager.instance.hasPerkReroll && itemPool[idx] is MutationCatalyst));
-            usedIndices.Add(idx);
+            else
+            {
+                // Yoksa havuzdan rastgele çek
+                if (itemPool.Count <= usedIndices.Count) break; // Sonsuz döngü koruması
 
-            BaseItem item = itemPool[idx];
-            if (item == null) continue;
+                int idx;
+                int safety = 0;
+                do {
+                    idx = Random.Range(0, itemPool.Count);
+                    selectedItem = itemPool[idx];
+                    if (++safety > 100) break;
+                }
+                while (usedIndices.Contains(idx) || 
+                      (selectedItem != null && secretItem != null && selectedItem.itemName == secretItem.itemName) ||
+                      (RunManager.instance != null && RunManager.instance.hasPerkReroll && selectedItem is MutationCatalyst));
+                
+                usedIndices.Add(idx);
+            }
+
+            if (selectedItem == null) continue;
 
             GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
             slotGO.transform.localScale = Vector3.one;
@@ -167,28 +203,10 @@ public class Shopmanager : MonoBehaviour
 
             ShopSlot slot = slotGO.GetComponent<ShopSlot>();
             spawnedSlots.Add(slot);
-            currentItems.Add(item);
+            currentItems.Add(selectedItem);
             purchased.Add(false);
 
-            SetupSlot(slot, i, item);
-        }
-
-        // %0.1 şansla secret item slotu ekle (ilk boss sonrası garantili)
-        bool guaranteeSecret = (RunManager.instance != null && RunManager.instance.currentLevel == 5 && rerollCount == 0);
-        if (secretItem != null && (guaranteeSecret || Random.value < secretItemChance))
-        {
-            int secretIndex = spawnedSlots.Count;
-
-            GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
-            slotGO.transform.localScale = Vector3.one;
-            PositionSlot(slotGO, secretIndex);
-
-            ShopSlot slot = slotGO.GetComponent<ShopSlot>();
-            spawnedSlots.Add(slot);
-            currentItems.Add(secretItem);
-            purchased.Add(false);
-
-            SetupSlot(slot, secretIndex, secretItem);
+            SetupSlot(slot, i, selectedItem);
         }
 
         RefreshCoinDisplay();
@@ -202,7 +220,6 @@ public class Shopmanager : MonoBehaviour
         slot.tooltipDesc = item.description;
         slot.tooltipPrice = item.price;
 
-        // Item ikonunu göster
         if (slot.itemIconImage != null)
         {
             if (item.icon != null)
@@ -223,10 +240,7 @@ public class Shopmanager : MonoBehaviour
         if (slot.buyButton != null)
         {
             var btnLabel = slot.buyButton.GetComponentInChildren<TMP_Text>();
-
-            // DÜZELTME: Eski nameText ve priceText çöpleri tamamen silindi!
-            if (btnLabel != null)
-                btnLabel.text = "";
+            if (btnLabel != null) btnLabel.text = "";
 
             int idx = index;
             slot.buyButton.onClick.RemoveAllListeners();
@@ -246,7 +260,6 @@ public class Shopmanager : MonoBehaviour
 
         if (RunManager.instance.currentGold < item.price)
         {
-            // DÜZELTME: Artık paran yetmediğinde ana paran (coinDisplayText) kırmızı yanacak!
             StartCoroutine(FlashText(coinDisplayText));
             return;
         }
@@ -254,6 +267,15 @@ public class Shopmanager : MonoBehaviour
         RunManager.instance.currentGold -= item.price;
         if (AudioManager.instance != null) AudioManager.instance.PlayPurchase();
         item.Use();
+
+        // ========================================================
+        // EĞER SATIN ALINAN EŞYA SECRET İSE, ARTIK BİR DAHA ÇIKMASIN DİYE KİLİTLE
+        // ========================================================
+        if (secretItem != null && item.itemName == secretItem.itemName)
+        {
+            hasBoughtSecretItem = true;
+            Debug.Log("Secret Item SATIN ALINDI! Artık bu run boyunca dükkanda çıkmayacak.");
+        }
 
         purchased[index] = true;
 
@@ -310,18 +332,15 @@ public class Shopmanager : MonoBehaviour
         }
         if (coinSpr == null) return;
 
-        // Reroll button coin icon — placed manually, no HLG
         if (rerollPriceText != null)
         {
             Transform rerollParent = rerollPriceText.transform.parent;
             if (rerollParent != null && rerollParent.Find("RerollCoinIcon") == null)
             {
-                // Keep existing text anchored/stretched, just add icon as sibling
                 GameObject rIconGO = new GameObject("RerollCoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
                 rIconGO.transform.SetParent(rerollParent, false);
                 rIconGO.layer = gameObject.layer;
                 RectTransform rIconRT = rIconGO.GetComponent<RectTransform>();
-                // Anchor to right-center of button
                 rIconRT.anchorMin = new Vector2(1f, 0.5f);
                 rIconRT.anchorMax = new Vector2(1f, 0.5f);
                 rIconRT.pivot = new Vector2(1f, 0.5f);
@@ -343,9 +362,7 @@ public class Shopmanager : MonoBehaviour
         yield return new WaitForSeconds(0.5f);
         t.color = orig;
     }
-    // ==========================================
-    // Manuel slot konumlandırma (Layout kullanmadan)
-    // ==========================================
+
     private const float slotSize = 65f;
     private const float slotSpacing = 8f;
 
@@ -360,14 +377,10 @@ public class Shopmanager : MonoBehaviour
         rt.anchoredPosition = new Vector2(index * (slotSize + slotSpacing), 0f);
     }
 
-    // ==========================================
-    // YENİ: DÜKKANI SİLMEDEN SADECE 1 YENİ SLOT EKLER (Deep Pockets İçin)
-    // ==========================================
     public void AddSingleExtraSlot()
     {
         if (shopSlotPrefab == null || shopSlotContainer == null) return;
 
-        // 1. Dükkanda şu an neler var indekslerini bulalım ki aynısı çıkmasın
         List<int> usedIndices = new List<int>();
         foreach (var currentItem in currentItems)
         {
@@ -378,10 +391,8 @@ public class Shopmanager : MonoBehaviour
             }
         }
 
-        // Havuzda eşya kalmadıysa boşuna ekleme yapma
         if (itemPool.Count <= usedIndices.Count) return;
 
-        // 2. Rastgele ve benzersiz yeni bir eşya seç
         int idx;
         int safety = 0;
         do { idx = Random.Range(0, itemPool.Count); if (++safety > 100) break; }
@@ -389,20 +400,17 @@ public class Shopmanager : MonoBehaviour
 
         BaseItem newItem = itemPool[idx];
 
-        // 3. Yeni slotu UI'da yarat ve listeye ekle
         GameObject slotGO = Instantiate(shopSlotPrefab, shopSlotContainer);
         slotGO.transform.localScale = Vector3.one;
         PositionSlot(slotGO, spawnedSlots.Count);
 
         ShopSlot slot = slotGO.GetComponent<ShopSlot>();
 
-        // 4. Yeni index'i belirle ve listelere kaydet
         int newIndex = spawnedSlots.Count;
         spawnedSlots.Add(slot);
         currentItems.Add(newItem);
         purchased.Add(false);
 
-        // 5. Slotu kur ve parayı kontrol et
         SetupSlot(slot, newIndex, newItem);
         RefreshAffordability();
     }

@@ -338,60 +338,18 @@ ScriptedImporter:
     edges: []
     tessellationDetail: 0
     uvTransform: {x: 0, y: 0}
-  - name: tileMap_3
-    originalName: 
-    pivot: {x: 0.5, y: 0.5}
-    alignment: 0
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 144
-      y: 805
-      width: 50
-      height: 28
-    spriteID: 2a60425a907df464e8c2539a22d5f786
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
-  - name: tileMap_5
-    originalName: 
-    pivot: {x: 0.5, y: 0.5}
-    alignment: 0
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 144
-      y: 775
-      width: 50
-      height: 27
-    spriteID: 61e792056804f2143ab9f891be16105a
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
   - name: tileMap_8
     originalName: 
-    pivot: {x: 0.4894684, y: 0.6977941}
-    alignment: 9
+    pivot: {x: 0.5, y: 0.5}
+    alignment: 0
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
       serializedVersion: 2
-      x: 202
-      y: 835
+      x: 203
+      y: 852
       width: 50
-      height: 41
+      height: 25
     spriteID: 5f5945e2cbca8e849bc9142ae865e1ed
     spriteBone: []
     spriteOutline: []
@@ -466,8 +424,8 @@ ScriptedImporter:
     uvTransform: {x: 0, y: 0}
   - name: tileMap_13
     originalName: 
-    pivot: {x: 0.5, y: 0.5}
-    alignment: 0
+    pivot: {x: 0.5, y: 0.6956966}
+    alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
     rect:
@@ -475,29 +433,8 @@ ScriptedImporter:
       x: 146
       y: 835
       width: 50
-      height: 44
+      height: 41
     spriteID: ec65db735e552ca4fb10017cd9d72371
-    spriteBone: []
-    spriteOutline: []
-    vertices: []
-    spritePhysicsOutline: []
-    indices: 
-    edges: []
-    tessellationDetail: 0
-    uvTransform: {x: 0, y: 0}
-  - name: tileMap_14
-    originalName: 
-    pivot: {x: 0.5, y: 0.5}
-    alignment: 0
-    border: {x: 0, y: 0, z: 0, w: 0}
-    customData: 
-    rect:
-      serializedVersion: 2
-      x: 203
-      y: 805
-      width: 50
-      height: 25
-    spriteID: 72bc66e74699061408a456246b21c768
     spriteBone: []
     spriteOutline: []
     vertices: []

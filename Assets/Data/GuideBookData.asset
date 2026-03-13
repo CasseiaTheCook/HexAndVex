@@ -23,6 +23,12 @@ MonoBehaviour:
       allowing you to outmaneuver even the swiftest foes.'
     illustration: {fileID: 0}
     category: Combat
+  - title: Hazards
+    bodyText: "The battlefield itself is a weapon featuring lethal spikes that damage
+      anyone\u2014player or enemy\u2014knocked or pushed into them, allowing you
+      to turn the environment against your foes for a tactical advantage."
+    illustration: {fileID: 0}
+    category: Movement
   - title: Combat & Damage
     bodyText: 'There is no separate attack button. Engaging an enemy in close-quarters
       combat (by moving directly adjacent to them) triggers a Dice Roll to determine
@@ -41,6 +47,11 @@ MonoBehaviour:
       attack for one turn.
     illustration: {fileID: 0}
     category: Combat
+  - title: Stunning
+    bodyText: Knocking an enemy into a wall stuns that enemy for one turn. If you
+      knock an enemy into another enemy they both get stunned.
+    illustration: {fileID: 0}
+    category: Combat
   - title: Skipping
     bodyText: At any point during your movement phase, you may choose to Skip your
       turn instead of relocating. This is a vital defensive maneuver. If you are
@@ -55,13 +66,14 @@ MonoBehaviour:
       and attacks once in \t\t\t   melee range.\n\n\tAttributes: High strength but
       low intelligence. Predictable    movement.\n\n\tStrategy: Easy to kite, but
       don't let them corner you!\n\n2. Hammer (The Crusher)\n\n\tBehavior: Channels
-      a powerful area-of-effect (AoE) attack.\n\n\tMechanic: Displays a Red Hex warning
-      tile before striking.\n\n\tSpawn Rate: Begins appearing after Level 2.\n\n\tStrategy:
-      Step out of the highlighted zone immediately to avoid massive damage.\n\n3.
-      Warlock (The Elusive Sniper)\n\n\tBehavior: A ranged specialist that maintains
-      maximum distance.\n\n\tSpecial Move: Charges a deadly two-attack combo every
-      3rd turn.\n\n\tDefense: Automatically teleports to a new location whenever
-      it takes damage.\n\n\tSpawn Rate: Appears only after the first Boss level."
+      a powerful area-of-effect (AoE) attack that deals two damage.\n\n\tMechanic:
+      Displays a Red Hex warning tile before striking.\n\n\tSpawn Rate: Begins appearing
+      after Level 2.\n\n\tStrategy: Step out of the highlighted zone immediately
+      to avoid massive damage.\n\n3. Warlock (The Elusive Sniper)\n\n\tBehavior:
+      A ranged specialist that maintains maximum distance.\n\n\tSpecial Move: Charges
+      a deadly two-attack combo every 3rd turn that deals two damage each.\n\n\tDefense:
+      Automatically teleports to a new location whenever it takes damage.\n\n\tSpawn
+      Rate: Appears only after the first Boss level."
     illustration: {fileID: 0}
     category: Enemies
   - title: Boss & Special Mechanics
@@ -70,9 +82,9 @@ MonoBehaviour:
       to damage the Boss.  \n\n\tWave Mechanic: Breaking a Totem instantly clears
       all remaining minor enemies and triggers a new enemy wave.  \n\n5. The Boss
       (The Overlord) \n\n\tUltimate Attack: Readies an arena-wide blast every 3rd
-      turn that hits every tile.  \n\n\tReactionary Defense: Teleports away from
-      the player every time he is hit.  \n\n\tReinforcements: Spawns new minions
-      each time he takes \tdamage. \n\n\tStrategy: Timing is everything\u2014break
+      turn that hits almost every tile that deals two damage.\n\n\tReactionary Defense:
+      Teleports away from the player every time he is hit.  \n\n\tReinforcements:
+      Spawns new minions each time he takes \tdamage. \n\n\tStrategy: Timing is everything\u2014break
       the Totems to drop his shield, then strike quickly before the arena-wide attack
       triggers!"
     illustration: {fileID: 0}

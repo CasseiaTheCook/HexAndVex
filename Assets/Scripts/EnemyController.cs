@@ -191,6 +191,13 @@ public class EnemyAI : MonoBehaviour
             health.SetStunnedAlpha(skipTurns > 0);
         }
 
+        // Oyuncu konumuna göre sprite'ı fliple
+        if (TurnManager.instance != null && TurnManager.instance.player != null && visualRenderer != null)
+        {
+            Vector3 dirToPlayer = TurnManager.instance.player.transform.position - transform.position;
+            visualRenderer.flipX = dirToPlayer.x < 0; // Oyuncu solda ise flipX = true
+        }
+
         UpdateSortingOrder();
     }
 
@@ -403,7 +410,7 @@ public class EnemyAI : MonoBehaviour
     {
         if (show) intentArrow.SetActive(true);
 
-        float targetAlpha = show ? 1f : 0f;
+        float targetAlpha = show ? 0.5f : 0f;
         float startAlpha = arrowRenderer.color.a;
         float elapsed = 0f; Color c = arrowRenderer.color;
 
@@ -664,6 +671,12 @@ public class EnemyAI : MonoBehaviour
         SetArrowVisibility(false);
         SetStunVisual(false); 
         hasLockedTarget = false;
+
+        // Düşman scaffold üstündeyse scaffold'ı tetikle
+        if (ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(cell))
+        {
+            ScaffoldManager.instance.OnEntityLeave(cell);
+        }
 
         SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
 
