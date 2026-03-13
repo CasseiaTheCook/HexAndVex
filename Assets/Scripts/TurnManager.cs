@@ -2070,8 +2070,11 @@ public void ResetGame()
         {
             if (centerCell + offsets[i] == awayFromCell)
             {
-                int oppositeIndex = (i + 3) % 6; Vector3Int strictKnockbackCell = centerCell + offsets[oppositeIndex];
-                if (!groundMap.HasTile(strictKnockbackCell) || IsEnemyAtCell(strictKnockbackCell) || player.GetCurrentCellPosition() == strictKnockbackCell) return centerCell;
+                int oppositeIndex = (i + 3) % 6; 
+                Vector3Int strictKnockbackCell = centerCell + offsets[oppositeIndex];
+                bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(strictKnockbackCell);
+                if ((!groundMap.HasTile(strictKnockbackCell) && !isScaffold) || IsEnemyAtCell(strictKnockbackCell) || player.GetCurrentCellPosition() == strictKnockbackCell) 
+                    return centerCell;
                 return strictKnockbackCell;
             }
         }
@@ -2105,11 +2108,14 @@ public void ResetGame()
 
     private Vector3Int GetRandomSafeNeighbor(Vector3Int centerCell)
     {
-        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets; List<Vector3Int> safeNeighbors = new List<Vector3Int>();
+        Vector3Int[] offsets = (centerCell.y % 2 != 0) ? evenOffsets : oddOffsets; 
+        List<Vector3Int> safeNeighbors = new List<Vector3Int>();
         foreach (var off in offsets)
         {
             Vector3Int neighbor = centerCell + off;
-            if (groundMap.HasTile(neighbor) && !IsEnemyAtCell(neighbor) && player.GetCurrentCellPosition() != neighbor && !LevelGenerator.instance.hazardCells.Contains(neighbor)) safeNeighbors.Add(neighbor);
+            bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(neighbor);
+            if ((groundMap.HasTile(neighbor) || isScaffold) && !IsEnemyAtCell(neighbor) && player.GetCurrentCellPosition() != neighbor && !LevelGenerator.instance.hazardCells.Contains(neighbor)) 
+                safeNeighbors.Add(neighbor);
         }
         if (safeNeighbors.Count > 0) return safeNeighbors[Random.Range(0, safeNeighbors.Count)];
         return centerCell;

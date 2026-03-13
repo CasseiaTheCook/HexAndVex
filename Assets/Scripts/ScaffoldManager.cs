@@ -59,10 +59,10 @@ public class ScaffoldManager : MonoBehaviour
 
         HexMovement playerMovement = TurnManager.instance?.player;
 
-        // Çöküşü sadece oyuncunun hareketi bir "knockback" DEĞİLSE tetikle.
-        // Bu, hem oyuncunun kendi gönüllü hareketini hem de düşmanların hareketini kapsar,
-        // ama oyuncunun itilmesini hariç tutar.
-        if (playerMovement != null && !playerMovement.isKnockbackMove)
+        // Oyuncu artık scaffold'ın üstünde değilse, knockback olsun olmasın çök
+        bool playerStillOnScaffold = playerMovement != null && playerMovement.GetCurrentCellPosition() == cell;
+        
+        if (!playerStillOnScaffold)
         {
             StartCoroutine(CollapseCoroutine(cell));
         }
@@ -74,15 +74,24 @@ public class ScaffoldManager : MonoBehaviour
     private IEnumerator ShakeCoroutine(Vector3Int cell)
     {
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
-        Tilemap backgroundMap = LevelGenerator.instance.backgroundMap; // Alt katman için backgroundMap'i al
+        Tilemap backgroundMap = LevelGenerator.instance.backgroundMap;
         if (scaffoldMap == null) yield break;
 
+        HexMovement player = TurnManager.instance?.player;
+        Vector3 originalPlayerPos = player != null ? player.transform.position : Vector3.zero;
+
         float elapsed = 0f;
-        float intensity = 0.02f;
-        float speed = 15f;
+        float intensity = 0.005f;
+        float speed = 45f;
 
         while (true)
         {
+            // Oyuncu scaffold'dan ayrıldıysa (başka cell'e taşındıysa) shake'i durdur
+            if (player != null && player.GetCurrentCellPosition() != cell)
+            {
+                break;
+            }
+
             elapsed += Time.deltaTime;
 
             float ox = Mathf.Sin(elapsed * speed) * intensity;
@@ -101,6 +110,12 @@ public class ScaffoldManager : MonoBehaviour
             if (backgroundMap != null && backgroundMap.HasTile(cell))
             {
                 backgroundMap.SetTransformMatrix(cell, shakeMatrix);
+            }
+
+            // Oyuncuyu da titret
+            if (player != null && player.GetCurrentCellPosition() == cell)
+            {
+                player.transform.position = originalPlayerPos + new Vector3(ox, oy, 0f);
             }
 
             yield return null;

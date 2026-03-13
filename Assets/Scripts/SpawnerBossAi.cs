@@ -76,6 +76,9 @@ public class SpawnerBossAI : MonoBehaviour
                 shieldInstance = shieldVisual;
                 shieldInstance.SetActive(true);
             }
+            // Boss kalkanını 3x büyüt ve Y ekseninde offset
+            shieldInstance.transform.localScale = Vector3.one * 3f;
+            shieldInstance.transform.localPosition = new Vector3(0f, 0.1f, 0f);
             StartCoroutine(ShieldPulseLoop());
         }
 
@@ -234,6 +237,7 @@ public class SpawnerBossAI : MonoBehaviour
         else if (aoeCycleStep == 2)
         {
             if (AudioManager.instance != null) AudioManager.instance.PlayCharge();
+            if (myEnemyAI.animator != null) myEnemyAI.animator.SetBool("IsCharging", true);
             ShowCheckerboardWarning();
             aoeCycleStep = 3; // Uyarı verildi, 3'e geçti
         }
@@ -315,6 +319,9 @@ public class SpawnerBossAI : MonoBehaviour
 
     public IEnumerator ExecuteCheckerboardAoE()
     {
+        // Charge animasyonunu kapat
+        if (myEnemyAI.animator != null) myEnemyAI.animator.SetBool("IsCharging", false);
+        
         // YENİ: Patladıktan sonra her şeyi anında sıfırla ki takılıp kalmasın
         readyToExplodeThisTurn = false;
         aoeCycleStep = 0; 

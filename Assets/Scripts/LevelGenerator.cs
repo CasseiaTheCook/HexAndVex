@@ -160,31 +160,14 @@ public class LevelGenerator : MonoBehaviour
                     {
                         float roll = Random.value;
 
-                        if (roll < scaffoldSpawnChance)
-                        {
-                            // SCAFFOLD OLUŞTUR
-                            // Üst katman: scaffoldMap'e scaffoldTile'ı koy
-                            if (scaffoldMap != null && scaffoldTile != null)
-                            {
-                                scaffoldMap.SetTile(cell, scaffoldTile);
-                            }
+                        // DİKENLİ VEYA DÜZ ZEMİN OLUŞTUR (SCAFFOLD'LAR MERKEZDE SONRA KONULACak)
+                        groundMap.SetTile(cell, groundTile);
+                        groundMap.SetColor(cell, Color.white);
 
-                            // Zemin katman: Bu hücrede zemin olmamalı.
-                            groundMap.SetTile(cell, null); 
-                            
-                            scaffoldCells.Add(cell);
-                        }
-                        else 
+                        if (roll < scaffoldSpawnChance + 0.10f)
                         {
-                            // DİKENLİ VEYA DÜZ ZEMİN OLUŞTUR
-                            groundMap.SetTile(cell, groundTile);
-                            groundMap.SetColor(cell, Color.white); // Her ihtimale karşı rengi sıfırla
-
-                            if (roll < scaffoldSpawnChance + 0.10f)
-                            {
-                                if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
-                                hazardCells.Add(cell);
-                            }
+                            if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
+                            hazardCells.Add(cell);
                         }
 
                         validCells.Add(cell);

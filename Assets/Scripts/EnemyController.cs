@@ -672,6 +672,12 @@ public class EnemyAI : MonoBehaviour
         SetStunVisual(false); 
         hasLockedTarget = false;
 
+        // Düşman scaffold üstündeyse scaffold'ı tetikle
+        if (ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(cell))
+        {
+            ScaffoldManager.instance.OnEntityLeave(cell);
+        }
+
         SpriteRenderer[] allRenderers = GetComponentsInChildren<SpriteRenderer>();
 
         float duration = 0.4f; float elapsed = 0f;

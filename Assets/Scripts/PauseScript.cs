@@ -70,12 +70,16 @@ public class PauseManager : MonoBehaviour
     public void LoadSceneByIndex(int sceneIndex)
     {
         Time.timeScale = 1f; // Zamanı açmayı unutma!
+        // Ölüm menüsünü kapat
+        if (deathMenuUI != null) deathMenuUI.SetActive(false);
         SceneManager.LoadScene(sceneIndex);
     }
     // PauseManager.cs içindeki LoadMainMenu fonksiyonu
     public void LoadMainMenu()
     {
         Time.timeScale = 1f; // Zamanı açmak şart, yoksa sahneler sapıtır
+        // Ölüm menüsünü kapat
+        if (deathMenuUI != null) deathMenuUI.SetActive(false);
         
         if (TurnManager.instance != null)
         {
