@@ -129,7 +129,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: BossIdle
     originalName: 
-    pivot: {x: 0.54, y: -1.9411765}
+    pivot: {x: 0.48708487, y: -0.57894737}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -137,8 +137,8 @@ ScriptedImporter:
       serializedVersion: 2
       x: 4
       y: 4
-      width: 50
-      height: 51
+      width: 271
+      height: 171
     spriteID: d10f54bf890b39e448f1712eadb8ca2c
     spriteBone: []
     spriteOutline: []
@@ -148,6 +148,111 @@ ScriptedImporter:
     edges: []
     tessellationDetail: 0
     uvTransform: {x: 4, y: 4}
+  - name: Frame_1
+    originalName: 
+    pivot: {x: 0.54, y: -1.3561645}
+    alignment: 9
+    border: {x: 0, y: 0, z: 0, w: 0}
+    customData: 
+    rect:
+      serializedVersion: 2
+      x: 283
+      y: 4
+      width: 50
+      height: 73
+    spriteID: da22ed14d38a65848b186bc0e2242b78
+    spriteBone: []
+    spriteOutline: []
+    vertices: []
+    spritePhysicsOutline: []
+    indices: 
+    edges: []
+    tessellationDetail: 0
+    uvTransform: {x: 283, y: 4}
+  - name: Frame_2
+    originalName: 
+    pivot: {x: 0.54, y: -1.375}
+    alignment: 9
+    border: {x: 0, y: 0, z: 0, w: 0}
+    customData: 
+    rect:
+      serializedVersion: 2
+      x: 341
+      y: 4
+      width: 50
+      height: 72
+    spriteID: 64f9fd3a16534d641adad7a9f22d8dfd
+    spriteBone: []
+    spriteOutline: []
+    vertices: []
+    spritePhysicsOutline: []
+    indices: 
+    edges: []
+    tessellationDetail: 0
+    uvTransform: {x: 341, y: 4}
+  - name: Frame_3
+    originalName: 
+    pivot: {x: 0.54, y: -1.375}
+    alignment: 9
+    border: {x: 0, y: 0, z: 0, w: 0}
+    customData: 
+    rect:
+      serializedVersion: 2
+      x: 341
+      y: 84
+      width: 50
+      height: 72
+    spriteID: 18dab2cb6ff316b40846dfca6d7db5e5
+    spriteBone: []
+    spriteOutline: []
+    vertices: []
+    spritePhysicsOutline: []
+    indices: 
+    edges: []
+    tessellationDetail: 0
+    uvTransform: {x: 341, y: 84}
+  - name: Frame_4
+    originalName: 
+    pivot: {x: 0.54, y: -1.3561645}
+    alignment: 9
+    border: {x: 0, y: 0, z: 0, w: 0}
+    customData: 
+    rect:
+      serializedVersion: 2
+      x: 283
+      y: 85
+      width: 50
+      height: 73
+    spriteID: 581c8faae556dc445a9d710800756b95
+    spriteBone: []
+    spriteOutline: []
+    vertices: []
+    spritePhysicsOutline: []
+    indices: 
+    edges: []
+    tessellationDetail: 0
+    uvTransform: {x: 283, y: 85}
+  - name: Frame_5
+    originalName: 
+    pivot: {x: 0.54, y: -1.3561645}
+    alignment: 9
+    border: {x: 0, y: 0, z: 0, w: 0}
+    customData: 
+    rect:
+      serializedVersion: 2
+      x: 283
+      y: 166
+      width: 50
+      height: 73
+    spriteID: f530d2b9fdb48f8419e0e80e813b1649
+    spriteBone: []
+    spriteOutline: []
+    vertices: []
+    spritePhysicsOutline: []
+    indices: 
+    edges: []
+    tessellationDetail: 0
+    uvTransform: {x: 283, y: 166}
   spriteSheetImportData: []
   tileSetImportData: []
   asepriteLayers:
@@ -163,15 +268,60 @@ ScriptedImporter:
     layerType: 0
     blendMode: 0
     cells:
-    - name: BossIdle
+    - name: Frame_0
       frameIndex: 0
+      additiveSortOrder: 0
+      cellRect:
+        x: 18
+        y: 99
+        width: 271
+        height: 171
+      spriteId: d10f54bf890b39e448f1712eadb8ca2c
+    - name: Frame_1
+      frameIndex: 1
       additiveSortOrder: 0
       cellRect:
         x: 123
         y: 99
         width: 50
-        height: 51
-      spriteId: d10f54bf890b39e448f1712eadb8ca2c
+        height: 73
+      spriteId: da22ed14d38a65848b186bc0e2242b78
+    - name: Frame_2
+      frameIndex: 2
+      additiveSortOrder: 0
+      cellRect:
+        x: 123
+        y: 99
+        width: 50
+        height: 72
+      spriteId: 64f9fd3a16534d641adad7a9f22d8dfd
+    - name: Frame_3
+      frameIndex: 3
+      additiveSortOrder: 0
+      cellRect:
+        x: 123
+        y: 99
+        width: 50
+        height: 72
+      spriteId: 18dab2cb6ff316b40846dfca6d7db5e5
+    - name: Frame_4
+      frameIndex: 4
+      additiveSortOrder: 0
+      cellRect:
+        x: 123
+        y: 99
+        width: 50
+        height: 73
+      spriteId: 581c8faae556dc445a9d710800756b95
+    - name: Frame_5
+      frameIndex: 5
+      additiveSortOrder: 0
+      cellRect:
+        x: 123
+        y: 99
+        width: 50
+        height: 73
+      spriteId: f530d2b9fdb48f8419e0e80e813b1649
     linkedCells: []
     tileCells: []
     tileSetIndex: 0
@@ -182,4 +332,4 @@ ScriptedImporter:
   secondarySpriteTextures: []
   spritePackingTag: 
   canvasSize: {x: 300, y: 300}
-  previousTextureSize: {x: 64, y: 64}
+  previousTextureSize: {x: 512, y: 256}
