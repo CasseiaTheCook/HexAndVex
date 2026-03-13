@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class GlassCanonPerk : BasePerk
 {
     void OnEnable()
@@ -20,21 +22,25 @@ public class GlassCanonPerk : BasePerk
             if (h.currentHP > 3) h.currentHP = 3;
             h.updateHealth();
         }
+        Debug.Log($"[GlassCanon] Acquired! Max HP set to 3, Current HP: {(TurnManager.instance?.player?.health?.currentHP ?? RunManager.instance.playerCurrentHealth)}");
         TriggerVisualPop();
     }
 
     public override void ModifyCombat(CombatPayload payload)
     {
         var rm = RunManager.instance;
-        var tm = TurnManager.instance;
-        if (rm == null || tm == null || tm.player == null) return;
+        if (rm == null) return;
 
         int maxHP     = rm.playerMaxHealth;
-        int currentHP = tm.player.health.currentHP;
+        int currentHP = rm.playerCurrentHealth;
         if (currentHP < 1) currentHP = 1;
 
-        float multiplier = (float)maxHP / currentHP;
-        payload.multiplier *= multiplier;
+        // Glass Cannon: Sağlık ne kadar düşük o kadar yüksek hasar
+        // 3/3 HP → 1.0x | 1/3 HP → 3.0x
+        float glassCannonMultiplier = (float)maxHP / currentHP;
+        payload.multiplier *= glassCannonMultiplier;
+        
+        Debug.Log($"[GlassCanon] HP: {currentHP}/{maxHP}, Multiplier: {glassCannonMultiplier}x, Final: {payload.multiplier}x");
 
         TriggerVisualPop();
     }

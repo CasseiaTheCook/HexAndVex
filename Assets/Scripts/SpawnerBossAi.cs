@@ -109,6 +109,10 @@ public class SpawnerBossAI : MonoBehaviour
             if (myEnemyAI.health.currentHP > 0 && myEnemyAI.health.currentHP < previousHP && !isTransitioning)
             {
                 previousHP = myEnemyAI.health.currentHP;
+                
+                // Boss kalkanı kırıldığından sonra her hasar anında minion spawn et
+                TriggerHitSpawn();
+                
                 StartCoroutine(HitAndTeleportSequence());
             }
         }
@@ -131,8 +135,6 @@ public class SpawnerBossAI : MonoBehaviour
             }
             aoeWarningCells.Clear();
         }
-
-        TriggerHitSpawn();
 
         yield return StartCoroutine(BossTeleportFade(1f, 0f, 0.25f));
 
@@ -171,6 +173,9 @@ public class SpawnerBossAI : MonoBehaviour
         }
 
         yield return StartCoroutine(BossTeleportFade(0f, 1f, 0.25f));
+
+        // Boss spawn'laması teleport sonrası (kalkan açıksa)
+        if (!isShielded) TriggerHitSpawn();
 
         isTransitioning = false; 
     }
@@ -243,6 +248,7 @@ public class SpawnerBossAI : MonoBehaviour
     private void TriggerHitSpawn()
     {
         if (isTransitioning) return; // Totem öldüğü sırada spawn yapma
+        if (isShielded) return; // Kalkan açık olsa spawn yapma
         
         summonedMinions.RemoveAll(m => m == null || m.health.currentHP <= 0);
         int currentMinions = summonedMinions.Count;
@@ -252,8 +258,7 @@ public class SpawnerBossAI : MonoBehaviour
             toSpawn = 3 - currentMinions; 
         else 
             toSpawn = 1; 
-
-        StartCoroutine(SummonMinions(toSpawn));
+        Debug.Log($"[Boss] Hit! Current minions: {currentMinions}, Spawning: {toSpawn}");        StartCoroutine(SummonMinions(toSpawn));
     }
 
     private void ShowCheckerboardWarning()

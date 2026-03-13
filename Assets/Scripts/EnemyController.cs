@@ -218,6 +218,7 @@ public class EnemyAI : MonoBehaviour
         }
 
         // TelegraphAoE: hemen üstündeki hücrede başka düşman varsa saydamlaş
+        // Veya stun durumundaysa saydamlaş
         if (enemyBehavior == EnemyBehavior.TelegraphAoE && TurnManager.instance != null)
         {
             bool coveredByEnemy = false;
@@ -241,7 +242,8 @@ public class EnemyAI : MonoBehaviour
                 if (e.GetCurrentCellPosition() == directlyAbove) { coveredByEnemy = true; break; }
             }
 
-            float targetAlpha = coveredByEnemy ? 0.4f : 1f;
+            // Stun durumunda veya başka düşman tarafından kaplanırsa saydamlaş
+            float targetAlpha = (skipTurns > 0 || coveredByEnemy) ? 0.45f : 1f;
             if (target != null)
             {
                 Color c = target.color;
@@ -546,6 +548,7 @@ public class EnemyAI : MonoBehaviour
                     Vector3Int fleeTarget = warlockAI.CalculateFleeMove(playerCell);
                     if (fleeTarget != cell)
                     {
+                        Vector3Int oldCell = cell;
                         cell = fleeTarget;
                         targetWorldPos = groundMap.GetCellCenterWorld(cell);
                         targetWorldPos.z = 0;
@@ -553,6 +556,13 @@ public class EnemyAI : MonoBehaviour
                         if (Mathf.Abs(dx) > 0.01f && visualRenderer != null) visualRenderer.flipX = (dx < 0);
                         isMoving = true;
                         if (AudioManager.instance != null) AudioManager.instance.PlayMove();
+
+                        // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+                        if (ScaffoldManager.instance != null)
+                        {
+                            ScaffoldManager.instance.OnEntityLeave(oldCell);
+                            ScaffoldManager.instance.OnEntityEnter(cell);
+                        }
                     }
                 }
                 StartCoroutine(warlockAI.ExecuteWarlockTurn());
@@ -572,8 +582,11 @@ public class EnemyAI : MonoBehaviour
             if (IsNeighbor(cell, lockedTargetCell) &&
                 !TurnManager.instance.IsEnemyAtCell(lockedTargetCell) &&
                 TurnManager.instance.player.GetCurrentCellPosition() != lockedTargetCell &&
-                (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)))
+                (groundMap.HasTile(lockedTargetCell) || (ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(lockedTargetCell))) &&
+                (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)) &&
+                (ScaffoldManager.instance == null || !ScaffoldManager.instance.IsCollapsing(lockedTargetCell)))
             {
+                Vector3Int oldCell = cell;
                 cell = lockedTargetCell;
                 targetWorldPos = groundMap.GetCellCenterWorld(cell);
                 targetWorldPos.z = 0;
@@ -586,6 +599,13 @@ public class EnemyAI : MonoBehaviour
 
                 isMoving = true;
                 if (AudioManager.instance != null) AudioManager.instance.PlayMove();
+
+                // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+                if (ScaffoldManager.instance != null)
+                {
+                    ScaffoldManager.instance.OnEntityLeave(oldCell);
+                    ScaffoldManager.instance.OnEntityEnter(cell);
+                }
             }
         }
 
@@ -684,7 +704,7 @@ public class EnemyAI : MonoBehaviour
             Vector3Int[] currOffsets = (currentStep.y % 2 != 0) ? evenOffsets : oddOffsets;
             currentStep += currOffsets[bestDirIndex];
 
-            if (groundMap.HasTile(currentStep)) line.Add(currentStep);
+            if (groundMap.HasTile(currentStep) || (ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(currentStep))) line.Add(currentStep);
         }
         return line;
     }
@@ -887,8 +907,11 @@ public class EnemyAI : MonoBehaviour
                 Vector3Int next = current + off;
                 if (!cameFrom.ContainsKey(next))
                 {
-                    if (!groundMap.HasTile(next)) continue;
+                    bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(next);
+                    if (!groundMap.HasTile(next) && !isScaffold) continue;
                     if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(next)) continue;
+                    // if (LevelGenerator.instance != null && LevelGenerator.instance.scaffoldCells != null && LevelGenerator.instance.scaffoldCells.Contains(next)) continue;
+                    if (ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(next)) continue;
                     if (TurnManager.instance.IsEnemyAtCell(next) && next != cell) continue;
 
                     cameFrom[next] = current; queue.Enqueue(next);
@@ -909,10 +932,19 @@ public class EnemyAI : MonoBehaviour
     {
         if (enemyBehavior == EnemyBehavior.Totem || enemyBehavior == EnemyBehavior.Boss || enemyBehavior == EnemyBehavior.Warlock) return;
 
-        if (groundMap.HasTile(targetCell))
+        bool isScaffold = ScaffoldManager.instance != null && ScaffoldManager.instance.IsScaffoldCell(targetCell);
+        if (groundMap.HasTile(targetCell) || isScaffold)
         {
+            Vector3Int oldCell = cell;
             cell = targetCell; targetWorldPos = groundMap.GetCellCenterWorld(cell);
             targetWorldPos.z = 0; isMoving = true;
+
+            // Scaffold: eski hücreden ayrıl, yeni hücreye gir
+            if (ScaffoldManager.instance != null)
+            {
+                ScaffoldManager.instance.OnEntityLeave(oldCell);
+                ScaffoldManager.instance.OnEntityEnter(cell);
+            }
         }
     }
 

@@ -129,7 +129,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: BossIdle
     originalName: 
-    pivot: {x: 0.54, y: -2.4146342}
+    pivot: {x: 0.54, y: -1.9411765}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -138,7 +138,7 @@ ScriptedImporter:
       x: 4
       y: 4
       width: 50
-      height: 41
+      height: 51
     spriteID: d10f54bf890b39e448f1712eadb8ca2c
     spriteBone: []
     spriteOutline: []
@@ -170,7 +170,7 @@ ScriptedImporter:
         x: 123
         y: 99
         width: 50
-        height: 41
+        height: 51
       spriteId: d10f54bf890b39e448f1712eadb8ca2c
     linkedCells: []
     tileCells: []
