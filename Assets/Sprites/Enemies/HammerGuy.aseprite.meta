@@ -400,8 +400,8 @@ ScriptedImporter:
       cellRect:
         x: 146
         y: 155
-        width: 95
-        height: 106
+        width: 38
+        height: 43
       spriteId: 31681b39fe991dc47b5b9b25793b9ecd
     - name: Frame_1
       frameIndex: 1

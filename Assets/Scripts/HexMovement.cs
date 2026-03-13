@@ -282,7 +282,8 @@ public class HexMovement : MonoBehaviour
             if (groundMap.HasTile(neighbor))
             {
                 bool isHazard = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(neighbor);
-                if (!isHazard && TurnManager.instance != null && !TurnManager.instance.IsEnemyAtCell(neighbor)) validCells.Add(neighbor);
+                bool isCollapsing = ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(neighbor);
+                if (!isHazard && !isCollapsing && TurnManager.instance != null && !TurnManager.instance.IsEnemyAtCell(neighbor)) validCells.Add(neighbor);
             }
         }
 
@@ -302,6 +303,8 @@ public class HexMovement : MonoBehaviour
                     if (!groundMap.HasTile(far)) continue;
                     bool isHazard = LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(far);
                     if (isHazard) continue;
+                    bool isCollapsing = ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(far);
+                    if (isCollapsing) continue;
                     if (TurnManager.instance != null && TurnManager.instance.IsEnemyAtCell(far)) continue;
 
                     range2Cells.Add(far);

@@ -581,7 +581,9 @@ public class EnemyAI : MonoBehaviour
                 !TurnManager.instance.IsEnemyAtCell(lockedTargetCell) &&
                 TurnManager.instance.player.GetCurrentCellPosition() != lockedTargetCell &&
                 groundMap.HasTile(lockedTargetCell) &&
-                (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)))
+                (LevelGenerator.instance == null || !LevelGenerator.instance.hazardCells.Contains(lockedTargetCell)) &&
+                (LevelGenerator.instance == null || !LevelGenerator.instance.scaffoldCells.Contains(lockedTargetCell)) &&
+                (ScaffoldManager.instance == null || !ScaffoldManager.instance.IsCollapsing(lockedTargetCell)))
             {
                 Vector3Int oldCell = cell;
                 cell = lockedTargetCell;
@@ -906,6 +908,8 @@ public class EnemyAI : MonoBehaviour
                 {
                     if (!groundMap.HasTile(next)) continue;
                     if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells != null && LevelGenerator.instance.hazardCells.Contains(next)) continue;
+                    if (LevelGenerator.instance != null && LevelGenerator.instance.scaffoldCells != null && LevelGenerator.instance.scaffoldCells.Contains(next)) continue;
+                    if (ScaffoldManager.instance != null && ScaffoldManager.instance.IsCollapsing(next)) continue;
                     if (TurnManager.instance.IsEnemyAtCell(next) && next != cell) continue;
 
                     cameFrom[next] = current; queue.Enqueue(next);

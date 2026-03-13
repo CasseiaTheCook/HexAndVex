@@ -190,6 +190,20 @@ public class LevelGenerator : MonoBehaviour
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
 
+        // Fallback: hazard/scaffold hariç hücre yoksa, sadece hazard hariç dene, sonra herhangi bir hücre
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = new List<Vector3Int>(validCells);
+        if (safePlayerSpawns.Count == 0)
+        {
+            // Hiç hücre kalmadıysa merkeze zorla bir zemin koy
+            Vector3Int center = Vector3Int.zero;
+            groundMap.SetTile(center, groundTile);
+            validCells.Add(center);
+            safePlayerSpawns.Add(center);
+        }
+
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
         TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
@@ -388,6 +402,19 @@ public class LevelGenerator : MonoBehaviour
 
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
+
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = new List<Vector3Int>(validCells);
+        if (safePlayerSpawns.Count == 0)
+        {
+            Vector3Int center = Vector3Int.zero;
+            groundMap.SetTile(center, groundTile);
+            validCells.Add(center);
+            safePlayerSpawns.Add(center);
+        }
+
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
         TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
