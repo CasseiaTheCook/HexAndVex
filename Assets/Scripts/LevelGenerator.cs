@@ -26,7 +26,8 @@ public class LevelGenerator : MonoBehaviour
     public TileBase hazardTile;
 
     [Header("Scaffold (Çöken Platform)")]
-    public TileBase scaffoldTile;
+    public TileBase scaffoldTile; // Üst kısım (tileMap_303)
+    public TileBase lowerScaffoldTile; // Alt kısım (tileMap_101)
     [Range(0f, 1f)] public float scaffoldSpawnChance = 0.08f;
 
     [Header("Tiles (Arka Plan Sütun)")]
@@ -157,24 +158,31 @@ public class LevelGenerator : MonoBehaviour
 
                     if (Random.value > 0.15f)
                     {
-                        // Her halükarda normal bir zemin döşe
-                        groundMap.SetTile(cell, groundTile);
+                        float roll = Random.value;
 
-                        if (Random.value < 0.10f)
+                        if (roll < scaffoldSpawnChance)
                         {
-                            // ==========================================
-                            // YENİ: Eğer burası dikenliyse, dikeni hazardMap'e çiz
-                            // ==========================================
-                            if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
-                            hazardCells.Add(cell);
-                        }
-                        else if (Random.value < scaffoldSpawnChance)
-                        {
-                            // ==========================================
-                            // SCAFFOLD: Çöken platform
-                            // ==========================================
+                            // SCAFFOLD OLUŞTUR
                             if (scaffoldMap != null && scaffoldTile != null) scaffoldMap.SetTile(cell, scaffoldTile);
+
+                            // groundMap'i zorla güncelle: önce sil, sonra yenisini koy ve rengi sıfırla
+                            groundMap.SetTile(cell, null); 
+                            if (lowerScaffoldTile != null) groundMap.SetTile(cell, lowerScaffoldTile);
+                            groundMap.SetColor(cell, Color.white);
+                            
                             scaffoldCells.Add(cell);
+                        }
+                        else 
+                        {
+                            // DİKENLİ VEYA DÜZ ZEMİN OLUŞTUR
+                            groundMap.SetTile(cell, groundTile);
+                            groundMap.SetColor(cell, Color.white); // Her ihtimale karşı rengi sıfırla
+
+                            if (roll < scaffoldSpawnChance + 0.10f)
+                            {
+                                if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
+                                hazardCells.Add(cell);
+                            }
                         }
 
                         validCells.Add(cell);
@@ -189,6 +197,20 @@ public class LevelGenerator : MonoBehaviour
 
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
+
+        // Fallback: hazard/scaffold hariç hücre yoksa, sadece hazard hariç dene, sonra herhangi bir hücre
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = new List<Vector3Int>(validCells);
+        if (safePlayerSpawns.Count == 0)
+        {
+            // Hiç hücre kalmadıysa merkeze zorla bir zemin koy
+            Vector3Int center = Vector3Int.zero;
+            groundMap.SetTile(center, groundTile);
+            validCells.Add(center);
+            safePlayerSpawns.Add(center);
+        }
 
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
@@ -362,18 +384,32 @@ public class LevelGenerator : MonoBehaviour
 
                     if (Random.value > 0.05f)
                     {
-                        groundMap.SetTile(cell, groundTile);
+                        float roll = Random.value;
+                        float effectiveScaffoldChance = scaffoldSpawnChance * 0.5f;
 
-                        if (Random.value < 0.05f && Vector3Int.zero != cell)
+                        if (roll < effectiveScaffoldChance && Vector3Int.zero != cell)
                         {
-                            if (hazardMap != null) hazardMap.SetTile(cell, hazardTile); // YENİ
-                            hazardCells.Add(cell);
-                        }
-                        else if (Random.value < scaffoldSpawnChance * 0.5f && Vector3Int.zero != cell)
-                        {
-                            // SCAFFOLD: Boss arenasında daha az scaffold
+                            // SCAFFOLD OLUŞTUR
                             if (scaffoldMap != null && scaffoldTile != null) scaffoldMap.SetTile(cell, scaffoldTile);
+
+                            // groundMap'i zorla güncelle: önce sil, sonra yenisini koy ve rengi sıfırla
+                            groundMap.SetTile(cell, null);
+                            if (lowerScaffoldTile != null) groundMap.SetTile(cell, lowerScaffoldTile);
+                            groundMap.SetColor(cell, Color.white);
+                            
                             scaffoldCells.Add(cell);
+                        }
+                        else
+                        {
+                            // DİKENLİ veya DÜZ ZEMİN OLUŞTUR
+                            groundMap.SetTile(cell, groundTile);
+                            groundMap.SetColor(cell, Color.white);
+
+                            if (roll < effectiveScaffoldChance + 0.05f && Vector3Int.zero != cell)
+                            {
+                                if (hazardMap != null) hazardMap.SetTile(cell, hazardTile);
+                                hazardCells.Add(cell);
+                            }
                         }
 
                         validCells.Add(cell);
@@ -388,6 +424,19 @@ public class LevelGenerator : MonoBehaviour
 
         Vector3 worldCenter = groundMap.GetCellCenterWorld(Vector3Int.zero);
         List<Vector3Int> safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c) && !scaffoldCells.Contains(c)).ToList();
+
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = validCells.Where(c => !hazardCells.Contains(c)).ToList();
+        if (safePlayerSpawns.Count == 0)
+            safePlayerSpawns = new List<Vector3Int>(validCells);
+        if (safePlayerSpawns.Count == 0)
+        {
+            Vector3Int center = Vector3Int.zero;
+            groundMap.SetTile(center, groundTile);
+            validCells.Add(center);
+            safePlayerSpawns.Add(center);
+        }
+
         Vector3Int playerStartCell = safePlayerSpawns.OrderBy(c => Vector3.Distance(groundMap.GetCellCenterWorld(c), worldCenter)).First();
 
         TurnManager.instance.player.transform.position = groundMap.GetCellCenterWorld(playerStartCell);
@@ -476,6 +525,11 @@ public class LevelGenerator : MonoBehaviour
 
         foreach (var cell in validCells)
         {
+            // SCAFFOLD olan hücrelere sütun çizmeyi atla
+            if (scaffoldCells.Contains(cell))
+            {
+                continue;
+            }
             backgroundMap.SetTile(cell, columnTile);
         }
     }

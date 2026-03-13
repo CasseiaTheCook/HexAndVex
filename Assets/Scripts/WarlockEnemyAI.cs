@@ -127,6 +127,7 @@ public class WarlockEnemyAI : MonoBehaviour
             if (TurnManager.instance.IsEnemyAtCell(neighbor)) continue;
             if (TurnManager.instance.player.GetCurrentCellPosition() == neighbor) continue;
             if (LevelGenerator.instance != null && LevelGenerator.instance.hazardCells.Contains(neighbor)) continue;
+            // if (LevelGenerator.instance != null && LevelGenerator.instance.scaffoldCells.Contains(neighbor)) continue;
 
             float dist = myEnemyAI.Distance(neighbor, playerCell);
             if (dist > bestDist)

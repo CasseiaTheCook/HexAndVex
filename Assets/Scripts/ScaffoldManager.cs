@@ -7,9 +7,14 @@ public class ScaffoldManager : MonoBehaviour
 {
     public static ScaffoldManager instance;
 
-    // Üstüne basılmış (titremeye başlamış) scaffold hücreleri
-    private HashSet<Vector3Int> activatedScaffolds = new HashSet<Vector3Int>();
+    [Header("Scaffold Ayarları")]
+    [Tooltip("Çökme animasyonu süresi (saniye).")]
+    public float collapseDuration = 0.35f;
+
+    // Aktif scaffold'lar: hücre -> titreşim coroutine
     private Dictionary<Vector3Int, Coroutine> shakeCoroutines = new Dictionary<Vector3Int, Coroutine>();
+    // Şu anda çökmekte olan scaffold'lar (tekrar tetikleme önleme)
+    private HashSet<Vector3Int> collapsingScaffolds = new HashSet<Vector3Int>();
 
     void Awake()
     {
@@ -23,81 +28,104 @@ public class ScaffoldManager : MonoBehaviour
             && LevelGenerator.instance.scaffoldCells.Contains(cell);
     }
 
+    public bool IsCollapsing(Vector3Int cell)
+    {
+        return collapsingScaffolds.Contains(cell);
+    }
+
     /// <summary>
-    /// Bir varlık (oyuncu veya düşman) bir hücreye bastığında çağrılır.
-    /// Scaffold hücresiyse titremeye başlar.
+    /// Oyuncu scaffold'a bastığında çağrılır. Titreşim başlar.
     /// </summary>
     public void OnEntityEnter(Vector3Int cell)
     {
         if (!IsScaffoldCell(cell)) return;
-        if (activatedScaffolds.Contains(cell)) return;
+        if (shakeCoroutines.ContainsKey(cell)) return;
+        if (collapsingScaffolds.Contains(cell)) return;
 
-        activatedScaffolds.Add(cell);
         Coroutine shake = StartCoroutine(ShakeCoroutine(cell));
         shakeCoroutines[cell] = shake;
     }
 
     /// <summary>
-    /// Bir varlık scaffold hücresinden ayrıldığında çağrılır.
-    /// Aktif scaffold ise çöker ve o hexagon boş kalır.
+    /// Oyuncu scaffold'dan ayrıldığında çağrılır. Titreşim durur, scaffold düşer.
     /// </summary>
     public void OnEntityLeave(Vector3Int cell)
     {
-        if (!activatedScaffolds.Contains(cell)) return;
+        if (!shakeCoroutines.ContainsKey(cell)) return;
+        if (collapsingScaffolds.Contains(cell)) return;
 
-        activatedScaffolds.Remove(cell);
+        StopShakeCoroutine(cell);
+        ResetTileTransform(cell);
 
-        if (shakeCoroutines.ContainsKey(cell))
+        HexMovement playerMovement = TurnManager.instance?.player;
+
+        // Çöküşü sadece oyuncunun hareketi bir "knockback" DEĞİLSE tetikle.
+        // Bu, hem oyuncunun kendi gönüllü hareketini hem de düşmanların hareketini kapsar,
+        // ama oyuncunun itilmesini hariç tutar.
+        if (playerMovement != null && !playerMovement.isKnockbackMove)
         {
-            StopCoroutine(shakeCoroutines[cell]);
-            shakeCoroutines.Remove(cell);
+            StartCoroutine(CollapseCoroutine(cell));
         }
-
-        // Titreşim matrisini sıfırla
-        Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
-        if (scaffoldMap != null && scaffoldMap.HasTile(cell))
-            scaffoldMap.SetTransformMatrix(cell, Matrix4x4.identity);
-
-        StartCoroutine(CollapseCoroutine(cell));
     }
 
+    /// <summary>
+    /// Süresiz titreşim. Oyuncu üstünde durduğu sürece devam eder.
+    /// </summary>
     private IEnumerator ShakeCoroutine(Vector3Int cell)
     {
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
+        Tilemap groundMap = LevelGenerator.instance.groundMap; // Titreşim için groundMap'i de al
         if (scaffoldMap == null) yield break;
 
-        float intensity = 0.03f;
-        float speed = 30f;
         float elapsed = 0f;
+        float intensity = 0.02f;
+        float speed = 15f;
 
         while (true)
         {
             elapsed += Time.deltaTime;
+
             float ox = Mathf.Sin(elapsed * speed) * intensity;
             float oy = Mathf.Cos(elapsed * speed * 1.3f) * intensity * 0.5f;
 
-            scaffoldMap.SetTransformMatrix(cell, Matrix4x4.TRS(
-                new Vector3(ox, oy, 0f), Quaternion.identity, Vector3.one));
+            Matrix4x4 shakeMatrix = Matrix4x4.TRS(
+                new Vector3(ox, oy, 0f), Quaternion.identity, Vector3.one);
+
+            // Üst katmanı titret
+            if (scaffoldMap.HasTile(cell))
+            {
+                scaffoldMap.SetTransformMatrix(cell, shakeMatrix);
+            }
+
+            // Alt katmanı da aynı şekilde titret
+            if (groundMap != null && groundMap.HasTile(cell))
+            {
+                groundMap.SetTransformMatrix(cell, shakeMatrix);
+            }
 
             yield return null;
         }
     }
 
+    /// <summary>
+    /// Scaffold çökme animasyonu. Tile'ları kaldırır.
+    /// </summary>
     private IEnumerator CollapseCoroutine(Vector3Int cell)
     {
+        if (collapsingScaffolds.Contains(cell)) yield break;
+        collapsingScaffolds.Add(cell);
+
         Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
         Tilemap groundMap = LevelGenerator.instance.groundMap;
         Tilemap backgroundMap = LevelGenerator.instance.backgroundMap;
 
         if (AudioManager.instance != null) AudioManager.instance.PlayWall();
 
-        float duration = 0.35f;
         float elapsed = 0f;
-
-        while (elapsed < duration)
+        while (elapsed < collapseDuration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / duration;
+            float t = elapsed / collapseDuration;
             float scale = Mathf.Lerp(1f, 0f, t);
             float yOff = Mathf.Lerp(0f, -0.5f, t * t);
             Color fadeColor = new Color(1f, 1f, 1f, 1f - t);
@@ -110,13 +138,11 @@ public class ScaffoldManager : MonoBehaviour
                 scaffoldMap.SetTransformMatrix(cell, matrix);
                 scaffoldMap.SetColor(cell, fadeColor);
             }
-
             if (groundMap != null && groundMap.HasTile(cell))
             {
                 groundMap.SetTransformMatrix(cell, matrix);
                 groundMap.SetColor(cell, fadeColor);
             }
-
             if (backgroundMap != null && backgroundMap.HasTile(cell))
             {
                 backgroundMap.SetTransformMatrix(cell, matrix);
@@ -126,36 +152,54 @@ public class ScaffoldManager : MonoBehaviour
             yield return null;
         }
 
-        // Tile'ları tamamen kaldır
-        if (scaffoldMap != null)
-        {
-            scaffoldMap.SetTransformMatrix(cell, Matrix4x4.identity);
-            scaffoldMap.SetTile(cell, null);
-        }
-        if (groundMap != null)
-        {
-            groundMap.SetTransformMatrix(cell, Matrix4x4.identity);
-            groundMap.SetTile(cell, null);
-        }
-        if (backgroundMap != null)
-        {
-            backgroundMap.SetTransformMatrix(cell, Matrix4x4.identity);
-            backgroundMap.SetTile(cell, null);
-        }
+        RemoveTile(scaffoldMap, cell);
+        RemoveTile(groundMap, cell);
+        RemoveTile(backgroundMap, cell);
 
-        // Takip listesinden çıkar
         if (LevelGenerator.instance != null)
             LevelGenerator.instance.scaffoldCells.Remove(cell);
+
+        collapsingScaffolds.Remove(cell);
     }
 
-    /// <summary>
-    /// Level geçişlerinde tüm scaffold durumunu sıfırla.
-    /// </summary>
+    private void StopShakeCoroutine(Vector3Int cell)
+    {
+        if (shakeCoroutines.ContainsKey(cell))
+        {
+            if (shakeCoroutines[cell] != null)
+                StopCoroutine(shakeCoroutines[cell]);
+            shakeCoroutines.Remove(cell);
+        }
+    }
+
+    private void ResetTileTransform(Vector3Int cell)
+    {
+        Tilemap scaffoldMap = LevelGenerator.instance.scaffoldMap;
+        if (scaffoldMap != null && scaffoldMap.HasTile(cell))
+            scaffoldMap.SetTransformMatrix(cell, Matrix4x4.identity);
+
+        // Alt katmanın da pozisyonunu sıfırla
+        Tilemap groundMap = LevelGenerator.instance.groundMap;
+        if (groundMap != null && groundMap.HasTile(cell))
+            groundMap.SetTransformMatrix(cell, Matrix4x4.identity);
+    }
+
+    private void RemoveTile(Tilemap map, Vector3Int cell)
+    {
+        if (map != null && map.HasTile(cell))
+        {
+            map.SetTransformMatrix(cell, Matrix4x4.identity);
+            map.SetColor(cell, Color.white);
+            map.SetTile(cell, null);
+        }
+    }
+
     public void ClearAll()
     {
         foreach (var coroutine in shakeCoroutines.Values)
             if (coroutine != null) StopCoroutine(coroutine);
         shakeCoroutines.Clear();
-        activatedScaffolds.Clear();
+        collapsingScaffolds.Clear();
+        StopAllCoroutines();
     }
 }
