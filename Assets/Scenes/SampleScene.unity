@@ -8076,7 +8076,7 @@ MonoBehaviour:
   skipButton: {fileID: 0}
   skipButtonImage: {fileID: 1267672139}
   levelUpCanvasGroup: {fileID: 1574552225}
-  forcedPerk: {fileID: 7357606744854520209, guid: c5e39148a8e7b5d47928c80d55b4ff3c, type: 3}
+  forcedPerk: {fileID: 0}
   forcedPerk2: {fileID: 0}
 --- !u!4 &937609419
 Transform:
@@ -15060,8 +15060,6 @@ MonoBehaviour:
   dicePanelBackground: {fileID: 0}
   coinText: {fileID: 0}
   coinSprite: {fileID: -3424034131817855405, guid: 496580030e4fa8a41ba454a468500dfc, type: 3}
-  skipDiceAnim: 0
-  skipDiceVisuals: 0
   enemies: []
   isLevelClearTriggered: 0
   isPlayerTurn: 1
