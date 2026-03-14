@@ -469,13 +469,10 @@ public class SpawnerBossAI : MonoBehaviour
             minionAI.groundMap = this.groundMap;
 
             float randomMultiplier = Random.Range(0.8f, 1.25f);
-            if (Random.value < 0.10f)  
-            {
-                randomMultiplier *= 2.0f;
-                minionObj.name = "ELITE " + minionObj.name;
-            }
 
-            int minionHP = Mathf.RoundToInt(myEnemyAI.health.maxHP * 0.7f * randomMultiplier);
+            // LevelGenerator'daki düşman HP hesaplaması ile aynı logic
+            float minionBaseHealth = LevelGenerator.instance.CurrentEnemyHealth;
+            int minionHP = Mathf.RoundToInt(minionBaseHealth * randomMultiplier);
             minionAI.health.maxHP = Mathf.Max(1, minionHP);
             minionAI.health.currentHP = minionAI.health.maxHP;
             minionAI.health.updateHealth();

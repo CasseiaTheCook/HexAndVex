@@ -46,9 +46,14 @@ public class LevelGenerator : MonoBehaviour
     public GameObject warlockEnemyPrefab;
     public int warlockStartLevel = 6; // İlk bosstan sonra (level 6+)
     [Range(0f, 1f)] public float warlockSpawnChance = 0.10f;
+    private static float bossLegendaryMultiplier = 1f;  // Her bosstan sonra 2 ile çarpılır
+
     public float CurrentEnemyHealth
     {
-        get { return 10f * Mathf.Pow(1.15f, RunManager.instance.currentLevel); }
+        get { 
+            float baseHealth = 7f * bossLegendaryMultiplier;
+            return baseHealth * Mathf.Pow(1.2f, RunManager.instance.currentLevel); 
+        }
     }
 
     public int baseMapRadius = 3;
@@ -105,6 +110,19 @@ public class LevelGenerator : MonoBehaviour
 
     public void GenerateNextLevel()
     {
+        // Yeni oyun başlıyorsa (level 0) multiplier'ı reset et
+        if (RunManager.instance.currentLevel == 0)
+        {
+            bossLegendaryMultiplier = 1f;
+        }
+
+        // Boss hezimetini algıla ve legendary multiplier'ı artır
+        if (RunManager.instance.currentLevel > 0 && RunManager.instance.currentLevel % 5 == 1)
+        {
+            bossLegendaryMultiplier *= 2f;
+            Debug.Log($"🏆 Boss yenildi! Legendary multiplier şimdi: {bossLegendaryMultiplier}x");
+        }
+
         if (TurnManager.instance != null) TurnManager.instance.isLevelClearTriggered = false;
 
         foreach (var perk in RunManager.instance.activePerks)
@@ -201,7 +219,7 @@ public class LevelGenerator : MonoBehaviour
         TurnManager.instance.player.StartKnockbackMovement(playerStartCell);
         validCells.Remove(playerStartCell);
 
-        int enemyCountToSpawn = 2 + (RunManager.instance.currentLevel / 3);
+        int enemyCountToSpawn = 3 + (RunManager.instance.currentLevel / 3);
 
         List<Vector3Int> spawnedEnemyCells = new List<Vector3Int>();
         int spawnedWarlockCount = 0;
@@ -309,14 +327,34 @@ public class LevelGenerator : MonoBehaviour
 
             float randomMultiplier = Random.Range(0.8f, 1.25f);
 
-            if (Random.value < 0.10f)
+            // ========================================================
+            // ELITE DÜŞMAN GÖRSELLİĞİ: "Altın Aura" ve Büyüme
+            // ========================================================
+            if (Random.value < 0.10f && RunManager.instance.currentLevel >= 6)
             {
                 randomMultiplier *= 2.0f;
                 newEnemyObj.name = "ELITE " + newEnemyObj.name;
+                
+                SpriteRenderer eliteSpriteRenderer = newEnemyObj.GetComponent<SpriteRenderer>();
+                if (eliteSpriteRenderer == null) eliteSpriteRenderer = newEnemyObj.GetComponentInChildren<SpriteRenderer>();
+
+                if (eliteSpriteRenderer != null)
+                {
+                    // 1. Karakterin kendisini parlat (Sarı/Altın Tonu)
+                    eliteSpriteRenderer.color = new Color(1f, 0.85f, 0.2f, 1f);                 
+                    
+                    // Aurayı biraz daha büyük ve yayvan yap
+                    auraObj.transform.localScale = new Vector3(1.2f, 1.2f, 1f);
+
+                    // Bonus: Aura yavaşça nabız gibi atsın (Pulse) diye küçük bir script ekleyelim
+                    StartCoroutine(PulseAura(auraObj.transform));
+                }
             }
+            // ========================================================
 
             float postBossMultiplier = isPostBossLevel ? 2f : 1f;
-            int finalHP = Mathf.RoundToInt(CurrentEnemyHealth * randomMultiplier * postBossMultiplier);
+            // Dikkat: bossLegendaryMultiplier zaten CurrentEnemyHealth'te uygulandığı için postBossMultiplier KULLANMA!
+            int finalHP = Mathf.RoundToInt(CurrentEnemyHealth * randomMultiplier);
             enemyAI.health.maxHP = Mathf.Max(1, finalHP);
             enemyAI.health.currentHP = enemyAI.health.maxHP;
 
@@ -333,6 +371,23 @@ public class LevelGenerator : MonoBehaviour
 
         Debug.Log($"🗺️ Level {RunManager.instance.currentLevel} oluşturuldu!");
     }
+
+    // ========================================================
+    // YENİ: ELİTE DÜŞMAN AURASI İÇİN NABIZ EFEKTİ (PULSE)
+    // ========================================================
+    private IEnumerator PulseAura(Transform auraTransform)
+    {
+        if (auraTransform == null) yield break;
+        Vector3 baseScale = auraTransform.localScale;
+        
+        while (auraTransform != null)
+        {
+            float pulse = Mathf.PingPong(Time.time * 2f, 0.2f); // 0 ile 0.2 arası gidip gelir
+            auraTransform.localScale = baseScale + new Vector3(pulse, pulse, 0f);
+            yield return null;
+        }
+    }
+    // ========================================================
 
     public void GenerateBossArena()
     {
@@ -440,7 +495,9 @@ public class LevelGenerator : MonoBehaviour
             GameObject bossObj = Instantiate(bossPrefab, bossPos, Quaternion.identity);
             EnemyAI bossAI = bossObj.GetComponent<EnemyAI>();
 
-            bossAI.health.maxHP = Mathf.RoundToInt(CurrentEnemyHealth * 3f);
+            // Boss sahnesinde legendary multiplier'ı uyguLAMA, ama normal düşmanın 3 katı HP'ye sahip
+            float bossHealth = LevelGenerator.instance.CurrentEnemyHealth * 2f;
+            bossAI.health.maxHP = Mathf.RoundToInt(bossHealth);
             bossAI.health.currentHP = bossAI.health.maxHP;
             bossAI.health.updateHealth();
 

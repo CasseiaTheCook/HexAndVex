@@ -10397,7 +10397,7 @@ MonoBehaviour:
   warlockEnemyPrefab: {fileID: 506802351436183914, guid: 216abee7f8db59f4181fc42e10839b5d, type: 3}
   warlockStartLevel: 6
   warlockSpawnChance: 0.2
-  baseMapRadius: 2
+  baseMapRadius: 3
   aoeStartLevel: 3
 --- !u!4 &1114187817
 Transform:
