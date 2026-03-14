@@ -16,11 +16,15 @@ public class HitstopManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    private float savedTimeScale = 1f;
+
     public void TriggerHitstop(float duration = 1f / 15f)
     {
-        // Aktif hitstop varsa iptal et
+        // Aktif hitstop varsa iptal et ama orijinal timeScale'i koru
         if (activeHitstop != null)
             StopCoroutine(activeHitstop);
+        else
+            savedTimeScale = Time.timeScale; // Sadece ilk hitstop'ta kaydet
 
         // Yeni hitstop başlat
         activeHitstop = StartCoroutine(ApplyHitstop(duration));
@@ -28,9 +32,9 @@ public class HitstopManager : MonoBehaviour
 
     private IEnumerator ApplyHitstop(float duration)
     {
-        float originalTimeScale = Time.timeScale;
         Time.timeScale = 0f;
         yield return new WaitForSecondsRealtime(duration);
-        Time.timeScale = originalTimeScale;
+        Time.timeScale = savedTimeScale;
+        activeHitstop = null;
     }
 }

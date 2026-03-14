@@ -31,21 +31,23 @@ public class DamageNumber : MonoBehaviour
 
     private void Update()
     {
+        float dt = Time.unscaledDeltaTime;
+
         // 1. Sayıyı fırlat ve zamanla yavaşlat
-        transform.position += moveVector * Time.deltaTime;
-        moveVector -= moveVector * 8f * Time.deltaTime; 
+        transform.position += moveVector * dt;
+        moveVector -= moveVector * 8f * dt;
 
         // 2. Boyutu yavaşça normale döndür
         if (transform.localScale.x > 1f)
         {
-            transform.localScale -= Vector3.one * 2f * Time.deltaTime;
+            transform.localScale -= Vector3.one * 2f * dt;
         }
 
         // 3. Kaybolma ve şeffaflaşma
-        disappearTimer -= Time.deltaTime;
+        disappearTimer -= dt;
         if (disappearTimer < 0)
         {
-            textColor.a -= 4f * Time.deltaTime;
+            textColor.a -= 4f * dt;
             textMesh.color = textColor;
             if (textColor.a <= 0) Destroy(gameObject);
         }
